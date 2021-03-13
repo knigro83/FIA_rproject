@@ -3,22 +3,28 @@ title: "FIA Range Shift Analysis"
 author: "Katie Nigro"
 date: "March 9, 2021"
 output: html_document
+editor_options: 
+  chunk_output_type: inline
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
+#Set-up
+
 These are the packages I need:
-```{r}
+```{r,message=FALSE,warning=FALSE}
 library(readr)
 library(tidyr)
 library(dplyr)
+library(purrr)
 library(DT)
 library(ggplot2)
+library(ggfortify)
 ```
 Let's first read in the data. 
-```{r,warning=FALSE}
+```{r,warning=FALSE,message=FALSE}
 ##read in FIA tree & regen data 
 tree<- read_csv("TREE.csv")
 seedling<- read_csv("SEEDLING.csv")
@@ -29,7 +35,7 @@ env_vars <- read_csv("env_vars_FIA.csv")
 ```
 Now I will summarise the number of adults and seedlings of each species in each plot. 
 
-```{r}
+```{r,warning=FALSE,message=FALSE}
 adults <- tree %>% 
   group_by(SPCD,PLT_CN) %>% 
   summarise(n = n())
@@ -42,9 +48,8 @@ seeds <- seedling %>%
 
 head(seeds)
 ```
-Read in disturbance data
 
-```{r,warning=FALSE}
+```{r,warning=FALSE, echo=FALSE}
 ##read in plots by disturbance type
 fire<- read_csv("fire.plots2020.csv")
 ID<- read_csv("insect.disease.plots2020.csv")
@@ -53,21 +58,21 @@ other<- read_csv("other.plots2020.csv")
 undis<- read_csv("undisturbed.plots2020.csv")
 
 dist <- bind_rows(fire,ID,harvest,other,undis)
-head(dist)
 ```
 
-Join disturbance data with adult and seedling dataframes
-```{r}
+Join disturbance data with adult and seedling dataframes. There are NA's in the data because the adults and seeds dataframes have all plots, where as the disturbance dataframe only has plots that met my criteria. So this is ok. 
+```{r,echo=FALSE}
 dist_adults_joined <- left_join(adults, dist, by="PLT_CN")
-summary(is.na(dist_adults_joined)) #there are NAs for the plots that are not in my analysis, this is ok 
 head(dist_adults_joined)
+summary(is.na(dist_adults_joined)) #there are NAs for the plots that are not in my analysis, this is ok 
 
 dist_seeds_joined <- left_join(seeds, dist, by="PLT_CN")
-summary(is.na(dist_seeds_joined)) #there are NAs for the plots that are not in my analysis, this is ok 
 head(dist_seeds_joined)
+summary(is.na(dist_seeds_joined)) #there are NAs for the plots that are not in my analysis, this is ok 
+
 ```
 Here are tables of sample sizes for each species and disturbance type. The first shows adult sample sizes and the second shows seedling sample sizes. 
-```{r}
+```{r, echo=FALSE,warning=FALSE}
 sample_adults <- dist_adults_joined %>% 
   filter(!is.na(Agent)) %>% 
   group_by(SPCD, Agent) %>% 
@@ -80,40 +85,45 @@ sample_seeds <- dist_seeds_joined %>%
   summarise(n_plots = n_distinct(PLT_CN))
 datatable(sample_seeds)
 ```
-Let's set the minimum number of plots at 50. The table below shows that there are 16 species in the FIA database that have 50 or more plots in each disturbance type with adults present, but only 9 species with seedlings present in 50+ plots per disturbance type. The species codes are as follows:
-- 17 = grand fir
-- 19 = subalpine fir
-- 93 = Engelmann spruce
-- 106 = two needle pinyon 
-- 108 = lodgepole pine
-- 122 = ponderosa pine
-- 202 = Douglas-fir
-- 746 = trembling aspen
-- 814 = gambel oak
+Let's set the minimum number of plots at 30. The table below shows that there are 20 species in the FIA database that have 30 or more plots in each disturbance type with adults present, but only 12 species with seedlings present in 30+ plots per disturbance type. 
+The species codes are as follows:
 
-```{r, echo=FALSE}
-sample_adults_over50 <- sample_adults %>% 
-  filter(n_plots >= 50) %>% 
+* 15  white fir
+* 17  grand fir
+* 19  subalpine fir
+* 63  alligator juniper
+* 93  Engelmann spruce
+* 106  two needle pinyon 
+* 108  lodgepole pine
+* 122  ponderosa pine
+* 202  Douglas-fir
+* 242  western redcedar
+* 746  trembling aspen
+* 814  gambel oak
+
+```{r, echo=FALSE,warning=FALSE}
+sample_adults_over30 <- sample_adults %>% 
+  filter(n_plots >= 30) %>% 
   filter(!Agent == "other") %>% 
   group_by(SPCD) %>% 
   summarise(dist_over50 = n_distinct(Agent)) %>% 
   filter(dist_over50 == 4) 
 
-datatable(sample_adults_over50)
+datatable(sample_adults_over30)
 ```
-```{r}
+```{r, echo=FALSE}
 #do the same for seedlings
-sample_seeds_over50 <- sample_seeds %>% 
-  filter(n_plots >= 50) %>% 
+sample_seeds_over30 <- sample_seeds %>% 
+  filter(n_plots >= 30) %>% 
   filter(!Agent == "other") %>% 
   group_by(SPCD) %>% 
   summarise(dist_over50 = n_distinct(Agent)) %>% 
   filter(dist_over50 == 4)
   
-datatable(sample_seeds_over50)
+datatable(sample_seeds_over30)
 ```
 
-```{r}
+```{r, echo=FALSE}
 ##create function that appends climate data to each species/lifestage/disturbance
 
 #' merge_sp_dist_env
@@ -137,7 +147,7 @@ merge_sp_dist_env <- function(joined_df, sp_code, agent_name, env_vars) {  sp_di
 }
 
 #FIA codes for all desired species (n=9) and disturbances (n=4)
-sp_codes <- as.character(unique(sample_seeds_over50$SPCD))
+sp_codes <- as.character(unique(sample_seeds_over30$SPCD))
 dist_names <- c("fire","harvest","insect.disease","none")
 
 #put environmental data for each species/disturbance combination in a dataframe within a list for adults
@@ -158,8 +168,10 @@ for(i in 1:length(sp_codes)){
 }
 ```
 
+#Univariate Analysis
+
 This table shows the p-value for a t-test to compare mean climatic moisture deficit between seedlings and adults of different species under different disturbance histories.  
-```{r}
+```{r,echo=FALSE}
 p.table=data.frame()
 for(i in 1:length(names(adult_data))){
   p_cmd <- t.test(adult_data[[names(adult_data)[i]]]$CMD,seedling_data[[names(adult_data)[i]]]$CMD)$p.value
@@ -174,34 +186,176 @@ datatable(p.table.sep, filter="top")
 ```
 
 This is a table of the difference between the 95th percentile CMD in plots occupied by adults vs. seedlings of the same species in each disturbance type. I then perform an ANOVA to evaluate disturbance effects on shifts in the upper envelope boundary of CMD between adults and seedlings. Difference was calculated as (adult_95 - seedling_95)/(adult_95 - adult_05), or the difference in 95th percentile divided by the adult "tolerance" (as in Dobrowski et al. 2015)
-```{r}
-q95.table=data.frame()
+```{r,echo=FALSE}
+
+get_diff <- function(adult_data, seedling_data, var,quant){
+q.table = data.frame()
 for(i in 1:length(names(adult_data))){
-  q95_diff <- (quantile(adult_data[[names(adult_data)[i]]]$CMD,0.95) -
-  quantile(seedling_data[[names(adult_data)[i]]]$CMD,0.95))/
-    (quantile(adult_data[[names(adult_data)[i]]]$CMD,0.95) -
-       quantile(adult_data[[names(adult_data)[i]]]$CMD,0.05))
-  q95.table <- bind_rows(q95.table, data.frame(names(adult_data)[i],q95_diff) )
+  adult.q<- adult_data %>% 
+    pluck(names(adult_data)[i]) %>% 
+    ungroup() %>% 
+    select(!!var) %>% 
+    summarise(quant = quantile(!!var,probs = quant))
+  seed.q<- seedling_data %>% 
+    pluck(names(adult_data)[i]) %>% 
+    ungroup() %>% 
+    select(!!var) %>% 
+    summarise(quant = quantile(!!var,probs = quant))
+  adult.95<- adult_data %>% 
+    pluck(names(adult_data)[i]) %>% 
+    ungroup() %>% 
+    select(!!var) %>% 
+    summarise(quant = quantile(!!var,probs = 0.95))
+  adult.05 <- adult_data %>% 
+    pluck(names(adult_data)[i]) %>% 
+    ungroup() %>% 
+    select(!!var) %>% 
+    summarise(quant = quantile(!!var,probs = 0.05))
+  adult.tolerance <- adult.95 - adult.05
+  q_diff = (adult.q - seed.q)/adult.tolerance
+  q.table <- bind_rows(q.table, data.frame(names(adult_data)[i],q_diff) )
+}
+return(q.table)
 }
 
-q95.table.sep <- q95.table %>% 
+cmd.q95.table <- get_diff(adult_data, seedling_data, quo(CMD),0.95)
+
+cmd.q95.table.sep <- cmd.q95.table %>% 
   rename(species_dist = names.adult_data..i.) %>% 
+  rename(cmd_q95_diff = quant) %>% 
   mutate(species_dist = as.character(species_dist)) %>% 
   separate(species_dist, c("species","agent"),sep="_",extra="drop")
-q95.table.sep
+datatable(cmd.q95.table.sep)
 ```
 
 Here I run an ANOVA to test for significantly different magnitudes of 95th percentile shifts in CMD between disturbance types across species. There is not a significant difference between disturbances, although fire seems to be driving the biggest shifts, as seen in the boxplot below. 
 ```{r}
-dist_mod95 <- lm(q95_diff ~ agent, data = q95.table.sep)
+dist_mod95 <- lm(cmd_q95_diff ~ agent, data = cmd.q95.table.sep)
 anova(dist_mod95)
 
-ggplot(q95.table.sep,aes(x=agent, y=q95_diff,fill=agent))+
+ggplot(cmd.q95.table.sep,aes(x=agent, y=cmd_q95_diff,fill=agent))+
   geom_boxplot()
 ```
 
 But if we look at the data by species, we see that the large shift in the 95th percentile CMD for Douglas-fir in burned areas is likely driving the higher magnitude shifts seen for burned plots in the boxplot above. 
-```{r}
-ggplot(q95.table.sep,aes(x=species,y=q95_diff,color=agent))+
+```{r,echo=FALSE}
+ggplot(cmd.q95.table.sep,aes(x=species,y=cmd_q95_diff,color=agent))+
   geom_point()
+```
+
+If we just look at whether the shift in 95th percentile CMD is significantly different from 0, it is. 
+```{r}
+#one sample Wilcoxen signed rank test for shift in 95th percentile CMD. Species are replicates
+wilcox.test(cmd.q95.table.sep$cmd_q95_diff,y=NULL,alternative = "two.sided", mu=0)
+```
+
+#Multivariate Analysis
+
+```{r}
+#first look at correlations in climate variables
+colnames(env_vars)
+
+env_vars %>% 
+  select(-X1,-FIA_slope,-FIA_elev,-foldedaspect,-TD) %>% 
+  filter(! is.na(awc.total)) %>% 
+  cor() %>% 
+  abs()>0.9
+
+env_vars_cut <- env_vars %>% 
+  select(-X1,-FIA_slope,-FIA_elev,-foldedaspect,-TD, -ppt, -tmean, -tmax, - tmin, -vpdmin, -vpdmax, -MWMT, -AHM, -DD5, -bFFP, -eFFP, -EMT, -Eref, -Tave_wt, -Tave_sm, -PPT_sm, -awc.total)
+
+ncol(env_vars_cut)
+pairs(env_vars_cut[1:4], lower.panel = NULL)
+pairs(env_vars_cut[5:8], lower.panel = NULL)
+
+##log-transform precipitation variables to make relationships between climate variables more linear 
+env_vars_cut_trans <- env_vars_cut %>% 
+  mutate(MSP_log = log(MSP),SHM_log = log(SHM), PPT_wt_log = log(PPT_wt), PAS_log = log(PAS+0.999), .keep="unused")
+
+#check linearity of relationships with plots
+#these take a while to produce
+pairs(env_vars_cut_trans[1:4], lower.panel = NULL)
+pairs(env_vars_cut_trans[5:8], lower.panel = NULL)
+```
+
+```{r}
+#run the PCA on transformed climate variables
+clim_pca <- prcomp(env_vars_cut_trans,scale.=T) #proceed from correlation matrix, which scales variables--important because our variables have different units
+summary(clim_pca)
+plot(clim_pca,type="l")
+clim_pca$rotation[,1:3]
+
+#plot pca and climate variable loadings
+autoplot(clim_pca,x=1,y=2,colour="grey",loadings.colour="black", loadings=T, loadings.label=T, loadings.label.colour="black", scale=0, loadings.label.vjust=-1.5, loadings.label.size=3, alpha=0.5)+
+  theme_bw()+
+  theme(axis.text = element_text(color="black",size=11),text = element_text(size=11),legend.text = element_text(size=11))
+```
+
+```{r}
+#make dataframe with PCA coordinates of all plots 
+clim_pca_points <- as.data.frame(clim_pca$x)
+clim_pca_points <- clim_pca_points %>% 
+  bind_cols(plot = env_vars$X1)
+
+#left join the positions on the PCA for adults and seedlings in all disturbance types by their plot ID #s
+adult_data_pcapts <-
+  map2( .x = seq_along( along.with = adult_data )
+        , .y = adult_data
+        , .f = function( i, j )
+          {
+          left_join( x = j, 
+                     y = clim_pca_points, 
+                     by=c("PLT_CN" = "plot") )
+          })
+names(adult_data_pcapts)<- names(adult_data)
+
+seedling_data_pcapts <-
+  map2( .x = seq_along( along.with = seedling_data )
+        , .y = seedling_data
+        , .f = function( i, j )
+          {
+          left_join( x = j, 
+                     y = clim_pca_points, 
+                     by=c("PLT_CN" = "plot") )
+          })
+names(seedling_data_pcapts) <- names(seedling_data)
+
+```
+
+```{r}
+#calculate centroid in PCA space for adults in each disturbance type
+adult_centroids <- data.frame()
+for(i in 1:length(adult_data_pcapts)){
+m <- adult_data_pcapts %>% 
+  pluck(i) %>% 
+  summarise(SPCD = unique(SPCD), Agent = unique(Agent), mean.pc1 = mean(PC1), mean.pc2 = mean(PC2)) 
+
+adult_centroids <- bind_rows(adult_centroids, m) %>% 
+    unite(uid, c(SPCD,Agent), sep="_", remove=FALSE )
+}
+adult_centroids
+
+#do the same for seedlings
+seedling_centroids <- data.frame()
+for(i in 1:length(seedling_data_pcapts)){
+m <- seedling_data_pcapts %>% 
+  pluck(i) %>% 
+  summarise(SPCD = unique(SPCD), Agent = unique(Agent), mean.pc1 = mean(PC1), mean.pc2 = mean(PC2)) 
+
+seedling_centroids <- bind_rows(seedling_centroids, m) %>% 
+    unite(uid, c(SPCD,Agent), sep="_", remove=FALSE )
+}
+seedling_centroids
+
+pc1.diffs.table <- data.frame(names())
+for(i in c(0.05, 0.5, 0.95)){
+diffs <- get_diff(adult_data_pcapts, seedling_data_pcapts, quo(PC1), i)
+  pc1.diff.table <- pc1.diff.table %>% 
+    left_join(diffs, by = c("uid" = "names.adult_data...i."))
+}
+
+
+pc1.95.table <- get_diff(adult_data_pcapts, seedling_data_pcapts, quo(PC1), 0.95)
+
+
 ```
