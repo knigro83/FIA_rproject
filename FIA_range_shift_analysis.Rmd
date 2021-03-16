@@ -22,6 +22,7 @@ library(purrr)
 library(DT)
 library(ggplot2)
 library(ggfortify)
+library(ggpubr)
 ```
 Let's first read in the data. 
 ```{r,warning=FALSE,message=FALSE}
@@ -73,6 +74,7 @@ summary(is.na(dist_seeds_joined)) #there are NAs for the plots that are not in m
 ```
 Here are tables of sample sizes for each species and disturbance type. The first shows adult sample sizes and the second shows seedling sample sizes. 
 ```{r, echo=FALSE,warning=FALSE}
+#calculate sample size for adults and seedlings
 sample_adults <- dist_adults_joined %>% 
   filter(!is.na(Agent)) %>% 
   group_by(SPCD, Agent) %>% 
@@ -102,12 +104,17 @@ The species codes are as follows:
 * 814  gambel oak
 
 ```{r, echo=FALSE,warning=FALSE}
+#first make a dataframe to translate species codes to names
+species.names <- data.frame(species.code = c(15,17,19,63,93,106,108,122,202,242,746,814), species.name = c("white fir","grand fir","subalpine fir","alligator juniper","Engelmann spruce","two needle pinyon","lodgepole pine","ponderosa pine","Douglas-fir","western redcedar","trembling aspen","Gambel oak"))
+
+#filter sample size table to species with adults in at least 30 plots 
 sample_adults_over30 <- sample_adults %>% 
   filter(n_plots >= 30) %>% 
   filter(!Agent == "other") %>% 
   group_by(SPCD) %>% 
   summarise(dist_over50 = n_distinct(Agent)) %>% 
-  filter(dist_over50 == 4) 
+  filter(dist_over50 == 4) %>% 
+  left_join(species.names, by=c("SPCD" = "species.code"))
 
 datatable(sample_adults_over30)
 ```
@@ -118,7 +125,9 @@ sample_seeds_over30 <- sample_seeds %>%
   filter(!Agent == "other") %>% 
   group_by(SPCD) %>% 
   summarise(dist_over50 = n_distinct(Agent)) %>% 
-  filter(dist_over50 == 4)
+  filter(dist_over50 == 4) %>% 
+  left_join(species.names, by=c("SPCD" = "species.code"))
+
   
 datatable(sample_seeds_over30)
 ```
@@ -181,13 +190,26 @@ for(i in 1:length(names(adult_data))){
 p.table.sep <- p.table %>% 
   rename(species_dist = names.adult_data..i.) %>% 
   mutate(species_dist = as.character(species_dist)) %>% 
-  separate(species_dist, c("species","agent"),sep="_",extra="drop")
+  separate(species_dist, c("species","agent"),sep="_",extra="drop") %>% 
+  mutate(species = as.numeric(species)) %>% 
+  left_join(species.names, by=c("species" = "species.code"))
+
 datatable(p.table.sep, filter="top")
 ```
 
 This is a table of the difference between the 95th percentile CMD in plots occupied by adults vs. seedlings of the same species in each disturbance type. I then perform an ANOVA to evaluate disturbance effects on shifts in the upper envelope boundary of CMD between adults and seedlings. Difference was calculated as (adult_95 - seedling_95)/(adult_95 - adult_05), or the difference in 95th percentile divided by the adult "tolerance" (as in Dobrowski et al. 2015)
 ```{r,echo=FALSE}
-
+#' get_diff
+#'
+#' @param adult_data list of dataframes that are separated by species and agent. Dataframes contain info on climate variables of plots with adults of each species/agent.  
+#' @param seedling_data list of dataframes that are separated by species and agent. Dataframes contain info on climate variables of plots with seedlings of each species/agent. 
+#' @param var name of the desired climate variable for which the difference should be calculated. This can also be a principal component, or any column that exists in every dataframe in the list.  
+#' @param quant The quantile for which you want to calculate the difference between adults and seedlings.
+#'
+#' @return a dataframe with the difference in chosen quantile between adults and seedlings, for the chosen climate variable, under each disturbance agent.  
+#' @export
+#'
+#' @examples
 get_diff <- function(adult_data, seedling_data, var,quant){
 q.table = data.frame()
 for(i in 1:length(names(adult_data))){
@@ -195,63 +217,68 @@ for(i in 1:length(names(adult_data))){
     pluck(names(adult_data)[i]) %>% 
     ungroup() %>% 
     select(!!var) %>% 
-    summarise(quant = quantile(!!var,probs = quant))
+    summarise(quantile = quantile(!!var,probs = quant))
   seed.q<- seedling_data %>% 
     pluck(names(adult_data)[i]) %>% 
     ungroup() %>% 
     select(!!var) %>% 
-    summarise(quant = quantile(!!var,probs = quant))
+    summarise(quantile = quantile(!!var,probs = quant))
   adult.95<- adult_data %>% 
     pluck(names(adult_data)[i]) %>% 
     ungroup() %>% 
     select(!!var) %>% 
-    summarise(quant = quantile(!!var,probs = 0.95))
+    summarise(quantile = quantile(!!var,probs = 0.95))
   adult.05 <- adult_data %>% 
     pluck(names(adult_data)[i]) %>% 
     ungroup() %>% 
     select(!!var) %>% 
-    summarise(quant = quantile(!!var,probs = 0.05))
+    summarise(quantile = quantile(!!var,probs = 0.05))
   adult.tolerance <- adult.95 - adult.05
-  q_diff = (adult.q - seed.q)/adult.tolerance
+  q_diff = (seed.q - adult.q)/adult.tolerance
   q.table <- bind_rows(q.table, data.frame(names(adult_data)[i],q_diff) )
 }
-return(q.table)
+q.table <- q.table %>% 
+  rename(!!paste("quant",quant*100,sep="_") := quantile,
+         uid = names.adult_data..i.)
+return(q.table) 
 }
 
 cmd.q95.table <- get_diff(adult_data, seedling_data, quo(CMD),0.95)
 
 cmd.q95.table.sep <- cmd.q95.table %>% 
-  rename(species_dist = names.adult_data..i.) %>% 
-  rename(cmd_q95_diff = quant) %>% 
-  mutate(species_dist = as.character(species_dist)) %>% 
-  separate(species_dist, c("species","agent"),sep="_",extra="drop")
+  mutate(uid = as.character(uid)) %>% 
+  separate(uid, c("species","agent"),sep="_",extra="drop") %>% 
+  mutate(species = as.numeric(species)) %>% 
+  left_join(species.names, by=c("species" = "species.code"))
+
 datatable(cmd.q95.table.sep)
 ```
 
 Here I run an ANOVA to test for significantly different magnitudes of 95th percentile shifts in CMD between disturbance types across species. There is not a significant difference between disturbances, although fire seems to be driving the biggest shifts, as seen in the boxplot below. 
 ```{r}
-dist_mod95 <- lm(cmd_q95_diff ~ agent, data = cmd.q95.table.sep)
+dist_mod95 <- lm(quant_95 ~ agent, data = cmd.q95.table.sep)
 anova(dist_mod95)
 
-ggplot(cmd.q95.table.sep,aes(x=agent, y=cmd_q95_diff,fill=agent))+
+ggplot(cmd.q95.table.sep,aes(x=agent, y=quant_95 ,fill=agent))+
   geom_boxplot()
 ```
 
 But if we look at the data by species, we see that the large shift in the 95th percentile CMD for Douglas-fir in burned areas is likely driving the higher magnitude shifts seen for burned plots in the boxplot above. 
 ```{r,echo=FALSE}
-ggplot(cmd.q95.table.sep,aes(x=species,y=cmd_q95_diff,color=agent))+
-  geom_point()
+ggplot(cmd.q95.table.sep,aes(x=species.name,y=quant_95,color=agent))+
+  geom_point()+
+  theme(axis.text.x = element_text(angle=45, hjust=1))
 ```
 
 If we just look at whether the shift in 95th percentile CMD is significantly different from 0, it is. 
 ```{r}
 #one sample Wilcoxen signed rank test for shift in 95th percentile CMD. Species are replicates
-wilcox.test(cmd.q95.table.sep$cmd_q95_diff,y=NULL,alternative = "two.sided", mu=0)
+wilcox.test(cmd.q95.table.sep$quant_95,y=NULL,alternative = "two.sided", mu=0)
 ```
 
 #Multivariate Analysis
 
-```{r}
+```{r, echo = FALSE}
 #first look at correlations in climate variables
 colnames(env_vars)
 
@@ -278,7 +305,7 @@ pairs(env_vars_cut_trans[1:4], lower.panel = NULL)
 pairs(env_vars_cut_trans[5:8], lower.panel = NULL)
 ```
 
-```{r}
+```{r, echo = FALSE}
 #run the PCA on transformed climate variables
 clim_pca <- prcomp(env_vars_cut_trans,scale.=T) #proceed from correlation matrix, which scales variables--important because our variables have different units
 summary(clim_pca)
@@ -291,7 +318,7 @@ autoplot(clim_pca,x=1,y=2,colour="grey",loadings.colour="black", loadings=T, loa
   theme(axis.text = element_text(color="black",size=11),text = element_text(size=11),legend.text = element_text(size=11))
 ```
 
-```{r}
+```{r, echo = FALSE}
 #make dataframe with PCA coordinates of all plots 
 clim_pca_points <- as.data.frame(clim_pca$x)
 clim_pca_points <- clim_pca_points %>% 
@@ -322,6 +349,263 @@ names(seedling_data_pcapts) <- names(seedling_data)
 
 ```
 
+First I am going to look at whether changes in 5th, 50th and 95th percentiles of positions on both PC1 and PC2 were significantly different from zero across all species, for each disturbance type.
+
+Let's look at changes in PC1, which corresponds most strongly with climatic moisture deficit (CMD) and temperature variables. Shifts in the negative direction on PC1 indicate shifts in the seedling climatic niche to hotter climates, whereas positive shifts would represent shifts in seedling niche to cooler climates. 
+```{r, warning = FALSE, echo = FALSE}
+#calculate difference in 5th, 50th and 95th percentiles in PC1 position between adults and seedlings of each species and disturbance type 
+pc1.diffs.table <- data.frame(uid = names(adult_data_pcapts))
+for(i in c(0.05, 0.5, 0.95)){
+diffs <- get_diff(adult_data_pcapts, seedling_data_pcapts, quo(PC1), i) 
+  pc1.diffs.table <- pc1.diffs.table %>% 
+    left_join(diffs, by = "uid")
+}
+pc1.diffs.table
+
+#get dataframe in order for analysis and plotting
+pc1.diffs.sep <- pc1.diffs.table %>% 
+  separate(uid, c("species","agent"),sep="_",remove=FALSE, extra="drop") %>% 
+  mutate(species = as.numeric(species)) %>% 
+  left_join(species.names,by=c("species" = "species.code"))
+
+#test for significant shifts from zero
+
+#' get_pvalues
+#'
+#' @param pc1.diffs.sep dataframe containing the calculated differences in 5th, 50th and 95th quantiles of one climate variable or principal component for each species/agent 
+#'
+#' @return a dataframe with the results of a Wilcoxen Signed Rank test, testing if the difference in quantile is significantly different from 0.   
+#' @export
+#'
+#' @examples
+get_pvalues <- function(pc1.diffs.sep){
+agent.list = unique(pc1.diffs.sep$agent)
+quant.list = c(5, 50, 95)
+pc1.p.table = data.frame()
+for(i in 1:length(agent.list)){
+  cat(i, "\n")
+  for(j in 1:length(quant.list)){
+    cat(j, "\n")
+test.temp <- pc1.diffs.sep %>% 
+  filter(agent == agent.list[i]) %>% 
+  pull(!!paste("quant",quant.list[j],sep="_")) %>% 
+  wilcox.test(y = NULL, alternative = "two.sided", mu = 0, exact = FALSE, conf.int = TRUE, conf.level = 0.95)
+    
+p.temp <- test.temp$p.value
+est.temp <- test.temp$estimate
+lower.temp <- test.temp$conf.int[1]
+upper.temp <- test.temp$conf.int[2]
+p.df <- data.frame(agent = paste(agent.list[i]), quant = paste("quant",quant.list[j],sep="_"), p.value = p.temp, estimate = est.temp, lowerci = lower.temp, upperci = upper.temp)
+pc1.p.table <- bind_rows(pc1.p.table, p.df)
+  }
+}
+  return(pc1.p.table)
+}
+
+#this call to options will tell me where the warnings occurr. In this case, for the comparison of medians in the fire plots and harvest plots, the exact p-value cannot be calculated because there are values that are exactly equal to 0 in the data. I think this is ok.  
+options(warn = 2)
+pvalues.pc1 <- get_pvalues(pc1.diffs.sep)
+pvalues.pc1
+
+#make data long for plotting
+pc1.diffs.long <- pc1.diffs.sep %>% 
+  pivot_longer(cols = c(quant_5, quant_50, quant_95), names_to = "quant", values_to = "diff")
+
+ggplot(pc1.diffs.long, aes(x=agent, y=diff, fill = quant))+
+  geom_boxplot()
+
+##dataframe for stars
+pvalues.pc1<- pvalues.pc1 %>% 
+  mutate(sym.pos = ifelse(p.value<0.05,0.15,NA))
+
+ggplot(pvalues.pc1, aes(x=agent, y=estimate, color = quant, fill=quant))+
+  geom_point(shape = 23, size = 3)+
+  geom_errorbar(aes(ymin=lowerci, ymax=upperci),width=0.3)+
+  scale_color_manual(values = c("#d7191c", "#fdae61","#2b83ba"))+
+  scale_fill_manual(values = c("#d7191c", "#fdae61","#2b83ba"))+
+  geom_text(data = subset(pvalues.pc1, !is.na(sym.pos)), aes(x=agent, y=sym.pos), label="*", color="black")+
+facet_wrap(~ quant)+
+  ggtitle("Shifts on PC1")+
+  theme_bw()+
+  theme(axis.text.x = element_text(angle=45, hjust = 1), legend.position = "none")
+```
+
+Here I test for significant differences among disturbance agents in adult vs. seedling differences in the three percentiles of PC1.
+```{r, echo=FALSE}
+#check for significant differences in 5th percentile by disturbance type
+pc1.mod5 <- lm(quant_5 ~ agent, data=pc1.diffs.sep)
+anova(pc1.mod5)
+#check for significant differences in 50th percentile by disturbance type
+pc1.mod50 <- lm(quant_50 ~ agent, data=pc1.diffs.sep)
+anova(pc1.mod50)
+#check for significant differences in 95th percentile by disturbance type
+pc1.mod95 <- lm(quant_95 ~ agent, data=pc1.diffs.sep)
+anova(pc1.mod95)
+
+ggplot(pc1.diffs.long, aes(x=agent, y=diff))+
+  geom_boxplot(fill="lightgrey")+
+  geom_jitter(height=0,width=0.2, aes(color=species.name))+
+  facet_wrap(~quant)+
+  theme_bw()+
+  theme(axis.text.x = element_text(angle=45, hjust=1))
+
+```
+
+And now for PC2, which corresponds most strongly to precipitation variables, with negative shifts representing seedling shifts to wetter climates and positive shifts representing seedling shifts to drier climates. 
+```{r, echo=FALSE}
+#calculate difference in 5th, 50th and 95th percentiles in pc2 position between adults and seedlings of each species and disturbance type 
+pc2.diffs.table <- data.frame(uid = names(adult_data_pcapts))
+for(i in c(0.05, 0.5, 0.95)){
+diffs <- get_diff(adult_data_pcapts, seedling_data_pcapts, quo(PC2), i) 
+  pc2.diffs.table <- pc2.diffs.table %>% 
+    left_join(diffs, by = "uid")
+}
+pc2.diffs.table
+
+#get dataframe in order for analysis and plotting
+pc2.diffs.sep <- pc2.diffs.table %>% 
+  separate(uid, c("species","agent"),sep="_",remove=FALSE, extra="drop") %>% 
+  mutate(species = as.numeric(species)) %>% 
+  left_join(species.names,by=c("species" = "species.code"))
+
+#perform Wilcoxon tests
+pvalues.pc2 <- get_pvalues(pc2.diffs.sep)
+pvalues.pc2
+
+#make data long for plotting
+pc2.diffs.long <- pc2.diffs.sep %>% 
+  pivot_longer(cols = c(quant_5, quant_50, quant_95), names_to = "quant", values_to = "diff")
+
+ggplot(pc2.diffs.long, aes(x=agent, y=diff, fill = quant))+
+  geom_boxplot()
+
+##dataframe for stars
+pvalues.pc2<- pvalues.pc2 %>% 
+  mutate(sym.pos = ifelse(p.value<0.05,0.15,NA))
+
+ggplot(pvalues.pc2, aes(x=agent, y=estimate, color = quant, fill=quant))+
+  geom_point(shape = 23, size = 3)+
+  geom_errorbar(aes(ymin=lowerci, ymax=upperci),width=0.3)+
+  scale_color_manual(values = c("#d7191c", "#fdae61","#2b83ba"))+
+  scale_fill_manual(values = c("#d7191c", "#fdae61","#2b83ba"))+
+  geom_text(data = subset(pvalues.pc2, !is.na(sym.pos)), aes(x=agent, y=sym.pos), label="*", color="black")+
+facet_wrap(~ quant)+
+  ggtitle("Shifts on PC2")+
+  theme_bw()+
+  theme(axis.text.x = element_text(angle=45, hjust = 1), legend.position = "none")
+```
+
+```{r, echo=FALSE}
+#calculate difference in 5th, 50th and 95th percentiles in pc2 position between adults and seedlings of each species and disturbance type 
+pc2.diffs.table <- data.frame(uid = names(adult_data_pcapts))
+for(i in c(0.05, 0.5, 0.95)){
+diffs <- get_diff(adult_data_pcapts, seedling_data_pcapts, quo(PC2), i) 
+  pc2.diffs.table <- pc2.diffs.table %>% 
+    left_join(diffs, by = "uid")
+}
+pc2.diffs.table
+
+#test for significant differences in the quantiles
+pc2.diffs.sep <- pc2.diffs.table %>% 
+  separate(uid, c("species","agent"),sep="_",remove=FALSE, extra="drop") %>% 
+  mutate(species = as.numeric(species)) %>% 
+  left_join(species.names,by=c("species" = "species.code"))
+
+#check for significant differences in 5th percentile by disturbance type
+pc2.mod5 <- lm(quant_5 ~ agent, data=pc2.diffs.sep)
+anova(pc2.mod5)
+ggplot(pc2.diffs.sep, aes(x=agent, y=quant_5))+
+  geom_boxplot(fill="lightgrey")+
+  geom_jitter(height=0,width=0.2, aes(color=species.name))+
+  theme_bw()
+#check for significant differences in 50th percentile by disturbance type
+pc2.mod50 <- lm(quant_50 ~ agent, data=pc2.diffs.sep)
+anova(pc2.mod50)
+ggplot(pc2.diffs.sep, aes(x=agent, y=quant_50))+
+  geom_boxplot(fill="lightgrey")+
+  geom_jitter(height=0,width=0.2, aes(color=species.name))+
+  theme_bw()
+#check for significant differences in 95th percentile by disturbance type
+pc2.mod95 <- lm(quant_95 ~ agent, data=pc2.diffs.sep)
+anova(pc2.mod95)
+ggplot(pc2.diffs.sep, aes(x=agent, y=quant_95))+
+  geom_boxplot(fill="lightgrey")+
+  geom_jitter(height=0,width=0.2, aes(color=species.name))+
+  theme_bw()
+
+```
+
+The one species-specific test we can do, is a t-test comparing the mean positions on PC1 and PC2 of seedlings vs. adults in different disturbance types.  
+
+First, PC1:
+```{r, echo=FALSE}
+pc1.ttest.pvalues <- data.frame()
+for(i in 1:length(adult_data_pcapts)){
+temp.adult <- adult_data_pcapts %>% 
+  pluck(i) %>% 
+  ungroup() %>% 
+  select(PC1)
+
+temp.seed <- seedling_data_pcapts %>% 
+  pluck(i) %>% 
+  ungroup() %>% 
+  select(PC1)
+
+temp.test<- t.test(temp.adult, temp.seed)
+pc1.ttest.pvalues <- bind_rows(pc1.ttest.pvalues, data.frame(uid = names(adult_data_pcapts)[i], diff.means = temp.test$estimate[2] - temp.test$estimate[1],p.value = temp.test$p.value))
+
+}
+
+pc1.ttest.pvalues
+pc1.ttest.pvalues.sep <- pc1.ttest.pvalues %>% 
+  separate(uid, c("species","agent"),sep="_",extra="drop",remove = FALSE) %>% 
+  mutate(species = as.numeric(species)) %>% 
+  left_join(species.names, by = c("species" = "species.code")) %>%   mutate(sym.pos = ifelse(p.value<0.05, 0.5, NA))
+
+ggplot(pc1.ttest.pvalues.sep, aes(x = agent, y = diff.means, fill = agent))+
+  geom_col()+
+  geom_text(data = subset(pc1.ttest.pvalues.sep, !is.na(sym.pos)), aes(x=agent, y=sym.pos), label="*", color="black")+
+  facet_wrap(~species.name)+
+  ggtitle("Shifts on PC1")+
+  theme_bw()+
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+Now PC2:
+```{r, echo=FALSE}
+pc2.ttest.pvalues <- data.frame()
+for(i in 1:length(adult_data_pcapts)){
+temp.adult <- adult_data_pcapts %>% 
+  pluck(i) %>% 
+  ungroup() %>% 
+  select(PC2)
+
+temp.seed <- seedling_data_pcapts %>% 
+  pluck(i) %>% 
+  ungroup() %>% 
+  select(PC2)
+
+temp.test<- t.test(temp.adult, temp.seed)
+pc2.ttest.pvalues <- bind_rows(pc2.ttest.pvalues, data.frame(uid = names(adult_data_pcapts)[i], diff.means = temp.test$estimate[2] - temp.test$estimate[1],p.value = temp.test$p.value))
+
+}
+
+pc2.ttest.pvalues
+pc2.ttest.pvalues.sep <- pc2.ttest.pvalues %>% 
+  separate(uid, c("species","agent"),sep="_",extra="drop",remove = FALSE) %>% 
+  mutate(species = as.numeric(species)) %>% 
+  left_join(species.names, by = c("species" = "species.code")) %>%   mutate(sym.pos = ifelse(p.value<0.05, 0.5, NA))
+
+ggplot(pc2.ttest.pvalues.sep, aes(x = agent, y = diff.means, fill = agent))+
+  geom_col()+
+  geom_text(data = subset(pc1.ttest.pvalues.sep, !is.na(sym.pos)), aes(x=agent, y=sym.pos), label="*", color="black")+
+  facet_wrap(~species.name)+
+  ggtitle("Shifts on PC2")+
+  theme_bw()+
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+For one final measurement of shifts, we can compare the centroid in PC space of seedlings vs. adults. The centroid is calculated by taking the mean of PC1 coordinates and PC2 coordinates for each species, age, and disturbance agent.  
 ```{r}
 #calculate centroid in PCA space for adults in each disturbance type
 adult_centroids <- data.frame()
@@ -347,15 +631,6 @@ seedling_centroids <- bind_rows(seedling_centroids, m) %>%
 }
 seedling_centroids
 
-pc1.diffs.table <- data.frame(names())
-for(i in c(0.05, 0.5, 0.95)){
-diffs <- get_diff(adult_data_pcapts, seedling_data_pcapts, quo(PC1), i)
-  pc1.diff.table <- pc1.diff.table %>% 
-    left_join(diffs, by = c("uid" = "names.adult_data...i."))
-}
-
-
-pc1.95.table <- get_diff(adult_data_pcapts, seedling_data_pcapts, quo(PC1), 0.95)
 
 
 ```
