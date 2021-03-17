@@ -630,7 +630,34 @@ seedling_centroids <- bind_rows(seedling_centroids, m) %>%
     unite(uid, c(SPCD,Agent), sep="_", remove=FALSE )
 }
 seedling_centroids
+```
 
+```{r}
+##calculating some numbers for McIntire Stennis report
+adults
+dist
+species.names
 
+options(scipen = 9999)
 
+unique.plots <- adults %>% 
+  filter(SPCD %in% species.names$species.code) %>% 
+  bind_rows(seeds %>% 
+              filter(SPCD %in% species.names$species.code)) %>% 
+  ungroup %>% 
+  select(PLT_CN) %>%
+  unique()
+
+dist %>% 
+  semi_join(unique.plots, by="PLT_CN")
+
+dist %>% 
+  semi_join(unique.plots, by="PLT_CN") %>% 
+  group_by(Agent) %>% 
+  summarise(n = n())
+
+dist %>% 
+  semi_join(unique.plots, by="PLT_CN") %>% 
+  group_by(Agent) %>% 
+  summarise(n = n(), max = max(DSTRBYR), min = min(DSTRBYR))
 ```
