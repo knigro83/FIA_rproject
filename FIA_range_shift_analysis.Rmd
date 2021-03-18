@@ -4,7 +4,7 @@ author: "Katie Nigro"
 date: "March 9, 2021"
 output: html_document
 editor_options: 
-  chunk_output_type: inline
+  chunk_output_type: console
 ---
 
 ```{r setup, include=FALSE}
@@ -426,11 +426,13 @@ ggplot(pvalues.pc1, aes(x=agent, y=estimate, color = quant, fill=quant))+
   geom_text(data = subset(pvalues.pc1, !is.na(sym.pos)), aes(x=agent, y=sym.pos), label="*", color="black")+
 facet_wrap(~ quant)+
   ggtitle("Shifts on PC1")+
+  ylab("Difference on PC1")+
+  xlab("Disturbance Agent")+
   theme_bw()+
   theme(axis.text.x = element_text(angle=45, hjust = 1), legend.position = "none")
 ```
 
-Here I test for significant differences among disturbance agents in adult vs. seedling differences in the three percentiles of PC1.
+Here I test for significant differences among disturbance agents in adult vs. seedling differences in the three percentiles of PC1. There are no significant differences between disturbances in shifts on PC1. 
 ```{r, echo=FALSE}
 #check for significant differences in 5th percentile by disturbance type
 pc1.mod5 <- lm(quant_5 ~ agent, data=pc1.diffs.sep)
@@ -491,10 +493,12 @@ ggplot(pvalues.pc2, aes(x=agent, y=estimate, color = quant, fill=quant))+
   geom_text(data = subset(pvalues.pc2, !is.na(sym.pos)), aes(x=agent, y=sym.pos), label="*", color="black")+
 facet_wrap(~ quant)+
   ggtitle("Shifts on PC2")+
+  xlab("Disturbance Agent")+
+  ylab("Difference on PC2")+
   theme_bw()+
   theme(axis.text.x = element_text(angle=45, hjust = 1), legend.position = "none")
 ```
-
+There are also no significant differences between disturbance types in shifts on any of the percentiles of PC2. Though, the shift in the 5th percentile of PC2 was marginally significant with a p-value of 0.06. Looking at the boxplot, we see that this marginal significance is likely due to insect disease causing greater positive shifts in the 5th percentile of PC2 than the other disturbances.  
 ```{r, echo=FALSE}
 #calculate difference in 5th, 50th and 95th percentiles in pc2 position between adults and seedlings of each species and disturbance type 
 pc2.diffs.table <- data.frame(uid = names(adult_data_pcapts))
@@ -514,6 +518,7 @@ pc2.diffs.sep <- pc2.diffs.table %>%
 #check for significant differences in 5th percentile by disturbance type
 pc2.mod5 <- lm(quant_5 ~ agent, data=pc2.diffs.sep)
 anova(pc2.mod5)
+summary(pc2.mod5)
 ggplot(pc2.diffs.sep, aes(x=agent, y=quant_5))+
   geom_boxplot(fill="lightgrey")+
   geom_jitter(height=0,width=0.2, aes(color=species.name))+
@@ -560,13 +565,17 @@ pc1.ttest.pvalues
 pc1.ttest.pvalues.sep <- pc1.ttest.pvalues %>% 
   separate(uid, c("species","agent"),sep="_",extra="drop",remove = FALSE) %>% 
   mutate(species = as.numeric(species)) %>% 
-  left_join(species.names, by = c("species" = "species.code")) %>%   mutate(sym.pos = ifelse(p.value<0.05, 0.5, NA))
+  left_join(species.names, by = c("species" = "species.code")) %>%   mutate(sym.pos = ifelse(p.value<0.05, 0.3, NA))
 
 ggplot(pc1.ttest.pvalues.sep, aes(x = agent, y = diff.means, fill = agent))+
   geom_col()+
   geom_text(data = subset(pc1.ttest.pvalues.sep, !is.na(sym.pos)), aes(x=agent, y=sym.pos), label="*", color="black")+
   facet_wrap(~species.name)+
+  ylim(c(-0.2,0.4))+
   ggtitle("Shifts on PC1")+
+  xlab("Disturbance Agent")+
+  ylab("Difference in Mean")+
+  labs(fill = "Disturbance Agent")+
   theme_bw()+
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
 ```
@@ -600,7 +609,11 @@ ggplot(pc2.ttest.pvalues.sep, aes(x = agent, y = diff.means, fill = agent))+
   geom_col()+
   geom_text(data = subset(pc1.ttest.pvalues.sep, !is.na(sym.pos)), aes(x=agent, y=sym.pos), label="*", color="black")+
   facet_wrap(~species.name)+
+  ylim(c(-0.2,0.4))+
   ggtitle("Shifts on PC2")+
+  xlab("Disturbance Agent")+
+  ylab("Difference in Mean")+
+  labs(fill = "Disturbance Agent")+
   theme_bw()+
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
 ```
