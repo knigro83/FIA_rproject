@@ -36,7 +36,7 @@ env_vars <- read_csv("env_vars_FIA.csv")
 ```
 Now I will summarise the number of adults and seedlings of each species in each plot. 
 
-```{r,warning=FALSE,message=FALSE}
+```{r,echo=FALSE,warning=FALSE,message=FALSE, results='hide'}
 adults <- tree %>% 
   group_by(SPCD,PLT_CN) %>% 
   summarise(n = n())
@@ -255,7 +255,7 @@ datatable(cmd.q95.table.sep)
 ```
 
 Here I run an ANOVA to test for significantly different magnitudes of 95th percentile shifts in CMD between disturbance types across species. There is not a significant difference between disturbances, although fire seems to be driving the biggest shifts, as seen in the boxplot below. 
-```{r}
+```{r, echo=FALSE}
 dist_mod95 <- lm(quant_95 ~ agent, data = cmd.q95.table.sep)
 anova(dist_mod95)
 
@@ -290,28 +290,53 @@ env_vars %>%
 
 env_vars_cut <- env_vars %>% 
   select(-X1,-FIA_slope,-FIA_elev,-foldedaspect,-TD, -ppt, -tmean, -tmax, - tmin, -vpdmin, -vpdmax, -MWMT, -AHM, -DD5, -bFFP, -eFFP, -EMT, -Eref, -Tave_wt, -Tave_sm, -PPT_sm, -awc.total)
+```
 
+```{r,eval=FALSE}
+#look at linearity of relationships
 ncol(env_vars_cut)
 pairs(env_vars_cut[1:4], lower.panel = NULL)
 pairs(env_vars_cut[5:8], lower.panel = NULL)
+```
 
+```{r, echo=FALSE}
 ##log-transform precipitation variables to make relationships between climate variables more linear 
 env_vars_cut_trans <- env_vars_cut %>% 
   mutate(MSP_log = log(MSP),SHM_log = log(SHM), PPT_wt_log = log(PPT_wt), PAS_log = log(PAS+0.999), .keep="unused")
+```
 
+```{r,eval=FALSE}
 #check linearity of relationships with plots
 #these take a while to produce
 pairs(env_vars_cut_trans[1:4], lower.panel = NULL)
 pairs(env_vars_cut_trans[5:8], lower.panel = NULL)
 ```
 
+I will first run a principal components analysis (PCA) on a suite of climate variables for all plots included in the analysis (n = 59,456). A larger list of climate variables was narrowed down to remove highly correlated variables (>0.9). Some of the precipitation variables were log-transformed to make relationships linear, which is an assumption of PCA. The climate variable codes and their definitions are as follows:
+
+* CMD: climate moisture deficit
+* DD_0: degree days below 0 degrees Celsius 
+* MCMT: mean temperature of the coldest month (Celsius)
+* MSP_log: log-transformed mean summer (May - Sept) precipitation (mm)
+* NFFD: number of frost-free degree days
+* PAS_log: log-transformed precipitation as snow (mm)
+* PPT_wt_log: log-transformed winter (Dec - Feb) precipitation (mm)
+* SHM_log: log-transformed summer heat moisture index (mean temperature of the warmest month/ (mean summer precipitation/1000))
+
+Here we see that the first two components capture 88% of the variability in climate variables. 
 ```{r, echo = FALSE}
 #run the PCA on transformed climate variables
 clim_pca <- prcomp(env_vars_cut_trans,scale.=T) #proceed from correlation matrix, which scales variables--important because our variables have different units
 summary(clim_pca)
 plot(clim_pca,type="l")
-clim_pca$rotation[,1:3]
+```
 
+The variables most strongly correlated with PC1 are CMD, PAS, NFFD, DD_0, and MCMT. The variables most strongly correlated with PC2 are MSP and PPT_wt. So, PC1 seems to be a temperature related axis, while PC2 corresponds to precipitation.   
+```{r}
+clim_pca$rotation[,1:2]
+```
+
+```{r, echo=FALSE}
 #plot pca and climate variable loadings
 autoplot(clim_pca,x=1,y=2,colour="grey",loadings.colour="black", loadings=T, loadings.label=T, loadings.label.colour="black", scale=0, loadings.label.vjust=-1.5, loadings.label.size=3, alpha=0.5)+
   theme_bw()+
@@ -352,7 +377,8 @@ names(seedling_data_pcapts) <- names(seedling_data)
 First I am going to look at whether changes in 5th, 50th and 95th percentiles of positions on both PC1 and PC2 were significantly different from zero across all species, for each disturbance type.
 
 Let's look at changes in PC1, which corresponds most strongly with climatic moisture deficit (CMD) and temperature variables. Shifts in the negative direction on PC1 indicate shifts in the seedling climatic niche to hotter climates, whereas positive shifts would represent shifts in seedling niche to cooler climates. 
-```{r, warning = FALSE, echo = FALSE}
+
+```{r, warning = FALSE, echo = FALSE, results='hide'}
 #calculate difference in 5th, 50th and 95th percentiles in PC1 position between adults and seedlings of each species and disturbance type 
 pc1.diffs.table <- data.frame(uid = names(adult_data_pcapts))
 for(i in c(0.05, 0.5, 0.95)){
@@ -403,10 +429,14 @@ pc1.p.table <- bind_rows(pc1.p.table, p.df)
 }
 
 #this call to options will tell me where the warnings occurr. In this case, for the comparison of medians in the fire plots and harvest plots, the exact p-value cannot be calculated because there are values that are exactly equal to 0 in the data. I think this is ok.  
-options(warn = 2)
+options(warn = 1)
 pvalues.pc1 <- get_pvalues(pc1.diffs.sep)
 pvalues.pc1
+```
 
+
+The first plot here shows shifts on the 5th, 50th and 95th percentiles for all species combined. The second plot is the result of a Wilcoxon Signed Rank test (non-parametric t-test), showing the estimate as a diamond and the 95% confidence interval as lines. Asterisks indicate whether the shift was significantly different from zero (p<0.05). 
+```{r, echo=FALSE}
 #make data long for plotting
 pc1.diffs.long <- pc1.diffs.sep %>% 
   pivot_longer(cols = c(quant_5, quant_50, quant_95), names_to = "quant", values_to = "diff")
@@ -454,7 +484,7 @@ ggplot(pc1.diffs.long, aes(x=agent, y=diff))+
 ```
 
 And now for PC2, which corresponds most strongly to precipitation variables, with negative shifts representing seedling shifts to wetter climates and positive shifts representing seedling shifts to drier climates. 
-```{r, echo=FALSE}
+```{r, echo=FALSE, results='hide'}
 #calculate difference in 5th, 50th and 95th percentiles in pc2 position between adults and seedlings of each species and disturbance type 
 pc2.diffs.table <- data.frame(uid = names(adult_data_pcapts))
 for(i in c(0.05, 0.5, 0.95)){
@@ -473,7 +503,9 @@ pc2.diffs.sep <- pc2.diffs.table %>%
 #perform Wilcoxon tests
 pvalues.pc2 <- get_pvalues(pc2.diffs.sep)
 pvalues.pc2
+```
 
+```{r, echo=FALSE}
 #make data long for plotting
 pc2.diffs.long <- pc2.diffs.sep %>% 
   pivot_longer(cols = c(quant_5, quant_50, quant_95), names_to = "quant", values_to = "diff")
@@ -499,7 +531,7 @@ facet_wrap(~ quant)+
   theme(axis.text.x = element_text(angle=45, hjust = 1), legend.position = "none")
 ```
 There are also no significant differences between disturbance types in shifts on any of the percentiles of PC2. Though, the shift in the 5th percentile of PC2 was marginally significant with a p-value of 0.06. Looking at the boxplot, we see that this marginal significance is likely due to insect disease causing greater positive shifts in the 5th percentile of PC2 than the other disturbances.  
-```{r, echo=FALSE}
+```{r, echo=FALSE, results='hide'}
 #calculate difference in 5th, 50th and 95th percentiles in pc2 position between adults and seedlings of each species and disturbance type 
 pc2.diffs.table <- data.frame(uid = names(adult_data_pcapts))
 for(i in c(0.05, 0.5, 0.95)){
@@ -508,7 +540,9 @@ diffs <- get_diff(adult_data_pcapts, seedling_data_pcapts, quo(PC2), i)
     left_join(diffs, by = "uid")
 }
 pc2.diffs.table
+```
 
+```{r, echo=FALSE}
 #test for significant differences in the quantiles
 pc2.diffs.sep <- pc2.diffs.table %>% 
   separate(uid, c("species","agent"),sep="_",remove=FALSE, extra="drop") %>% 
@@ -543,7 +577,7 @@ ggplot(pc2.diffs.sep, aes(x=agent, y=quant_95))+
 The one species-specific test we can do, is a t-test comparing the mean positions on PC1 and PC2 of seedlings vs. adults in different disturbance types.  
 
 First, PC1:
-```{r, echo=FALSE}
+```{r, echo=FALSE, results='hide'}
 pc1.ttest.pvalues <- data.frame()
 for(i in 1:length(adult_data_pcapts)){
 temp.adult <- adult_data_pcapts %>% 
@@ -566,7 +600,10 @@ pc1.ttest.pvalues.sep <- pc1.ttest.pvalues %>%
   separate(uid, c("species","agent"),sep="_",extra="drop",remove = FALSE) %>% 
   mutate(species = as.numeric(species)) %>% 
   left_join(species.names, by = c("species" = "species.code")) %>%   mutate(sym.pos = ifelse(p.value<0.05, 0.3, NA))
+```
 
+This plot shows the difference in seedling vs. adult mean positions on PC1, separated by species and disturbance type. Asterisks indicate that the shift in mean was significantly different from zero (p<0.05) as evaluated with a T-test.  
+```{r}
 ggplot(pc1.ttest.pvalues.sep, aes(x = agent, y = diff.means, fill = agent))+
   geom_col()+
   geom_text(data = subset(pc1.ttest.pvalues.sep, !is.na(sym.pos)), aes(x=agent, y=sym.pos), label="*", color="black")+
@@ -581,7 +618,7 @@ ggplot(pc1.ttest.pvalues.sep, aes(x = agent, y = diff.means, fill = agent))+
 ```
 
 Now PC2:
-```{r, echo=FALSE}
+```{r, echo=FALSE, results='hide'}
 pc2.ttest.pvalues <- data.frame()
 for(i in 1:length(adult_data_pcapts)){
 temp.adult <- adult_data_pcapts %>% 
@@ -604,7 +641,9 @@ pc2.ttest.pvalues.sep <- pc2.ttest.pvalues %>%
   separate(uid, c("species","agent"),sep="_",extra="drop",remove = FALSE) %>% 
   mutate(species = as.numeric(species)) %>% 
   left_join(species.names, by = c("species" = "species.code")) %>%   mutate(sym.pos = ifelse(p.value<0.05, 0.5, NA))
+```
 
+```{r}
 ggplot(pc2.ttest.pvalues.sep, aes(x = agent, y = diff.means, fill = agent))+
   geom_col()+
   geom_text(data = subset(pc1.ttest.pvalues.sep, !is.na(sym.pos)), aes(x=agent, y=sym.pos), label="*", color="black")+
@@ -618,8 +657,20 @@ ggplot(pc2.ttest.pvalues.sep, aes(x = agent, y = diff.means, fill = agent))+
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
 ```
 
-For one final measurement of shifts, we can compare the centroid in PC space of seedlings vs. adults. The centroid is calculated by taking the mean of PC1 coordinates and PC2 coordinates for each species, age, and disturbance agent.  
 ```{r}
+#make shade tolerance dataframe
+pipo = 1.64
+psme = 2.78
+pied = 1.44
+abla = 4.83
+potr = 1.21
+
+
+```
+
+
+For one final measurement of shifts, we can compare the centroid in PC space of seedlings vs. adults. The centroid is calculated by taking the mean of PC1 coordinates and PC2 coordinates for each species, age, and disturbance agent.  
+```{r, eval=FALSE}
 #calculate centroid in PCA space for adults in each disturbance type
 adult_centroids <- data.frame()
 for(i in 1:length(adult_data_pcapts)){
@@ -645,7 +696,7 @@ seedling_centroids <- bind_rows(seedling_centroids, m) %>%
 seedling_centroids
 ```
 
-```{r}
+```{r, eval=FALSE}
 ##calculating some numbers for McIntire Stennis report
 adults
 dist
