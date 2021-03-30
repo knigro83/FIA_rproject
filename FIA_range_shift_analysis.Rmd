@@ -23,6 +23,8 @@ library(DT)
 library(ggplot2)
 library(ggfortify)
 library(ggpubr)
+library(leaflet)
+library(mapdata)
 ```
 Let's first read in the data. 
 ```{r,warning=FALSE,message=FALSE}
@@ -374,6 +376,23 @@ names(seedling_data_pcapts) <- names(seedling_data)
 
 ```
 
+```{r,eval=FALSE}
+#make example plot for presentation highlighting species presence on the PCA
+autoplot(clim_pca,x=1,y=2,colour="grey",loadings.colour="black", loadings=T, loadings.label=T, loadings.label.colour="black", scale=0, loadings.label.vjust=-1.5, loadings.label.size=3, alpha=0.5)+
+  geom_point(data=adult_data_pcapts[[26]],aes(x=PC1,y=PC2),color="red4")+
+  geom_point(data=seedling_data_pcapts[[26]],aes(x=PC1,y=PC2),color="red")+
+  theme_bw()+
+  theme(axis.text = element_text(color="black",size=11),text = element_text(size=11),legend.text = element_text(size=11))
+
+autoplot(clim_pca,x=1,y=2,colour="grey",loadings.colour="black", loadings=T, loadings.label=T, loadings.label.colour="black", scale=0, loadings.label.vjust=-1.5, loadings.label.size=3, alpha=0.5)+
+  geom_point(data=seedling_data_pcapts[[26]],aes(x=PC1,y=PC2),color="pink")+
+  theme_bw()+
+  theme(axis.text = element_text(color="black",size=11),text = element_text(size=11),legend.text = element_text(size=11))
+
+
+
+```
+
 First I am going to look at whether changes in 5th, 50th and 95th percentiles of positions on both PC1 and PC2 were significantly different from zero across all species, for each disturbance type.
 
 Let's look at changes in PC1, which corresponds most strongly with climatic moisture deficit (CMD) and temperature variables. Shifts in the negative direction on PC1 indicate shifts in the seedling climatic niche to hotter climates, whereas positive shifts would represent shifts in seedling niche to cooler climates. 
@@ -712,7 +731,7 @@ unique.plots <- adults %>%
   select(PLT_CN) %>%
   unique()
 
-dist %>% 
+unique.plotsdist <- dist %>% 
   semi_join(unique.plots, by="PLT_CN")
 
 dist %>% 
@@ -724,4 +743,73 @@ dist %>%
   semi_join(unique.plots, by="PLT_CN") %>% 
   group_by(Agent) %>% 
   summarise(n = n(), max = max(DSTRBYR), min = min(DSTRBYR))
+
+###look at condition data
+cond <- read_csv("C:/Users/Katie/Google Drive/FIA project/compiled_data_annual2020/COND.csv")
+
+plot.conds<- cond %>% 
+  filter(PLT_CN %in% dist$PLT_CN)
+
+nrow(plot.conds)
+summary(plot.conds$COND_STATUS_CD)
+plot.conds %>%
+  group_by(COND_STATUS_CD) %>% 
+  summarize(n=n())
+
+unique.plots.cond <- cond %>% 
+  filter(PLT_CN %in% unique.plotsdist$PLT_CN)
+unique.plots.cond %>% 
+  group_by(COND_STATUS_CD) %>% 
+  summarize(n=n())
+
+```
+
+```{r}
+###make maps for ECOL693 presentation
+plot.cut <- plot %>% 
+  right_join(dist,by=c("CN" = "PLT_CN"))
+head(plot.cut)
+nrow(plot.cut)
+
+fire.locations <- plot.cut %>%
+  filter(Agent == "fire") %>% 
+  select(LAT,LON)
+none.locations <- plot.cut %>%
+  filter(Agent == "none") %>% 
+  select(LAT,LON)
+id.locations <- plot.cut %>%
+  filter(Agent == "insect.disease") %>% 
+  select(LAT,LON)
+harvest.locations <- plot.cut %>%
+  filter(Agent == "harvest") %>% 
+  select(LAT,LON)
+
+usa <- map_data("usa")
+
+ggplot()+
+  geom_polygon(data=usa,aes(x=long,y=lat,group=group),fill="white",color="black")+
+  geom_point(data=none.locations,aes(x=LON, y= LAT))+
+  coord_fixed(1.3)
+
+ggplot()+
+  geom_polygon(data=usa,aes(x=long,y=lat,group=group),fill="white",color="black")+
+  geom_point(data=none.locations,aes(x=LON, y= LAT), color="#C77CFF")+
+  geom_point(data=fire.locations,aes(x=LON, y= LAT),color="#F8766D")+
+  geom_point(data=id.locations,aes(x=LON, y= LAT),color="#00BFC4")+
+  geom_point(data=harvest.locations,aes(x=LON, y= LAT),color="#7CAE00")+
+  coord_fixed(1.3)
+
+leaflet(none.locations) %>%
+  addTiles() %>%
+  addCircles(lng = ~LON, lat = ~LAT, color="purple")
+leaflet(fire.locations) %>%
+  addTiles() %>%
+  addCircles(lng = ~LON, lat = ~LAT, color="red")
+leaflet(id.locations) %>%
+  addTiles() %>%
+  addCircles(lng = ~LON, lat = ~LAT, color="blue")
+leaflet(harvest.locations) %>%
+  addTiles() %>%
+  addCircles(lng = ~LON, lat = ~LAT, color="green")
+
 ```
