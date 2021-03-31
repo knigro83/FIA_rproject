@@ -713,8 +713,27 @@ shade.tolerance <- c(4.33, 4.01,4.83, 2, 4.53, 1.44, 1.48,1.64,2.78,4.73, 1.21,2
 #make drought tolerance dataframe
 drought.tolerance <- c(1.91, 2.33,2.02,5,2.58,4.97, 4.21, 4.32, 2.62,2.23, 1.77, 4.97)
 
+#read in seed weight data
+seed.weight <- read_csv("C:/Users/Katie/Google Drive/FIA project/TRY data/TRY_seed_edited.csv")
+
+try.names <- data.frame(scientific.name = unique(seed.weight.filter$AccSpeciesName), species.code = c(15,17,19,63,93,108,106,122,746,202,814,242))
+
+seed.weight.filter <- seed.weight %>%
+  filter(is.na(OrigObsDataID)) %>% 
+  filter(ErrorRisk < 4) %>% 
+  distinct(ObservationID, .keep_all = TRUE) %>% 
+  left_join(try.names, by=c("AccSpeciesName" = "scientific.name"))
+
+nrow(seed.weight.filter)
+length(unique(seed.weight.filter$ObservationID))
+
+seed.weight.summary <- seed.weight.filter %>% 
+  group_by(species.code) %>% 
+  summarise(mean.weight.mg = mean(StdValue))
+
 #combine
-trait.data<- data.frame(species.names,shade.tolerance, drought.tolerance)
+trait.data<- data.frame(species.names,shade.tolerance, drought.tolerance) %>% 
+  left_join(seed.weight.summary, by="species.code")
 
 ##add trait data to diffs dataframe
 pc1.diffs.traits <- pc1.diffs.sep %>% 
@@ -756,9 +775,27 @@ ggplot(pc1.diffs.traits, aes(x=drought.tolerance, y=abs(quant_95),color=species.
   geom_point()+
   stat_smooth(method = "lm", col="red")+
   facet_wrap(~agent)
+
+####seed weight
+##excluded gambel oak and pinyon as they were large outliers
+ggplot(pc1.diffs.traits[!pc1.diffs.traits$species.code %in% c(814,106),], aes(x=mean.weight.mg, y=abs(quant_5),color=species.name))+
+  geom_point()+
+  stat_smooth(method = "lm", col="red")+
+  facet_wrap(~agent)
+
+ggplot(pc1.diffs.traits[!pc1.diffs.traits$species.code %in% c(814,106),], aes(x=mean.weight.mg, y=abs(quant_50),color=species.name))+
+  geom_point()+
+  stat_smooth(method = "lm", col="red")+
+  facet_wrap(~agent)
+
+ggplot(pc1.diffs.traits[!pc1.diffs.traits$species.code %in% c(814,106),], aes(x=mean.weight.mg, y=abs(quant_95),color=species.name))+
+  geom_point()+
+  stat_smooth(method = "lm", col="red")+
+  facet_wrap(~agent)
+
 ```
 
-By running some linear models we see that shade tolerance is a marginally significant predictor of the magnitude of 50th percentile shifts on PC1 and a significant predictor of 95th percentile shifts on PC1, with both being negative relationships (species with higher shade tolerance shifted less). There are no significant relationships between drought tolerance and shifts on PC1.   
+By running some linear models we see that shade tolerance is a marginally significant predictor of the magnitude of 50th percentile shifts on PC1 and a significant predictor of 95th percentile shifts on PC1, with both being negative relationships (species with higher shade tolerance shifted less). There are no significant relationships between drought tolerance or seed weight and shifts on PC1.   
 ```{r}
 ##linear models
 par(mfrow=c(2,2))
@@ -787,6 +824,19 @@ plot(pc1mod50_drought)
 pc1mod95_drought <- lm(abs(quant_95)~drought.tolerance*agent,pc1.diffs.traits)
 summary(pc1mod95_drought)
 plot(pc1mod95_drought)
+
+####seed weight
+pc1mod5_weight <- lm(abs(quant_5)~mean.weight.mg*agent,pc1.diffs.traits[!pc1.diffs.traits$species.code %in% c(814,106),])
+summary(pc1mod5_weight)
+plot(pc1mod5_weight)
+
+pc1mod50_weight <- lm(abs(quant_50)~mean.weight.mg*agent,pc1.diffs.traits[!pc1.diffs.traits$species.code %in% c(814,106),])
+summary(pc1mod50_weight)
+plot(pc1mod50_weight)
+
+pc1mod95_weight <- lm(abs(quant_95)~mean.weight.mg*agent,pc1.diffs.traits[!pc1.diffs.traits$species.code %in% c(814,106),])
+summary(pc1mod95_weight)
+plot(pc1mod95_weight)
 ```
 
 Now we'll do the same for shifts on PC2.
@@ -823,9 +873,26 @@ ggplot(pc2.diffs.traits, aes(x=drought.tolerance, y=abs(quant_95),color=species.
   geom_point()+
   stat_smooth(method = "lm", col="red")+
   facet_wrap(~agent)
+
+####seed weight
+##excluded gambel oak and pinyon as they were large outliers
+ggplot(pc2.diffs.traits[!pc2.diffs.traits$species.code %in% c(814,106),], aes(x=mean.weight.mg, y=abs(quant_5),color=species.name))+
+  geom_point()+
+  stat_smooth(method = "lm", col="red")+
+  facet_wrap(~agent)
+
+ggplot(pc2.diffs.traits[!pc2.diffs.traits$species.code %in% c(814,106),], aes(x=mean.weight.mg, y=abs(quant_50),color=species.name))+
+  geom_point()+
+  stat_smooth(method = "lm", col="red")+
+  facet_wrap(~agent)
+
+ggplot(pc2.diffs.traits[!pc2.diffs.traits$species.code %in% c(814,106),], aes(x=mean.weight.mg, y=abs(quant_95),color=species.name))+
+  geom_point()+
+  stat_smooth(method = "lm", col="red")+
+  facet_wrap(~agent)
 ```
 
-By running some linear models we see that drought and shade tolerance do not seem to predict shifts on PC2 significantly for any of the disturbance categories. 
+By running some linear models we see that seed weight, drought and shade tolerance do not seem to predict shifts on PC2 significantly for any of the disturbance categories. 
 ```{r}
 ##linear models
 par(mfrow=c(2,2))
@@ -854,7 +921,40 @@ plot(pc2mod50_drought)
 pc2mod95_drought <- lm(abs(quant_95)~drought.tolerance*agent,pc2.diffs.traits)
 summary(pc2mod95_drought)
 plot(pc2mod95_drought)
+
+####seed weight
+pc2mod5_weight <- lm(abs(quant_5)~mean.weight.mg*agent,pc2.diffs.traits[!pc2.diffs.traits$species.code %in% c(814,106),])
+summary(pc2mod5_weight)
+plot(pc2mod5_weight)
+
+pc2mod50_weight <- lm(abs(quant_50)~mean.weight.mg*agent,pc2.diffs.traits[!pc2.diffs.traits$species.code %in% c(814,106),])
+summary(pc2mod50_weight)
+plot(pc2mod50_weight)
+
+pc2mod95_weight <- lm(abs(quant_95)~mean.weight.mg*agent,pc2.diffs.traits[!pc2.diffs.traits$species.code %in% c(814,106),])
+summary(pc2mod95_weight)
+plot(pc2mod95_weight)
 ```
+
+Now I will explore how time since disturbance may be influencing shifts. I will narrow the plots in each disturbance category to only those that had a disturbance 5 or more years before monitoring. Since the FIA only measures conifer seedlings greater than 6in tall, we wouldn't expect these to show up in the first few years after a destructive disturbance. It looks like most plots were disturbed relatively recently, so it may not be possible to use this filter due to sample size - but definitely something to note in the discussion. 
+```{r}
+#first explore time since disturbance of plots
+dist %>% 
+  group_by(Agent) %>% 
+  summarise(mean.TSD = mean(MEASYEAR - DSTRBYR),
+            min.TSD = min(MEASYEAR - DSTRBYR),
+            max.TSD = max(MEASYEAR - DSTRBYR))
+
+ggplot(dist, aes(x=MEASYEAR - DSTRBYR))+
+  geom_histogram()+
+  facet_wrap(~Agent)
+
+dist %>% 
+  filter(MEASYEAR - DSTRBYR > 4) %>% 
+  group_by(Agent) %>% 
+  summarise(n=n())
+```
+
 
 For one final measurement of shifts, we can compare the centroid in PC space of seedlings vs. adults. The centroid is calculated by taking the mean of PC1 coordinates and PC2 coordinates for each species, age, and disturbance agent.  
 ```{r, eval=FALSE}
