@@ -263,8 +263,20 @@ return(q.table)
 }
 
 cmd.q95.table <- get_diff(adult_data, seedling_data, quo(CMD),0.95)
+cmd.q50.table <- get_diff(adult_data, seedling_data, quo(CMD),0.5)
+cmd.q5.table <- get_diff(adult_data, seedling_data, quo(CMD),0.05)
 
 cmd.q95.table.sep <- cmd.q95.table %>% 
+  mutate(uid = as.character(uid)) %>% 
+  separate(uid, c("species","agent"),sep="_",extra="drop") %>% 
+  mutate(species = as.numeric(species)) %>% 
+  left_join(species.names, by=c("species" = "species.code"))
+cmd.q50.table.sep <- cmd.q50.table %>% 
+  mutate(uid = as.character(uid)) %>% 
+  separate(uid, c("species","agent"),sep="_",extra="drop") %>% 
+  mutate(species = as.numeric(species)) %>% 
+  left_join(species.names, by=c("species" = "species.code"))
+cmd.q5.table.sep <- cmd.q5.table %>% 
   mutate(uid = as.character(uid)) %>% 
   separate(uid, c("species","agent"),sep="_",extra="drop") %>% 
   mutate(species = as.numeric(species)) %>% 
@@ -277,8 +289,16 @@ Here I run an ANOVA to test for significantly different magnitudes of 95th perce
 ```{r, echo=FALSE}
 dist_mod95 <- lm(quant_95 ~ agent, data = cmd.q95.table.sep)
 anova(dist_mod95)
+dist_mod50 <- lm(quant_50 ~ agent, data = cmd.q50.table.sep)
+anova(dist_mod50)
+dist_mod5 <- lm(quant_5 ~ agent, data = cmd.q5.table.sep)
+anova(dist_mod5)
 
 ggplot(cmd.q95.table.sep,aes(x=agent, y=quant_95 ,fill=agent))+
+  geom_boxplot()
+ggplot(cmd.q50.table.sep,aes(x=agent, y=quant_50 ,fill=agent))+
+  geom_boxplot()
+ggplot(cmd.q5.table.sep,aes(x=agent, y=quant_5 ,fill=agent))+
   geom_boxplot()
 ```
 
@@ -293,6 +313,34 @@ If we just look at whether the shift in 95th percentile CMD is significantly dif
 ```{r}
 #one sample Wilcoxen signed rank test for shift in 95th percentile CMD. Species are replicates
 wilcox.test(cmd.q95.table.sep$quant_95,y=NULL,alternative = "two.sided", mu=0)
+wilcox.test(cmd.q50.table.sep$quant_50,y=NULL,alternative = "two.sided", mu=0)
+wilcox.test(cmd.q5.table.sep$quant_5,y=NULL,alternative = "two.sided", mu=0)
+
+##look at significant change from 0 within each disturbance type.
+
+for(i in 1:length(unique(cmd.q95.table.sep$agent))){
+tst<- wilcox.test(cmd.q95.table.sep[cmd.q95.table.sep$agent== agent,]$quant_95, y=NULL, alternative="two.sided",mu=0)
+paste(tst)
+}
+
+wiltest <- function(table,dist,quant){
+df<- table %>% 
+  filter(agent == dist) %>% 
+  select(quant) 
+
+return(wilcox.test(x=df[,1],y=NULL, alternative="two.sided",mu=0))}
+
+table = list(cmd.q95.table.sep,cmd.q50.table.sep,cmd.q5.table.sep)
+agent.list = unique(cmd.q95.table.sep$agent)
+quant = c("quant_5","quant_50","quant_95")
+
+wiltest(table[[1]],agent.list[1],"quant_95")
+
+test.results<- list()
+for(j in 1:length(agent.list)){
+test.results[[j]] <-  wiltest(cmd.q95.table.sep,agent.list[j],"quant_95")
+}
+test.results[[4]]
 ```
 
 #Multivariate Analysis
@@ -716,7 +764,7 @@ drought.tolerance <- c(1.91, 2.33,2.02,5,2.58,4.97, 4.21, 4.32, 2.62,2.23, 1.77,
 #read in seed weight data
 seed.weight <- read_csv("C:/Users/Katie/Google Drive/FIA project/TRY data/TRY_seed_edited.csv")
 
-try.names <- data.frame(scientific.name = unique(seed.weight.filter$AccSpeciesName), species.code = c(15,17,19,63,93,108,106,122,746,202,814,242))
+try.names <- data.frame(scientific.name = unique(seed.weight$AccSpeciesName), species.code = c(15,17,19,63,93,108,106,122,746,202,814,242))
 
 seed.weight.filter <- seed.weight %>%
   filter(is.na(OrigObsDataID)) %>% 
@@ -956,7 +1004,7 @@ dist %>%
 ```
 
 
-For one final measurement of shifts, we can compare the centroid in PC space of seedlings vs. adults. The centroid is calculated by taking the mean of PC1 coordinates and PC2 coordinates for each species, age, and disturbance agent.  
+Here I calculate the centroids in PC space by taking the mean of PC1 coordinates and PC2 coordinates for each species, age, and disturbance agent.  
 ```{r, eval=FALSE}
 #calculate centroid in PCA space for adults in each disturbance type
 adult_centroids <- data.frame()
@@ -1032,7 +1080,7 @@ unique.plots.cond %>%
 
 ```
 
-```{r}
+```{r, eval=FALSE}
 ###make maps for ECOL693 presentation
 plot.cut <- plot %>% 
   right_join(dist,by=c("CN" = "PLT_CN"))
