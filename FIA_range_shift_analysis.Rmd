@@ -26,6 +26,7 @@ library(ggfortify)
 library(ggpubr)
 library(leaflet)
 library(mapdata)
+library(car)
 ```
 
 Let's first read in the data.
@@ -296,7 +297,7 @@ cmd.q5.table.sep <- cmd.q5.table %>%
 datatable(cmd.q95.table.sep)
 ```
 
-Here I run an ANOVA to test for significantly different magnitudes of 95th percentile shifts in CMD between disturbance types across species. There is not a significant difference between disturbances, although fire seems to be driving the biggest shifts, as seen in the boxplot below.
+Here I run an ANOVA to test for significantly different magnitudes of 5th, 50th and 95th percentile shifts in CMD between disturbance types across species. There is not a significant difference between disturbances in shifts in the 5th and 50th percentiles. For the 95th percentile, fire seems to be driving the biggest shifts, though the p-value is only marginally significant (p = 0.055).
 
 ```{r, echo=FALSE}
 dist_mod95 <- lm(quant_95 ~ agent, data = cmd.q95.table.sep)
@@ -314,23 +315,68 @@ ggplot(cmd.q5.table.sep,aes(x=agent, y=quant_5 ,fill=agent))+
   geom_boxplot()
 ```
 
+We could also just look at the magnitude of shifts (absolute value), in which case the magnitude of shift in the 95th percentile of CMD is greater for burned plots than for plots in other disturbance categories.
+
+```{r}
+##model for change in 95th percentile CMD differences among disturbances
+dist_mod95_abs <- lm(abs(quant_95) ~ agent, data = cmd.q95.table.sep)
+plot(dist_mod95_abs)
+leveneTest(abs(quant_95) ~ agent, data = cmd.q95.table.sep) #variances are equal
+kruskal.test(abs(quant_95) ~ agent, data = cmd.q95.table.sep)
+anova(dist_mod95_abs)
+##model for change in 50th percentile
+dist_mod50_abs <- lm(abs(quant_50) ~ agent, data = cmd.q50.table.sep)
+plot(dist_mod50_abs)
+anova(dist_mod50_abs)
+##model for change in 5th percentile
+dist_mod5_abs <- lm(abs(quant_5) ~ agent, data = cmd.q5.table.sep)
+plot(dist_mod5_abs)
+leveneTest(abs(quant_5) ~ agent, data = cmd.q5.table.sep) ##levene test is significant which means variances are not equal between groups, use kruskal wallis test instead of anova
+kruskal.test(abs(quant_5) ~ agent, data = cmd.q5.table.sep)
+
+```
+
 But if we look at the data by species, we see that the large shift in the 95th percentile CMD for Douglas-fir in burned areas is likely driving the higher magnitude shifts seen for burned plots in the boxplot above.
 
 ```{r,echo=FALSE}
+#95th quantile
 ggplot(cmd.q95.table.sep,aes(x=species.name,y=quant_95,color=agent))+
+  geom_point()+
+  theme(axis.text.x = element_text(angle=45, hjust=1))
+#50th quantile
+ggplot(cmd.q50.table.sep,aes(x=species.name,y=quant_50,color=agent))+
+  geom_point()+
+  theme(axis.text.x = element_text(angle=45, hjust=1))
+#5th quantile
+ggplot(cmd.q5.table.sep,aes(x=species.name,y=quant_5,color=agent))+
   geom_point()+
   theme(axis.text.x = element_text(angle=45, hjust=1))
 ```
 
-If we just look at whether the shift in 95th percentile CMD is significantly different from 0, it is.
+If we just look at whether the shifts in CMD percentiles are significantly different from 0, it is for the 95th and 50th percentiles, but not for the 5th percentile.
 
-```{r}
+```{r, echo=FALSE}
 #one sample Wilcoxen signed rank test for shift in 95th percentile CMD. Species are replicates
 wilcox.test(cmd.q95.table.sep$quant_95,y=NULL,alternative = "two.sided", mu=0)
 wilcox.test(cmd.q50.table.sep$quant_50,y=NULL,alternative = "two.sided", mu=0)
 wilcox.test(cmd.q5.table.sep$quant_5,y=NULL,alternative = "two.sided", mu=0)
+```
 
+If we look within each disturbance type, shifts in the 95th percentile of CMD are significant for all disturbance types except harvest, and no other shifts are significant.
+
+```{r, echo=FALSE}
 ##look at significant change from 0 within each disturbance type.
+
+#' wiltest
+#'
+#' @param table the data table to use. Either cmd.q95.table.sep, cmd.q50.table.sep or cmd.q5.table.sep. These give the shifts in percentiles between adults and seedlings in CMD.  
+#' @param dist the disturbance agent. Either fire, harvest, insect.disease or none 
+#' @param quant the quantile that you want to test. Should match the table parameter.  
+#'
+#' @return the Wilcoxon test results for the given quantile.   
+#' @export
+#'
+#' @examples
 
 wiltest <- function(table,dist,quant){
 df<- table %>% 
@@ -339,17 +385,31 @@ df<- table %>%
 
 return(wilcox.test(x=df[,1],y=NULL, alternative="two.sided",mu=0))}
 
-table = list(cmd.q95.table.sep,cmd.q50.table.sep,cmd.q5.table.sep)
+#list of disturbance agents
 agent.list = unique(cmd.q95.table.sep$agent)
-quant = c("quant_5","quant_50","quant_95")
 
-wiltest(table[[1]],agent.list[1],"quant_95")
-
-test.results<- list()
+#get wilcoxon test results for change in 95th percentile across species in each disturbance type 
+test.results.95<- list()
 for(j in 1:length(agent.list)){
-test.results[[j]] <-  wiltest(cmd.q95.table.sep,agent.list[j],"quant_95")
+test.results.95[[j]] <-  wiltest(cmd.q95.table.sep,agent.list[j],"quant_95")
 }
-test.results[[4]]
+names(test.results.95)<- agent.list
+#do the same for 50th percentile
+test.results.50<- list()
+for(j in 1:length(agent.list)){
+test.results.50[[j]] <-  wiltest(cmd.q50.table.sep,agent.list[j],"quant_50")
+}
+names(test.results.50)<- agent.list
+#do the same for 5th percentile
+test.results.5<- list()
+for(j in 1:length(agent.list)){
+test.results.5[[j]] <-  wiltest(cmd.q5.table.sep,agent.list[j],"quant_5")
+}
+names(test.results.5)<- agent.list
+#view results
+test.results.95
+test.results.50
+test.results.5
 ```
 
 # Multivariate Analysis
@@ -452,7 +512,7 @@ names(seedling_data_pcapts) <- names(seedling_data)
 
 ```
 
-```{r,eval=FALSE}
+```{r,echo=FALSE, eval=FALSE}
 #make example plot for presentation highlighting species presence on the PCA
 autoplot(clim_pca,x=1,y=2,colour="grey",loadings.colour="black", loadings=T, loadings.label=T, loadings.label.colour="black", scale=0, loadings.label.vjust=-1.5, loadings.label.size=3, alpha=0.5)+
   geom_point(data=adult_data_pcapts[[26]],aes(x=PC1,y=PC2),color="red4")+
@@ -732,6 +792,14 @@ ggplot(pc1.ttest.pvalues.sep, aes(x = agent, y = diff.means, fill = agent))+
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
 ```
 
+```{r}
+#exploring why some shifts weren't significant 
+adult_data_pcapts %>% 
+  pluck(i) %>% 
+  ungroup() %>% 
+  select(PC1)
+```
+
 Now PC2:
 
 ```{r, echo=FALSE, results='hide'}
@@ -775,7 +843,7 @@ ggplot(pc2.ttest.pvalues.sep, aes(x = agent, y = diff.means, fill = agent))+
 
 Now I will look at the effect of species traits on the magnitude of range shifts observed. First I will plot the relationships for shifts on PC1.
 
-```{r}
+```{r, echo=FALSE, results='hide'}
 #make shade tolerance dataframe
 shade.tolerance <- c(4.33, 4.01,4.83, 2, 4.53, 1.44, 1.48,1.64,2.78,4.73, 1.21,2.09)
 
@@ -811,7 +879,7 @@ pc2.diffs.traits <- pc2.diffs.sep %>%
   left_join(trait.data, by="species.name")
 ```
 
-```{r}
+```{r, echo=FALSE}
 #plot relationships
 ####shade tolerance
 ggplot(pc1.diffs.traits, aes(x=shade.tolerance, y=abs(quant_5),color=species.name))+
@@ -866,7 +934,7 @@ ggplot(pc1.diffs.traits[!pc1.diffs.traits$species.code %in% c(814,106),], aes(x=
 
 By running some linear models we see that shade tolerance is a marginally significant predictor of the magnitude of 50th percentile shifts on PC1 and a significant predictor of 95th percentile shifts on PC1, with both being negative relationships (species with higher shade tolerance shifted less). There are no significant relationships between drought tolerance or seed weight and shifts on PC1.
 
-```{r}
+```{r, echo=FALSE}
 ##linear models
 par(mfrow=c(2,2))
 ####shade tolerance
@@ -911,7 +979,7 @@ plot(pc1mod95_weight)
 
 Now we'll do the same for shifts on PC2.
 
-```{r}
+```{r, echo=FALSE}
 #plot relationships
 ####shade tolerance
 ggplot(pc2.diffs.traits, aes(x=shade.tolerance, y=abs(quant_5),color=species.name))+
@@ -965,7 +1033,7 @@ ggplot(pc2.diffs.traits[!pc2.diffs.traits$species.code %in% c(814,106),], aes(x=
 
 By running some linear models we see that seed weight, drought and shade tolerance do not seem to predict shifts on PC2 significantly for any of the disturbance categories.
 
-```{r}
+```{r, echo=FALSE}
 ##linear models
 par(mfrow=c(2,2))
 ####shade tolerance
