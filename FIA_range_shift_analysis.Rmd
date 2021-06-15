@@ -666,6 +666,37 @@ ggplot(pc2.ttest.pvalues.sep, aes(x = agent, y = diff.means, fill = agent))+
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
 ```
 
+Now I will plot the climate "niche" of each species for each disturbane type in the two dimensional PCA space to visualize the niche shifts.
+
+```{r}
+#make example plot for presentation highlighting species presence on the PCA
+autoplot(clim_pca,x=1,y=2,colour="grey",loadings.colour="black", loadings=T, loadings.label=T, loadings.label.colour="black", scale=0, loadings.label.vjust=-1.5, loadings.label.size=3, alpha=0.5)+
+  geom_point(data=adult_data_pcapts[[26]],aes(x=PC1,y=PC2),color="red4")+
+  geom_point(data=seedling_data_pcapts[[26]],aes(x=PC1,y=PC2),color="red")+
+  theme_bw()+
+  theme(axis.text = element_text(color="black",size=11),text = element_text(size=11),legend.text = element_text(size=11))
+
+ggplot()+
+  xlim(c(min(clim_pca$x[,1]),max(clim_pca$x[,1])))+
+  ylim(c(min(clim_pca$x[,2]),max(clim_pca$x[,2])))+
+    geom_point(data=adult_data_pcapts[[1]], aes(x=PC1, y=PC2), color="red")+
+  geom_point(data=seedling_data_pcapts[[1]], aes(x=PC1, y=PC2), color="pink")+
+  stat_ellipse(data=seedling_data_pcapts[[1]], aes(x=PC1, y=PC2), color="pink")+
+  stat_ellipse(data=adult_data_pcapts[[1]], aes(x=PC1, y=PC2), color="red")+
+    geom_point(data=adult_data_pcapts[[5]], aes(x=PC1, y=PC2), color="brown")+
+  geom_point(data=seedling_data_pcapts[[5]], aes(x=PC1, y=PC2), color="gold")+
+  stat_ellipse(data=seedling_data_pcapts[[5]], aes(x=PC1, y=PC2), color="gold")+
+  stat_ellipse(data=adult_data_pcapts[[5]], aes(x=PC1, y=PC2), color="brown")+
+    geom_point(data=adult_data_pcapts[[9]], aes(x=PC1, y=PC2), color="blue")+
+  geom_point(data=seedling_data_pcapts[[9]], aes(x=PC1, y=PC2), color="lightblue")+
+  stat_ellipse(data=seedling_data_pcapts[[9]], aes(x=PC1, y=PC2), color="lightblue")+
+  stat_ellipse(data=adult_data_pcapts[[9]], aes(x=PC1, y=PC2), color="blue")+
+  theme_bw()+
+  theme(axis.text = element_text(color="black",size=11),text = element_text(size=11),legend.text = element_text(size=11))
+```
+
+
+
 ##Species traits effects on range shifts
 
 Now I will look at the effect of species traits on the magnitude of range shifts observed. First I will plot the relationships for shifts on PC1.
