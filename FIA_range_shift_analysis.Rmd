@@ -28,6 +28,7 @@ library(ggpubr)
 library(leaflet)
 library(mapdata)
 library(car)
+library(ggmap)
 ```
 
 Let's first read in the data.
@@ -696,12 +697,26 @@ plot_niche <- function(agent, species, name, color) {
     theme(axis.text = element_text(color="black",size=11),text = element_text(size=11),legend.text = element_text(size=11))
 }
 
+x11()
 plot_niche("fire","106","Pinyon", "#F8766D")
+gglocator()
 plot_niche("none", "106", "Pinyon", "#C77CFF")
 
 plot_niche("none","108","Lodgepole pine","#C77CFF")
 plot_niche("harvest", "108", "Lodgepole pine", "#7CAE00")
 plot_niche("insect.disease","108","Lodgepole pine","#00BFC4")
+
+plot_niche("none","63","Alligator juniper", "#C77CFF")
+
+plot_niche("fire","202","Douglas fir","#F8766D")
+
+plot_niche("insect.disease", "814", "Gambel oak", "#00BFC4")
+
+plot_niche("fire", "19", "subalpine fir", "#F8766D")
+plot_niche("none", "19", "subalpine fir", "#C77CFF")
+
+plot_niche("fire", "746", "aspen", "#F8766D")
+plot_niche("none", "746", "aspen", "#C77CFF")
 
 ggplot()+
     xlim(c(min(clim_pca$x[,1]),max(clim_pca$x[,1])))+
@@ -710,6 +725,33 @@ ggplot()+
 
 ```
 
+an aside...
+```{r}
+#investigating pinyon hot plots
+pinyon_hotplots<- seedling_pca_unlist %>% 
+       filter(Agent == "fire",
+              SPCD == 106,
+              PC1 < -0.9, 
+              PC2 > -1) %>% 
+  left_join(plot, by=c("PLT_CN" = "CN"),keep=FALSE)
+
+pinyon_fireplots<- seedling_pca_unlist %>% 
+       filter(Agent == "fire",
+              SPCD == 106) %>% 
+  left_join(plot, by=c("PLT_CN" = "CN"),keep=FALSE)
+
+usa<- map_data("state")
+
+ggplot()+
+  geom_polygon(data=usa,aes(x=long, y=lat, group=group),
+                color="black", fill="lightblue")+
+  geom_point(data=pinyon_fireplots, aes(x=LON, y=LAT))+
+  geom_point(data=pinyon_hotplots, aes(x=LON, y=LAT),color="red")+
+  coord_quickmap()
+
+#read in fake plot locations
+plot
+```
 
 
 ##Species traits effects on range shifts
