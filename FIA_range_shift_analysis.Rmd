@@ -748,9 +748,6 @@ ggplot()+
   geom_point(data=pinyon_fireplots, aes(x=LON, y=LAT))+
   geom_point(data=pinyon_hotplots, aes(x=LON, y=LAT),color="red")+
   coord_quickmap()
-
-#read in fake plot locations
-plot
 ```
 
 
