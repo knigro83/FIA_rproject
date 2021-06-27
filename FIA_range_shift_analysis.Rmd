@@ -193,6 +193,21 @@ sample_size <- sample_size %>%
 datatable(sample_size[,-1])
 ```
 
+And the below plots show sample size for each species within each disturbance type graphically. 
+
+```{r}
+ggplot(sample_size,aes(x=agent, y=n.adult, fill=species.name))+
+  geom_bar(stat='identity',position='dodge2')+
+  ggtitle("Number of plots with Adults")+
+  xlab("")+ylab("# plots")
+
+ggplot(sample_size,aes(x=agent, y=n.seed, fill=species.name))+
+  geom_bar(stat='identity',position='dodge2')+
+  ggtitle("Number of plots with Seedlings")+
+  xlab("")+ylab("# plots")
+
+```
+
 # Multivariate Analysis
 
 ##Principal Components Analysis
@@ -718,10 +733,57 @@ plot_niche("none", "19", "subalpine fir", "#C77CFF")
 plot_niche("fire", "746", "aspen", "#F8766D")
 plot_niche("none", "746", "aspen", "#C77CFF")
 
+plot_niche("insect.disease","15","white fir","#00BFC4")
+
+##example plots for ESA talk
+#adult plot
+pc1.mean.adult<- mean(comb_pcapts %>% 
+                   filter(Agent == "fire", SPCD == "202",age=="adult") %>% 
+                     dplyr::pull("PC1"))
+pc2.mean.adult<- mean(comb_pcapts %>% 
+                   filter(Agent == "fire", SPCD == "202",age=="adult") %>% 
+                     dplyr::pull("PC2"))
+
 ggplot()+
     xlim(c(min(clim_pca$x[,1]),max(clim_pca$x[,1])))+
     ylim(c(min(clim_pca$x[,2]),max(clim_pca$x[,2])))+
-    geom_text(position = "topright", data="Name")
+      geom_point(data=comb_pcapts %>% 
+                   filter(Agent == "fire", SPCD == "202",age=="adult"), aes(x=PC1, y=PC2,color=age),size=1)+
+#  geom_vline(xintercept=quantile(comb_pcapts %>% 
+#                   filter(Agent == "fire", SPCD == #"202",age=="adult") %>% 
+#                     dplyr::pull("PC1"),c(0.05,0.5,0.95)),linetype=2,color="blue")+
+#  geom_hline(yintercept=quantile(comb_pcapts %>% 
+#                   filter(Agent == "fire", SPCD == #"202",age=="adult") %>% 
+#                     dplyr::pull("PC2"),c(0.05,0.5,0.95)),linetype=2,color="red")+
+    scale_color_manual(values=c("#000000"))+
+  geom_point(aes(x=pc1.mean.seed,y=pc2.mean.seed),shape=23,size=5,color="black",fill="#F8766D")+
+    theme_bw()+
+    theme(axis.text = element_text(color="black",size=11),text = element_text(size=11),legend.text = element_text(size=11))
+
+##seedling plot 
+pc1.mean.seed<- mean(comb_pcapts %>% 
+                   filter(Agent == "fire", SPCD == "202",age=="seedling") %>% 
+                     dplyr::pull("PC1"))
+pc2.mean.seed<- mean(comb_pcapts %>% 
+                   filter(Agent == "fire", SPCD == "202",age=="seedling") %>% 
+                     dplyr::pull("PC2"))
+
+ggplot()+
+    xlim(c(min(clim_pca$x[,1]),max(clim_pca$x[,1])))+
+    ylim(c(min(clim_pca$x[,2]),max(clim_pca$x[,2])))+
+      geom_point(data=comb_pcapts %>% 
+                   filter(Agent == "fire", SPCD == "202",age=="seedling"),
+                 aes(x=PC1, y=PC2, color=age),size=1)+
+#  geom_vline(xintercept=quantile(comb_pcapts %>% 
+#                   filter(Agent == "fire", SPCD == #"202",age=="seedling") %>% 
+#                     dplyr::pull("PC1"),c(0.05,0.5,0.95)),linetype=2,color="blue")+
+#  geom_hline(yintercept=quantile(comb_pcapts %>% 
+#                   filter(Agent == "fire", SPCD == #"202",age=="seedling") %>% 
+#                     dplyr::pull("PC2"),c(0.05,0.5,0.95)),linetype=2,color="red")+
+    scale_color_manual(values=c("#F8766D"))+
+  geom_point(aes(x=pc1.mean.seed,y=pc2.mean.seed),shape=23,size=5,color="black",fill="black")+
+    theme_bw()+
+    theme(axis.text = element_text(color="black",size=11),text = element_text(size=11),legend.text = element_text(size=11))
 
 ```
 
