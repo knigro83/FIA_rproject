@@ -48,13 +48,13 @@ Now I will summarise the number of adults and seedlings of each species in each 
 ```{r,echo=FALSE,warning=FALSE,message=FALSE, results='hide'}
 adults <- tree %>% 
   group_by(SPCD,PLT_CN) %>% 
-  summarise(n = n())
+  dplyr::summarise(n = n())
 
 head(adults)
 
 seeds <- seedling %>% 
   group_by(SPCD, PLT_CN) %>% 
-  summarise(n = n())
+  dplyr::summarise(n = n())
 
 head(seeds)
 ```
@@ -90,13 +90,13 @@ Here are tables of sample sizes for each species and disturbance type. The first
 sample_adults <- dist_adults_joined %>% 
   filter(!is.na(Agent)) %>% 
   group_by(SPCD, Agent) %>% 
-  summarise(n_plots = n_distinct(PLT_CN))
+  dplyr::summarise(n_plots = n_distinct(PLT_CN))
 datatable(sample_adults, caption = "Adult Sample Size")
 
 sample_seeds <- dist_seeds_joined %>% 
   filter(!is.na(Agent)) %>% 
   group_by(SPCD, Agent) %>% 
-  summarise(n_plots = n_distinct(PLT_CN))
+  dplyr::summarise(n_plots = n_distinct(PLT_CN))
 datatable(sample_seeds, caption = "Seedling Sample Size")
 ```
 
@@ -111,7 +111,7 @@ sample_adults_over30 <- sample_adults %>%
   filter(n_plots >= 30) %>% 
   filter(!Agent == "other") %>% 
   group_by(SPCD) %>% 
-  summarise(dist_over50 = n_distinct(Agent)) %>% 
+  dplyr::summarise(dist_over50 = n_distinct(Agent)) %>% 
   filter(dist_over50 == 4) %>% 
   left_join(species.names, by=c("SPCD" = "species.code"))
 ```
@@ -122,7 +122,7 @@ sample_seeds_over30 <- sample_seeds %>%
   filter(n_plots >= 30) %>% 
   filter(!Agent == "other") %>% 
   group_by(SPCD) %>% 
-  summarise(dist_over50 = n_distinct(Agent)) %>% 
+  dplyr::summarise(dist_over50 = n_distinct(Agent)) %>% 
   filter(dist_over50 == 4) %>% 
   left_join(species.names, by=c("SPCD" = "species.code"))
 
@@ -265,6 +265,7 @@ After running the PCA on these variables, we see that the first two components c
 
 ```{r, echo = FALSE}
 #run the PCA on transformed climate variables
+set.seed(83)
 clim_pca <- prcomp(env_vars_cut_trans,scale.=T) #proceed from correlation matrix, which scales variables--important because our variables have different units
 summary(clim_pca)
 plot(clim_pca,type="l")
@@ -380,28 +381,28 @@ for(i in 1:length(names(adult_data))){
     pluck(names(adult_data)[i]) %>% 
     ungroup() %>% 
     select(!!var) %>% 
-    summarise(quantile = quantile(!!var,probs = quant))
+    dplyr::summarise(quantile = quantile(!!var,probs = quant))
   seed.q<- seedling_data %>% 
     pluck(names(adult_data)[i]) %>% 
     ungroup() %>% 
     select(!!var) %>% 
-    summarise(quantile = quantile(!!var,probs = quant))
+    dplyr::summarise(quantile = quantile(!!var,probs = quant))
   adult.95<- adult_data %>% 
     pluck(names(adult_data)[i]) %>% 
     ungroup() %>% 
     select(!!var) %>% 
-    summarise(quantile = quantile(!!var,probs = 0.95))
+    dplyr::summarise(quantile = quantile(!!var,probs = 0.95))
   adult.05 <- adult_data %>% 
     pluck(names(adult_data)[i]) %>% 
     ungroup() %>% 
     select(!!var) %>% 
-    summarise(quantile = quantile(!!var,probs = 0.05))
+    dplyr::summarise(quantile = quantile(!!var,probs = 0.05))
   adult.tolerance <- adult.95 - adult.05
   q_diff = (seed.q - adult.q)/adult.tolerance
   q.table <- bind_rows(q.table, data.frame(names(adult_data)[i],q_diff) )
 }
 q.table <- q.table %>% 
-  rename(!!paste("quant",quant*100,sep="_") := quantile,
+  dplyr::rename(!!paste("quant",quant*100,sep="_") := quantile,
          uid = names.adult_data..i.)
 return(q.table) 
 }
@@ -421,7 +422,132 @@ pc1.diffs.sep <- pc1.diffs.table %>%
   separate(uid, c("species","agent"),sep="_",remove=FALSE, extra="drop") %>% 
   mutate(species = as.numeric(species)) %>% 
   left_join(species.names,by=c("species" = "species.code"))
+```
 
+```{r, echo=FALSE, results="hide"}
+##checking for normality
+fire.diffs.pc1<- pc1.diffs.sep %>% 
+  filter(agent == "fire")
+harvest.diffs.pc1<- pc1.diffs.sep %>% 
+  filter(agent == "harvest")
+id.diffs.pc1<- pc1.diffs.sep %>% 
+  filter(agent == "insect.disease")
+none.diffs.pc1<- pc1.diffs.sep %>% 
+  filter(agent == "none")
+
+#fire 5th quantile
+ggdensity(fire.diffs.pc1$quant_5)
+ggqqplot(fire.diffs.pc1$quant_5)
+shapiro.test(fire.diffs.pc1$quant_5)
+
+#fire 50th quantile
+ggdensity(fire.diffs.pc1$quant_50)
+ggqqplot(fire.diffs.pc1$quant_50)
+shapiro.test(fire.diffs.pc1$quant_50)
+
+#fire 95th quantile
+ggdensity(fire.diffs.pc1$quant_95)
+ggqqplot(fire.diffs.pc1$quant_95)
+shapiro.test(fire.diffs.pc1$quant_95)
+
+#harvest 5th quantile -- NOT NORMAL
+ggdensity(harvest.diffs.pc1$quant_5)
+ggqqplot(harvest.diffs.pc1$quant_5)
+shapiro.test(harvest.diffs.pc1$quant_5)
+
+#harvest 50th quantile
+ggdensity(harvest.diffs.pc1$quant_50)
+ggqqplot(harvest.diffs.pc1$quant_50)
+shapiro.test(harvest.diffs.pc1$quant_50)
+
+#harvest 95th quantile
+ggdensity(harvest.diffs.pc1$quant_95)
+ggqqplot(harvest.diffs.pc1$quant_95)
+shapiro.test(harvest.diffs.pc1$quant_95)
+
+#id 5th quantile
+ggdensity(id.diffs.pc1$quant_5)
+ggqqplot(id.diffs.pc1$quant_5)
+shapiro.test(id.diffs.pc1$quant_5)
+
+#id 50th quantile
+ggdensity(id.diffs.pc1$quant_50)
+ggqqplot(id.diffs.pc1$quant_50)
+shapiro.test(id.diffs.pc1$quant_50)
+
+#id 95th quantile
+ggdensity(id.diffs.pc1$quant_95)
+ggqqplot(id.diffs.pc1$quant_95)
+shapiro.test(id.diffs.pc1$quant_95)
+
+#none 5th quantile
+ggdensity(none.diffs.pc1$quant_5)
+ggqqplot(none.diffs.pc1$quant_5)
+shapiro.test(none.diffs.pc1$quant_5)
+
+#none 50th quantile
+ggdensity(none.diffs.pc1$quant_50)
+ggqqplot(none.diffs.pc1$quant_50)
+shapiro.test(none.diffs.pc1$quant_50)
+
+#none 95th quantile
+ggdensity(none.diffs.pc1$quant_95)
+ggqqplot(none.diffs.pc1$quant_95)
+shapiro.test(none.diffs.pc1$quant_95)
+
+```
+
+```{r,echo=FALSE, results="hide"}
+###checking that paired t-test is same as one sample t-test on the differences - it is!!
+fire.adults<- c()
+for(i in seq(1,48,4)){
+data<- adult_data_pcapts %>% 
+    pluck(i) %>% 
+    ungroup() %>% 
+    select(!!quo(PC1)) %>% 
+    dplyr::summarise(quantile = quantile(!!quo(PC1),probs = 0.05)) %>% 
+    pull()
+fire.adults <- c(fire.adults, data)
+}  
+
+fire.adults95 <- c()
+for(i in seq(1,48,4)){
+data<- adult_data_pcapts %>% 
+    pluck(i) %>% 
+    ungroup() %>% 
+    select(!!quo(PC1)) %>% 
+    dplyr::summarise(quantile = quantile(!!quo(PC1),probs = 0.95)) %>% 
+    pull()
+fire.adults95 <- c(fire.adults95, data)
+}
+
+adult.tolerance = fire.adults95 - fire.adults
+
+fire.seeds<- c()
+for(i in seq(1,48,4)){
+data<- seedling_data_pcapts %>% 
+    pluck(i) %>% 
+    ungroup() %>% 
+    select(!!quo(PC1)) %>% 
+    dplyr::summarise(quantile = quantile(!!quo(PC1),probs = 0.05)) %>% 
+    pull()
+fire.seeds <- c(fire.seeds, data)
+}
+
+for(i in seq(4,48,4)){
+print(names(seedling_data_pcapts)[i] == names(adult_data_pcapts)[i])
+}
+
+t.test(fire.seeds/adult.tolerance,fire.adults/adult.tolerance, paired=TRUE)
+
+fire.diffs5 <- pc1.diffs.sep %>% 
+  filter(agent == "fire") %>% 
+  pull(quant_5)
+
+t.test(fire.diffs5, altervative="two.sided", mu=0, paired=FALSE)
+```
+
+```{r,echo=FALSE, results="hide"}
 #test for significant shifts from zero
 
 #' get_pvalues
@@ -443,7 +569,7 @@ for(i in 1:length(agent.list)){
 test.temp <- pc1.diffs.sep %>% 
   filter(agent == agent.list[i]) %>% 
   pull(!!paste("quant",quant.list[j],sep="_")) %>% 
-  wilcox.test(y = NULL, alternative = "two.sided", mu = 0, exact = FALSE, conf.int = TRUE, conf.level = 0.95)
+  t.test(y = NULL, alternative = "two.sided", mu = 0, paired = FALSE, var.equal = FALSE, conf.level = 0.95)
     
 p.temp <- test.temp$p.value
 est.temp <- test.temp$estimate
@@ -456,10 +582,23 @@ pc1.p.table <- bind_rows(pc1.p.table, p.df)
   return(pc1.p.table)
 }
 
-#this call to options will tell me where the warnings occurr. In this case, for the comparison of medians in the fire plots and harvest plots, the exact p-value cannot be calculated because there are values that are exactly equal to 0 in the data. I think this is ok.  
+#this call to options will tell me where the warnings occur. In this case, for the comparison of medians in the fire plots and harvest plots, the exact p-value cannot be calculated because there are values that are exactly equal to 0 in the data. I think this is ok.  
 options(warn = 1)
 pvalues.pc1 <- get_pvalues(pc1.diffs.sep)
 pvalues.pc1
+
+#need to do Wilcoxon Signed Rank Test for 5th percentile of harvest
+harvest5.test <- pc1.diffs.sep %>% 
+  filter(agent == "harvest") %>% 
+  pull("quant_5") %>% 
+  wilcox.test(y = NULL, alternative = "two.sided", mu = 0, conf.int = TRUE, conf.level = 0.95)
+
+harvest5.p.df <- data.frame(agent = "harvest", quant = "quant_5", p.value = harvest5.test$p.value, estimate = harvest5.test$estimate, lowerci = harvest5.test$conf.int[1], upperci = harvest5.test$conf.int[2])
+
+##replace 5th percentile of harvest with wilcoxon test values
+pvalues.pc1<- pvalues.pc1 %>% 
+                rows_update(harvest5.p.df,by=c("agent","quant"))
+
 ```
 
 The first plot here shows shifts on the 5th, 50th and 95th percentiles for all species combined, with individual species shifts plotted as dots. The second plot is the result of a Wilcoxon Signed Rank test (non-parametric t-test), showing the estimate as a diamond and the 95% confidence interval as lines. Asterisks indicate whether the shift was significantly different from zero (p\<0.05).
@@ -497,14 +636,21 @@ facet_wrap(~ quant)+
 Here I test for significant differences among disturbance agents in adult vs. seedling differences in the three percentiles of PC1. There are no significant differences between disturbances in shifts on PC1.
 
 ```{r, echo=FALSE}
+library(car)
 #check for significant differences in 5th percentile by disturbance type
 pc1.mod5 <- lm(quant_5 ~ agent, data=pc1.diffs.sep)
+qqPlot(pc1.mod5)
+leveneTest(quant_5 ~ agent, data=pc1.diffs.sep)
 anova(pc1.mod5)
 #check for significant differences in 50th percentile by disturbance type
 pc1.mod50 <- lm(quant_50 ~ agent, data=pc1.diffs.sep)
+qqPlot(pc1.mod50)
+leveneTest(quant_50 ~ agent, data=pc1.diffs.sep)
 anova(pc1.mod50)
 #check for significant differences in 95th percentile by disturbance type
 pc1.mod95 <- lm(quant_95 ~ agent, data=pc1.diffs.sep)
+qqPlot(pc1.mod95)
+leveneTest(quant_95 ~ agent, data=pc1.diffs.sep)
 anova(pc1.mod95)
 ```
 
@@ -525,10 +671,127 @@ pc2.diffs.sep <- pc2.diffs.table %>%
   separate(uid, c("species","agent"),sep="_",remove=FALSE, extra="drop") %>% 
   mutate(species = as.numeric(species)) %>% 
   left_join(species.names,by=c("species" = "species.code"))
+```
 
-#perform Wilcoxon tests
+```{r,echo=FALSE, results='hide'}
+##checking for normality
+fire.diffs.pc2<- pc2.diffs.sep %>% 
+  filter(agent == "fire")
+harvest.diffs.pc2<- pc2.diffs.sep %>% 
+  filter(agent == "harvest")
+id.diffs.pc2<- pc2.diffs.sep %>% 
+  filter(agent == "insect.disease")
+none.diffs.pc2<- pc2.diffs.sep %>% 
+  filter(agent == "none")
+
+#fire 5th quantile
+ggdensity(fire.diffs.pc2$quant_5)
+ggqqplot(fire.diffs.pc2$quant_5)
+shapiro.test(fire.diffs.pc2$quant_5)
+
+#fire 50th quantile -- NOT NORMAL
+ggdensity(fire.diffs.pc2$quant_50)
+ggqqplot(fire.diffs.pc2$quant_50)
+shapiro.test(fire.diffs.pc2$quant_50)
+
+#fire 95th quantile
+ggdensity(fire.diffs.pc2$quant_95)
+ggqqplot(fire.diffs.pc2$quant_95)
+shapiro.test(fire.diffs.pc2$quant_95)
+
+#harvest 5th quantile -- NOT NORMAL BC OF ONE OUTLIER
+ggdensity(harvest.diffs.pc2$quant_5)
+ggqqplot(harvest.diffs.pc2$quant_5)
+shapiro.test(harvest.diffs.pc2$quant_5)
+
+#harvest 50th quantile
+ggdensity(harvest.diffs.pc2$quant_50)
+ggqqplot(harvest.diffs.pc2$quant_50)
+shapiro.test(harvest.diffs.pc2$quant_50)
+
+#harvest 95th quantile -- NOT NORMAL
+ggdensity(harvest.diffs.pc2$quant_95)
+ggqqplot(harvest.diffs.pc2$quant_95)
+shapiro.test(harvest.diffs.pc2$quant_95)
+
+#id 5th quantile
+ggdensity(id.diffs.pc2$quant_5)
+ggqqplot(id.diffs.pc2$quant_5)
+shapiro.test(id.diffs.pc2$quant_5)
+
+#id 50th quantile
+ggdensity(id.diffs.pc2$quant_50)
+ggqqplot(id.diffs.pc2$quant_50)
+shapiro.test(id.diffs.pc2$quant_50)
+
+#id 95th quantile -- NOT NORMAL
+ggdensity(id.diffs.pc2$quant_95)
+ggqqplot(id.diffs.pc2$quant_95)
+shapiro.test(id.diffs.pc2$quant_95)
+
+#none 5th quantile
+ggdensity(none.diffs.pc2$quant_5)
+ggqqplot(none.diffs.pc2$quant_5)
+shapiro.test(none.diffs.pc2$quant_5)
+
+#none 50th quantile
+ggdensity(none.diffs.pc2$quant_50)
+ggqqplot(none.diffs.pc2$quant_50)
+shapiro.test(none.diffs.pc2$quant_50)
+
+#none 95th quantile
+ggdensity(none.diffs.pc2$quant_95)
+ggqqplot(none.diffs.pc2$quant_95)
+shapiro.test(none.diffs.pc2$quant_95)
+
+```
+
+
+```{r,echo=FALSE, results='hide'}
+#perform T-tests
 pvalues.pc2 <- get_pvalues(pc2.diffs.sep)
 pvalues.pc2
+
+#perform wilcoxon tests for non-normal data
+# 50th fire
+pc2.fire50.test <- pc2.diffs.sep %>% 
+  filter(agent == "fire") %>% 
+  pull("quant_50") %>% 
+  wilcox.test(y = NULL, alternative = "two.sided", mu = 0, conf.int = TRUE, conf.level = 0.95)
+
+pc2.fire50.p.df <- data.frame(agent = "fire", quant = "quant_50", p.value = pc2.fire50.test$p.value, estimate = pc2.fire50.test$estimate, lowerci = pc2.fire50.test$conf.int[1], upperci = pc2.fire50.test$conf.int[2])
+
+#5th harvest
+pc2.harvest5.test <- pc2.diffs.sep %>% 
+  filter(agent == "harvest") %>% 
+  pull("quant_5") %>% 
+  wilcox.test(y = NULL, alternative = "two.sided", mu = 0, conf.int = TRUE, conf.level = 0.95)
+
+pc2.harvest5.p.df <- data.frame(agent = "harvest", quant = "quant_5", p.value = pc2.harvest5.test$p.value, estimate = pc2.harvest5.test$estimate, lowerci = pc2.harvest5.test$conf.int[1], upperci = pc2.harvest5.test$conf.int[2])
+
+#95th harvest
+pc2.harvest95.test <- pc2.diffs.sep %>% 
+  filter(agent == "harvest") %>% 
+  pull("quant_95") %>% 
+  wilcox.test(y = NULL, alternative = "two.sided", mu = 0, conf.int = TRUE, conf.level = 0.95)
+
+pc2.harvest95.p.df <- data.frame(agent = "harvest", quant = "quant_95", p.value = pc2.harvest95.test$p.value, estimate = pc2.harvest95.test$estimate, lowerci = pc2.harvest95.test$conf.int[1], upperci = pc2.harvest95.test$conf.int[2])
+
+#95th id
+pc2.id95.test <- pc2.diffs.sep %>% 
+  filter(agent == "insect.disease") %>% 
+  pull("quant_95") %>% 
+  wilcox.test(y = NULL, alternative = "two.sided", mu = 0, conf.int = TRUE, conf.level = 0.95)
+
+pc2.id95.p.df <- data.frame(agent = "insect.disease", quant = "quant_95", p.value = pc2.id95.test$p.value, estimate = pc2.id95.test$estimate, lowerci = pc2.id95.test$conf.int[1], upperci = pc2.id95.test$conf.int[2])
+
+
+##replace 5th percentile of harvest with wilcoxon test values
+pvalues.pc2<- pvalues.pc2 %>% 
+                rows_update(pc2.harvest5.p.df, by=c("agent","quant")) %>% 
+                rows_update(pc2.fire50.p.df, by=c("agent","quant")) %>% 
+                rows_update(pc2.harvest95.p.df, by=c("agent","quant")) %>% 
+                rows_update(pc2.id95.p.df, by=c("agent","quant"))
 ```
 
 ```{r, echo=FALSE}
@@ -583,15 +846,21 @@ pc2.diffs.sep <- pc2.diffs.table %>%
 
 #check for significant differences in 5th percentile by disturbance type
 pc2.mod5 <- lm(quant_5 ~ agent, data=pc2.diffs.sep)
+qqPlot(pc2.mod5)
+leveneTest(quant_5 ~ agent, data=pc2.diffs.sep)
 anova(pc2.mod5)
 summary(pc2.mod5)
 
 #check for significant differences in 50th percentile by disturbance type
 pc2.mod50 <- lm(quant_50 ~ agent, data=pc2.diffs.sep)
+qqPlot(pc2.mod50)
+leveneTest(quant_50 ~ agent, data=pc2.diffs.sep)
 anova(pc2.mod50)
 
 #check for significant differences in 95th percentile by disturbance type
 pc2.mod95 <- lm(quant_95 ~ agent, data=pc2.diffs.sep)
+qqPlot(pc2.mod95)
+leveneTest(quant_95 ~ agent, data=pc2.diffs.sep)
 anova(pc2.mod95)
 ```
 
