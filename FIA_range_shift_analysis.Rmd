@@ -357,6 +357,7 @@ ggplot(pca_pts_by_dist[which(! pca_pts_by_dist$Agent == "other"),], aes(x=Agent,
 
 ##Effects of disturbance on range shifts across species 
 
+###PC1
 First I am going to look at whether changes in 5th, 50th and 95th percentiles of positions on both PC1 and PC2 were significantly different from zero across all species, for each disturbance type.
 
 Let's look at changes in PC1, which corresponds most strongly with climatic moisture deficit (CMD) and temperature variables. Shifts in the negative direction on PC1 indicate shifts in the seedling climatic niche to hotter climates, whereas positive shifts would represent shifts in seedling niche to cooler climates.
@@ -424,7 +425,7 @@ pc1.diffs.sep <- pc1.diffs.table %>%
   left_join(species.names,by=c("species" = "species.code"))
 ```
 
-```{r, echo=FALSE, results="hide"}
+```{r, echo=FALSE, eval=FALSE, results="hide"}
 ##checking for normality
 fire.diffs.pc1<- pc1.diffs.sep %>% 
   filter(agent == "fire")
@@ -436,62 +437,62 @@ none.diffs.pc1<- pc1.diffs.sep %>%
   filter(agent == "none")
 
 #fire 5th quantile
-ggdensity(fire.diffs.pc1$quant_5)
+ggqqplot(fire.diffs.pc1$quant_5)
 ggqqplot(fire.diffs.pc1$quant_5)
 shapiro.test(fire.diffs.pc1$quant_5)
 
 #fire 50th quantile
-ggdensity(fire.diffs.pc1$quant_50)
+ggqqplot(fire.diffs.pc1$quant_50)
 ggqqplot(fire.diffs.pc1$quant_50)
 shapiro.test(fire.diffs.pc1$quant_50)
 
 #fire 95th quantile
-ggdensity(fire.diffs.pc1$quant_95)
+ggqqplot(fire.diffs.pc1$quant_95)
 ggqqplot(fire.diffs.pc1$quant_95)
 shapiro.test(fire.diffs.pc1$quant_95)
 
 #harvest 5th quantile -- NOT NORMAL
-ggdensity(harvest.diffs.pc1$quant_5)
+ggqqplot(harvest.diffs.pc1$quant_5)
 ggqqplot(harvest.diffs.pc1$quant_5)
 shapiro.test(harvest.diffs.pc1$quant_5)
 
 #harvest 50th quantile
-ggdensity(harvest.diffs.pc1$quant_50)
+ggqqplot(harvest.diffs.pc1$quant_50)
 ggqqplot(harvest.diffs.pc1$quant_50)
 shapiro.test(harvest.diffs.pc1$quant_50)
 
 #harvest 95th quantile
-ggdensity(harvest.diffs.pc1$quant_95)
+ggqqplot(harvest.diffs.pc1$quant_95)
 ggqqplot(harvest.diffs.pc1$quant_95)
 shapiro.test(harvest.diffs.pc1$quant_95)
 
 #id 5th quantile
-ggdensity(id.diffs.pc1$quant_5)
+ggqqplot(id.diffs.pc1$quant_5)
 ggqqplot(id.diffs.pc1$quant_5)
 shapiro.test(id.diffs.pc1$quant_5)
 
 #id 50th quantile
-ggdensity(id.diffs.pc1$quant_50)
+ggqqplot(id.diffs.pc1$quant_50)
 ggqqplot(id.diffs.pc1$quant_50)
 shapiro.test(id.diffs.pc1$quant_50)
 
 #id 95th quantile
-ggdensity(id.diffs.pc1$quant_95)
+ggqqplot(id.diffs.pc1$quant_95)
 ggqqplot(id.diffs.pc1$quant_95)
 shapiro.test(id.diffs.pc1$quant_95)
 
 #none 5th quantile
-ggdensity(none.diffs.pc1$quant_5)
+ggqqplot(none.diffs.pc1$quant_5)
 ggqqplot(none.diffs.pc1$quant_5)
 shapiro.test(none.diffs.pc1$quant_5)
 
 #none 50th quantile
-ggdensity(none.diffs.pc1$quant_50)
+ggqqplot(none.diffs.pc1$quant_50)
 ggqqplot(none.diffs.pc1$quant_50)
 shapiro.test(none.diffs.pc1$quant_50)
 
 #none 95th quantile
-ggdensity(none.diffs.pc1$quant_95)
+ggqqplot(none.diffs.pc1$quant_95)
 ggqqplot(none.diffs.pc1$quant_95)
 shapiro.test(none.diffs.pc1$quant_95)
 
@@ -619,18 +620,24 @@ ggplot(pc1.diffs.long, aes(x=agent, y=diff))+
 pvalues.pc1<- pvalues.pc1 %>% 
   mutate(sym.pos = ifelse(p.value<0.05,0.15,NA))
 
+quant.labs = c("5th quantile","50th quantile","95th quantile") 
+names(quant.labs)= c("quant_5","quant_50","quant_95")
+
 ggplot(pvalues.pc1, aes(x=agent, y=estimate, color = quant, fill=quant))+
-  geom_point(shape = 23, size = 3)+
-  geom_errorbar(aes(ymin=lowerci, ymax=upperci),width=0.3)+
+  geom_point(shape = 23, size = 3.5)+
+  geom_errorbar(aes(ymin=lowerci, ymax=upperci),width=0.3, size=1)+
   scale_color_manual(values = c("#d7191c", "#fdae61","#2b83ba"))+
   scale_fill_manual(values = c("#d7191c", "#fdae61","#2b83ba"))+
   geom_text(data = subset(pvalues.pc1, !is.na(sym.pos)), aes(x=agent, y=sym.pos), label="*", color="black")+
-facet_wrap(~ quant)+
+  geom_hline(yintercept=0, color="black", lty=2, size=1)+
+facet_wrap(~ quant, labeller = labeller(quant=quant.labs))+
   ggtitle("Shifts on PC1")+
   ylab("Difference on PC1")+
-  xlab("Disturbance Agent")+
+  xlab("")+
   theme_bw()+
-  theme(axis.text.x = element_text(angle=45, hjust = 1), legend.position = "none")
+  theme(axis.text.x = element_text(angle=45, hjust = 1), axis.text = element_text(size=12, color="black"), text = element_text(size=12),legend.text = element_text(size=12),strip.text = element_text(color="black",size=12), legend.position = "none")
+
+theme(legend.position = "none",axis.text = element_text(color="black",size=14),text = element_text(size=14),legend.text = element_text(size=14),strip.text = element_text(color="black",size=14))
 ```
 
 Here I test for significant differences among disturbance agents in adult vs. seedling differences in the three percentiles of PC1. There are no significant differences between disturbances in shifts on PC1.
@@ -654,6 +661,8 @@ leveneTest(quant_95 ~ agent, data=pc1.diffs.sep)
 anova(pc1.mod95)
 ```
 
+###PC2
+
 And now for PC2, which corresponds most strongly to precipitation variables, with negative shifts representing seedling shifts to wetter climates and positive shifts representing seedling shifts to drier climates.
 
 ```{r, echo=FALSE, results='hide'}
@@ -673,7 +682,7 @@ pc2.diffs.sep <- pc2.diffs.table %>%
   left_join(species.names,by=c("species" = "species.code"))
 ```
 
-```{r,echo=FALSE, results='hide'}
+```{r,echo=FALSE,eval=FALSE results='hide'}
 ##checking for normality
 fire.diffs.pc2<- pc2.diffs.sep %>% 
   filter(agent == "fire")
@@ -685,62 +694,62 @@ none.diffs.pc2<- pc2.diffs.sep %>%
   filter(agent == "none")
 
 #fire 5th quantile
-ggdensity(fire.diffs.pc2$quant_5)
+ggqqplot(fire.diffs.pc2$quant_5)
 ggqqplot(fire.diffs.pc2$quant_5)
 shapiro.test(fire.diffs.pc2$quant_5)
 
 #fire 50th quantile -- NOT NORMAL
-ggdensity(fire.diffs.pc2$quant_50)
+ggqqplot(fire.diffs.pc2$quant_50)
 ggqqplot(fire.diffs.pc2$quant_50)
 shapiro.test(fire.diffs.pc2$quant_50)
 
 #fire 95th quantile
-ggdensity(fire.diffs.pc2$quant_95)
+ggqqplot(fire.diffs.pc2$quant_95)
 ggqqplot(fire.diffs.pc2$quant_95)
 shapiro.test(fire.diffs.pc2$quant_95)
 
 #harvest 5th quantile -- NOT NORMAL BC OF ONE OUTLIER
-ggdensity(harvest.diffs.pc2$quant_5)
+ggqqplot(harvest.diffs.pc2$quant_5)
 ggqqplot(harvest.diffs.pc2$quant_5)
 shapiro.test(harvest.diffs.pc2$quant_5)
 
 #harvest 50th quantile
-ggdensity(harvest.diffs.pc2$quant_50)
+ggqqplot(harvest.diffs.pc2$quant_50)
 ggqqplot(harvest.diffs.pc2$quant_50)
 shapiro.test(harvest.diffs.pc2$quant_50)
 
 #harvest 95th quantile -- NOT NORMAL
-ggdensity(harvest.diffs.pc2$quant_95)
+ggqqplot(harvest.diffs.pc2$quant_95)
 ggqqplot(harvest.diffs.pc2$quant_95)
 shapiro.test(harvest.diffs.pc2$quant_95)
 
 #id 5th quantile
-ggdensity(id.diffs.pc2$quant_5)
+ggqqplot(id.diffs.pc2$quant_5)
 ggqqplot(id.diffs.pc2$quant_5)
 shapiro.test(id.diffs.pc2$quant_5)
 
 #id 50th quantile
-ggdensity(id.diffs.pc2$quant_50)
+ggqqplot(id.diffs.pc2$quant_50)
 ggqqplot(id.diffs.pc2$quant_50)
 shapiro.test(id.diffs.pc2$quant_50)
 
 #id 95th quantile -- NOT NORMAL
-ggdensity(id.diffs.pc2$quant_95)
+ggqqplot(id.diffs.pc2$quant_95)
 ggqqplot(id.diffs.pc2$quant_95)
 shapiro.test(id.diffs.pc2$quant_95)
 
 #none 5th quantile
-ggdensity(none.diffs.pc2$quant_5)
+ggqqplot(none.diffs.pc2$quant_5)
 ggqqplot(none.diffs.pc2$quant_5)
 shapiro.test(none.diffs.pc2$quant_5)
 
 #none 50th quantile
-ggdensity(none.diffs.pc2$quant_50)
+ggqqplot(none.diffs.pc2$quant_50)
 ggqqplot(none.diffs.pc2$quant_50)
 shapiro.test(none.diffs.pc2$quant_50)
 
 #none 95th quantile
-ggdensity(none.diffs.pc2$quant_95)
+ggqqplot(none.diffs.pc2$quant_95)
 ggqqplot(none.diffs.pc2$quant_95)
 shapiro.test(none.diffs.pc2$quant_95)
 
@@ -811,17 +820,18 @@ pvalues.pc2<- pvalues.pc2 %>%
   mutate(sym.pos = ifelse(p.value<0.05,0.15,NA))
 
 ggplot(pvalues.pc2, aes(x=agent, y=estimate, color = quant, fill=quant))+
-  geom_point(shape = 23, size = 3)+
-  geom_errorbar(aes(ymin=lowerci, ymax=upperci),width=0.3)+
-  scale_color_manual(values = c("#d7191c", "#fdae61","#2b83ba"))+
-  scale_fill_manual(values = c("#d7191c", "#fdae61","#2b83ba"))+
+  geom_point(shape = 23, size = 3.5)+
+  geom_errorbar(aes(ymin=lowerci, ymax=upperci),width=0.3, size=1)+
+  scale_color_manual(values = c("turquoise", "#fdae61","tan4"))+
+  scale_fill_manual(values = c("turquoise", "#fdae61","tan4"))+
   geom_text(data = subset(pvalues.pc2, !is.na(sym.pos)), aes(x=agent, y=sym.pos), label="*", color="black")+
-facet_wrap(~ quant)+
+  geom_hline(yintercept=0, color="black", size=1, lty=2)+
+facet_wrap(~ quant, labeller= labeller(quant=quant.labs))+
   ggtitle("Shifts on PC2")+
-  xlab("Disturbance Agent")+
+  xlab("")+
   ylab("Difference on PC2")+
   theme_bw()+
-  theme(axis.text.x = element_text(angle=45, hjust = 1), legend.position = "none")
+  theme(axis.text.x = element_text(angle=45, hjust = 1), axis.text = element_text(color="black",size=12), text = element_text(color="black",size=12), strip.text = element_text(color="black",size=12), legend.position = "none")
 ```
 
 There are also no significant differences between disturbance types in shifts on any of the percentiles of PC2. Though, the shift in the 5th percentile of PC2 was marginally significant with a p-value of 0.06. Looking at the boxplot, we see that this marginal significance is likely due to insect disease causing greater positive shifts in the 5th percentile of PC2 than the other disturbances.
@@ -854,7 +864,8 @@ summary(pc2.mod5)
 #check for significant differences in 50th percentile by disturbance type
 pc2.mod50 <- lm(quant_50 ~ agent, data=pc2.diffs.sep)
 qqPlot(pc2.mod50)
-leveneTest(quant_50 ~ agent, data=pc2.diffs.sep)
+leveneTest(quant_50 ~ agent, data=pc2.diffs.sep) #I think this is ok since ANOVA F-test is robust to assumptions of equal variances and the residuals look pretty good. 
+plot(pc2.mod50)
 anova(pc2.mod50)
 
 #check for significant differences in 95th percentile by disturbance type
@@ -868,9 +879,79 @@ anova(pc2.mod95)
 
 The one species-specific test we can do, is a t-test comparing the mean positions on PC1 and PC2 of seedlings vs. adults in different disturbance types.
 
+###PC1
+
 First, PC1:
 
 ```{r, echo=FALSE, results='hide'}
+##check for normality PC1
+#grab multiplot function script
+source("multiplot_fxn.R")
+
+##adult
+adultplots = list()
+for(i in 1:48){
+group <- adult_data_pcapts %>% 
+  pluck(i) %>% 
+  ungroup() %>% 
+  pull(PC1) 
+adultplots[[i]]<- group
+}
+
+plotlist<- list()
+for(i in 1:48){
+  plot<- ggdensity(adultplots[[i]])
+  plotlist[[i]]<- plot
+}
+qplotlist<- list()
+for(i in 1:48){
+  plot<- ggqqplot(adultplots[[i]])
+  qplotlist[[i]]<- plot
+}
+
+##seedling
+seedlingplots = list()
+for(i in 1:48){
+group <- seedling_data_pcapts %>% 
+  pluck(i) %>% 
+  ungroup() %>% 
+  pull(PC1) 
+seedlingplots[[i]]<- group
+}
+
+splotlist<- list()
+for(i in 1:48){
+  plot<- ggdensity(seedlingplots[[i]])
+  splotlist[[i]]<- plot
+}
+sqplotlist<- list()
+for(i in 1:48){
+  plot<- ggqqplot(seedlingplots[[i]])
+  sqplotlist[[i]]<- plot
+}
+
+
+vartest.results<-data.frame()
+for(i in 1:48){
+vartest<- var.test(seedlingplots[[i]],adultplots[[i]],alternative="two.sided")
+vartest.results<-rbind(vartest.results, data.frame(num=i, p=vartest$p.value))
+}   
+
+```
+
+```{r, echo=FALSE, eval=FALSE}
+#plot tests of normality on PC1 
+#adult
+multiplot(plotlist=plotlist,cols=6)
+multiplot(plotlist=qplotlist,cols=6)
+
+#seedling
+multiplot(plotlist=splotlist,cols=6)
+multiplot(plotlist=sqplotlist,cols=6)
+```
+
+```{r, echo=FALSE, results="hide"}
+#do the t-tests for PC1
 pc1.ttest.pvalues <- data.frame()
 for(i in 1:length(adult_data_pcapts)){
 temp.adult <- adult_data_pcapts %>% 
@@ -883,11 +964,36 @@ temp.seed <- seedling_data_pcapts %>%
   ungroup() %>% 
   select(PC1)
 
-temp.test<- t.test(temp.adult, temp.seed)
+temp.test<- t.test(temp.adult, temp.seed, paired=FALSE, var.equal = TRUE, conf.level=0.95)
 pc1.ttest.pvalues <- bind_rows(pc1.ttest.pvalues, data.frame(uid = names(adult_data_pcapts)[i], diff.means = temp.test$estimate[2] - temp.test$estimate[1],p.value = temp.test$p.value))
-
 }
 
+#unequal variance t-test for some species
+pc1.unequal.var <- vartest.results %>% 
+                      filter(p<0.05)
+
+pc1.ttest.pvalues.alt <- data.frame()
+for(i in pc1.unequal.var$num){
+temp.adult <- adult_data_pcapts %>% 
+  pluck(i) %>% 
+  ungroup() %>% 
+  select(PC1)
+
+temp.seed <- seedling_data_pcapts %>% 
+  pluck(i) %>% 
+  ungroup() %>% 
+  select(PC1)
+
+temp.test<- t.test(temp.adult, temp.seed, paired=FALSE, var.equal = FALSE, conf.level=0.95)
+pc1.ttest.pvalues.alt <- bind_rows(pc1.ttest.pvalues.alt, data.frame(uid = names(adult_data_pcapts)[i], diff.means = temp.test$estimate[2] - temp.test$estimate[1],p.value = temp.test$p.value))
+}
+pc1.ttest.pvalues.alt
+##replace rows with unequal variance results
+pc1.ttest.pvalues<- pc1.ttest.pvalues %>% 
+                rows_update(pc1.ttest.pvalues.alt, by="uid")
+pc1.ttest.pvalues
+
+#get dataframe in order
 pc1.ttest.pvalues
 pc1.ttest.pvalues.sep <- pc1.ttest.pvalues %>% 
   separate(uid, c("species","agent"),sep="_",extra="drop",remove = FALSE) %>% 
@@ -904,16 +1010,85 @@ ggplot(pc1.ttest.pvalues.sep, aes(x = agent, y = diff.means, fill = agent))+
   facet_wrap(~species.name)+
   ylim(c(-0.2,0.4))+
   ggtitle("Shifts on PC1")+
-  xlab("Disturbance Agent")+
+  xlab("")+
   ylab("Difference in Mean")+
   labs(fill = "Disturbance Agent")+
   theme_bw()+
-  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+  theme(axis.text.x = element_blank(), axis.text=element_text(color="black", size=12), legend.text = element_text(color="black", size=12), text=element_text(color="black", size=12), strip.text = element_text(color="black", size=11))
 ```
+
+###PC2
 
 Now for PC2, where postive differences mean that seedlings occupied higher values on PC2 (drier climates) than adults, and negative differences mean that seedlings occupied lower values on PC2 (wetter climates).
 
 ```{r, echo=FALSE, results='hide'}
+##check for normality on PC2
+
+##adults
+pc2_adultplots = list()
+for(i in 1:48){
+group <- adult_data_pcapts %>% 
+  pluck(i) %>% 
+  ungroup() %>% 
+  pull(PC2) 
+pc2_adultplots[[i]]<- group
+}
+
+pc2_plotlist<- list()
+for(i in 1:48){
+  plot<- ggdensity(pc2_adultplots[[i]])
+  pc2_plotlist[[i]]<- plot
+}
+pc2_qplotlist<- list()
+for(i in 1:48){
+  plot<- ggqqplot(pc2_adultplots[[i]])
+  pc2_qplotlist[[i]]<- plot
+}
+
+##seedlings
+pc2_seedlingplots = list()
+for(i in 1:48){
+group <- seedling_data_pcapts %>% 
+  pluck(i) %>% 
+  ungroup() %>% 
+  pull(PC2) 
+pc2_seedlingplots[[i]]<- group
+}
+
+pc2_splotlist<- list()
+for(i in 1:48){
+  plot<- ggdensity(pc2_seedlingplots[[i]])
+  pc2_splotlist[[i]]<- plot
+}
+pc2_sqplotlist<- list()
+for(i in 1:48){
+  plot<- ggqqplot(pc2_seedlingplots[[i]])
+  pc2_sqplotlist[[i]]<- plot
+}
+
+##test for equal variance. p<0.05 indicates unequal variance
+pc2_vartest.results<-data.frame()
+for(i in 1:48){
+vartest<- var.test(pc2_seedlingplots[[i]],pc2_adultplots[[i]],alternative="two.sided")
+pc2_vartest.results<-rbind(pc2_vartest.results, data.frame(num=i, p=vartest$p.value))
+}   
+pc2_vartest.results %>% 
+  filter(p<0.05)
+```
+
+```{r, eval=FALSE, echo=FALSE}
+#plot checks for normality PC2
+##adults
+multiplot(plotlist=pc2_plotlist,cols=6)
+multiplot(plotlist=pc2_qplotlist,cols=6)
+##seedlings
+multiplot(plotlist=pc2_splotlist,cols=6)
+multiplot(plotlist=pc2_sqplotlist,cols=6)
+```
+
+
+```{r, echo=FALSE, results='hide'}
+#do the t-test with assumption of equal vars PC2
 pc2.ttest.pvalues <- data.frame()
 for(i in 1:length(adult_data_pcapts)){
 temp.adult <- adult_data_pcapts %>% 
@@ -926,35 +1101,63 @@ temp.seed <- seedling_data_pcapts %>%
   ungroup() %>% 
   select(PC2)
 
-temp.test<- t.test(temp.adult, temp.seed)
+temp.test<- t.test(temp.adult, temp.seed, paired=FALSE, var.equal = TRUE, conf.level=0.95)
 pc2.ttest.pvalues <- bind_rows(pc2.ttest.pvalues, data.frame(uid = names(adult_data_pcapts)[i], diff.means = temp.test$estimate[2] - temp.test$estimate[1],p.value = temp.test$p.value))
 
 }
 
+#unequal variance t-test for some species/disturbances for PC2
+pc2.unequal.var <- pc2_vartest.results %>% 
+                      filter(p<0.05)
+
+pc2.ttest.pvalues.alt <- data.frame()
+for(i in pc2.unequal.var$num){
+temp.adult <- adult_data_pcapts %>% 
+  pluck(i) %>% 
+  ungroup() %>% 
+  select(PC2)
+
+temp.seed <- seedling_data_pcapts %>% 
+  pluck(i) %>% 
+  ungroup() %>% 
+  select(PC2)
+
+temp.test<- t.test(temp.adult, temp.seed, paired=FALSE, var.equal = FALSE, conf.level=0.95)
+pc2.ttest.pvalues.alt <- bind_rows(pc2.ttest.pvalues.alt, data.frame(uid = names(adult_data_pcapts)[i], diff.means = temp.test$estimate[2] - temp.test$estimate[1],p.value = temp.test$p.value))
+}
+pc2.ttest.pvalues.alt
+##replace rows with unequal variance results
+pc2.ttest.pvalues<- pc2.ttest.pvalues %>% 
+                rows_update(pc2.ttest.pvalues.alt, by="uid")
+pc2.ttest.pvalues
+
+#get data in order
 pc2.ttest.pvalues
 pc2.ttest.pvalues.sep <- pc2.ttest.pvalues %>% 
   separate(uid, c("species","agent"),sep="_",extra="drop",remove = FALSE) %>% 
   mutate(species = as.numeric(species)) %>% 
-  left_join(species.names, by = c("species" = "species.code")) %>%   mutate(sym.pos = ifelse(p.value<0.05, 0.5, NA))
+  left_join(species.names, by = c("species" = "species.code")) %>%   mutate(sym.pos = ifelse(p.value<0.05, 0.3, NA))
 ```
 
 ```{r, echo=FALSE}
 ggplot(pc2.ttest.pvalues.sep, aes(x = agent, y = diff.means, fill = agent))+
   geom_col()+
-  geom_text(data = subset(pc1.ttest.pvalues.sep, !is.na(sym.pos)), aes(x=agent, y=sym.pos), label="*", color="black")+
+  geom_text(data = subset(pc2.ttest.pvalues.sep, !is.na(sym.pos)), aes(x=agent, y=sym.pos), label="*", color="black")+
   facet_wrap(~species.name)+
   ylim(c(-0.2,0.4))+
   ggtitle("Shifts on PC2")+
-  xlab("Disturbance Agent")+
+  xlab("")+
   ylab("Difference in Mean")+
   labs(fill = "Disturbance Agent")+
   theme_bw()+
-  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+  theme(axis.text.x = element_blank(), axis.text=element_text(color="black",size=12), text=element_text(color="black",size=12), legend.text = element_text(color="black",size=12), strip.text = element_text(color="black",size=11))
 ```
 
-Now I will plot the climate "niche" of each species for each disturbane type in the two dimensional PCA space to visualize the niche shifts.
+###Climate Niches
 
-```{r}
+Now I will plot the climate "niche" of each species for each disturbance type in the two dimensional PCA space to visualize the niche shifts.
+
+```{r, echo=FALSE, eval=FALSE}
 #make example plot for presentation highlighting species presence on the PCA
 
 #unlisting pcapts lists
@@ -993,6 +1196,7 @@ plot_niche("insect.disease","108","Lodgepole pine","#00BFC4")
 plot_niche("none","63","Alligator juniper", "#C77CFF")
 
 plot_niche("fire","202","Douglas fir","#F8766D")
+plot_niche("insect.disease","202","Douglas fir","#00BFC4")
 
 plot_niche("insect.disease", "814", "Gambel oak", "#00BFC4")
 
@@ -1003,6 +1207,9 @@ plot_niche("fire", "746", "aspen", "#F8766D")
 plot_niche("none", "746", "aspen", "#C77CFF")
 
 plot_niche("insect.disease","15","white fir","#00BFC4")
+
+plot_niche("insect.disease", "93", "Engelmann spruce","#00BFC4")
+plot_niche("none", "93", "Engelmann spruce","#C77CFF")
 
 ##example plots for ESA talk
 #adult plot
@@ -1056,8 +1263,24 @@ ggplot()+
 
 ```
 
-an aside...
 ```{r}
+#plot niches in parabola form for ESA presentation
+ggdensity(comb_pcapts %>% 
+       filter(uid=="108_none_cvars") %>% 
+       select(age, CMD), x= "CMD", color="age")
+
+adult.fake <- rbeta(100000, 5,5)
+seedling.fake<- rbeta(100000, 4,5)
+fake.data<- data.frame(age=c(rep("adult",length(adult.fake)),rep("seedling",length(seedling.fake))),temperature=c(adult.fake,seedling.fake))
+
+ggdensity(fake.data, x="temperature", color="age")
+
+curve(dbeta(x,8,4),xlim=c(0,1))
+curve(dbeta(x,4,8),xlim=c(0,1))
+```
+
+an aside...
+```{r, echo=FALSE, eval=FALSE}
 #investigating pinyon hot plots
 pinyon_hotplots<- seedling_pca_unlist %>% 
        filter(Agent == "fire",
@@ -1109,10 +1332,10 @@ length(unique(seed.weight.filter$ObservationID))
 
 seed.weight.summary <- seed.weight.filter %>% 
   group_by(species.code) %>% 
-  summarise(mean.weight.mg = mean(StdValue))
+  dplyr::summarise(mean.weight.mg = mean(StdValue))
 
 #combine
-trait.data<- data.frame(species.names,shade.tolerance, drought.tolerance) %>% 
+trait.data<- data.frame(species.names,shade.tolerance = shade.tolerance, drought.tolerance= drought.tolerance) %>% 
   left_join(seed.weight.summary, by="species.code")
 
 ##add trait data to diffs dataframe
@@ -1126,26 +1349,40 @@ The below plot shows the relationship between absolute value of shifts on PC1 in
 
 ```{r, echo=FALSE}
 #plot relationships
+library(RColorBrewer)
 ####shade tolerance
 shade5 <- ggplot(pc1.diffs.traits, aes(x=shade.tolerance, y=abs(quant_5),color=species.name))+
-  geom_point()+
-  stat_smooth(method = "lm", col="red")+
+  stat_smooth(method = "lm", col="black", lty=2)+
+  geom_point(size=3)+
   facet_wrap(~agent)+
-  ggtitle("Difference in 5th quantile on PC1 vs. shade tolerance")
+  scale_color_brewer(palette="Paired")+
+  ggtitle("PC1 5th quantile")+
+  ylab("Shift Magnitude")+
+  xlab("Shade Tolerance Score")+
+  theme(legend.position = "none",axis.text = element_text(color="black",size=14),text = element_text(size=14),legend.text = element_text(size=14),strip.text = element_text(color="black",size=14))
 
 shade50 <- ggplot(pc1.diffs.traits, aes(x=shade.tolerance, y=abs(quant_50),color=species.name))+
-  geom_point()+
-  stat_smooth(method = "lm", col="red")+
+  stat_smooth(method = "lm", col="black", lty=2)+
+  geom_point(size=3)+
   facet_wrap(~agent)+
-  ggtitle("Difference in 50th quantile on PC1 vs. shade tolerance")
+  scale_color_brewer(palette="Paired")+
+  ggtitle("PC1 50th quantile")+
+  ylab("Shift Magnitude")+
+  xlab("Shade Tolerance Score")+
+  theme(legend.position = "none",axis.text = element_text(color="black",size=14),text = element_text(size=14),legend.text = element_text(size=14),strip.text = element_text(color="black",size=14))
 
 shade95 <- ggplot(pc1.diffs.traits, aes(x=shade.tolerance, y=abs(quant_95),color=species.name))+
-  geom_point()+
-  stat_smooth(method = "lm", col="red")+
+  stat_smooth(method = "lm", col="black", lty=2)+
+  geom_point(size=3)+
   facet_wrap(~agent)+
-  ggtitle("Difference in 95th quantile on PC1 vs. shade tolerance")
+  scale_color_brewer(palette="Paired")+
+  ggtitle("PC1 95th quantile")+
+  ylab("Shift Magnitude")+
+  xlab("Shade Tolerance Score")+
+  theme(axis.text = element_text(color="black",size=14),text = element_text(size=14),legend.text = element_text(size=14),strip.text = element_text(color="black",size=14))
 
-ggarrange(shade5, shade50, shade95, nrow=2, ncol=2)
+
+ggarrange(shade5, shade50, shade95, nrow=1, ncol=3, common.legend = TRUE)
 ```
 
 The next plot shows the relationship between absolute value of shifts on PC1 in 5th, 50th, and 95th quantiles vs. the drought tolerance of species, using values in Niinemets & Valladares (2006).
@@ -1153,52 +1390,79 @@ The next plot shows the relationship between absolute value of shifts on PC1 in 
 ```{r}
 ####drought tolerance
 drought5 <- ggplot(pc1.diffs.traits, aes(x=drought.tolerance, y=abs(quant_5),color=species.name))+
-  geom_point()+
-  stat_smooth(method = "lm", col="red")+
+  stat_smooth(method = "lm", col="black", lty=2)+
+  geom_point(size=3)+
   facet_wrap(~agent)+
-  ggtitle("Difference in 5th quantile on PC1 vs. drought tolerance")
+  scale_color_brewer(palette="Paired")+
+  ggtitle("PC1 5th quantile")+
+  ylab("Shift Magnitude")+
+  xlab("Drought Tolerance Score")+
+  theme(legend.position = "none",axis.text = element_text(color="black",size=14),text = element_text(size=14),legend.text = element_text(size=14),strip.text = element_text(color="black",size=14))
 
 drought50 <- ggplot(pc1.diffs.traits, aes(x=drought.tolerance, y=abs(quant_50),color=species.name))+
-  geom_point()+
-  stat_smooth(method = "lm", col="red")+
+  stat_smooth(method = "lm", col="black", lty=2)+
+  geom_point(size=3)+
   facet_wrap(~agent)+
-  ggtitle("Difference in 50th quantile on PC1 vs. drought tolerance")
+  scale_color_brewer(palette="Paired")+
+  ggtitle("PC1 50th quantile")+
+  ylab("Shift Magnitude")+
+  xlab("Drought Tolerance Score")+
+  theme(legend.position = "none",axis.text = element_text(color="black",size=14),text = element_text(size=14),legend.text = element_text(size=14),strip.text = element_text(color="black",size=14))
 
 drought95 <- ggplot(pc1.diffs.traits, aes(x=drought.tolerance, y=abs(quant_95),color=species.name))+
-  geom_point()+
-  stat_smooth(method = "lm", col="red")+
+  stat_smooth(method = "lm", col="black", lty=2)+
+  geom_point(size=3)+
   facet_wrap(~agent)+
-  ggtitle("Difference in 95th quantile on PC1 vs. drought tolerance")
+  scale_color_brewer(palette="Paired")+
+  ylab("Shift Magnitude")+
+  xlab("Drought Tolerance Score")+
+  ggtitle("PC1 95th quantile")+
+  theme(axis.text = element_text(color="black",size=14),text = element_text(size=14),legend.text = element_text(size=14),strip.text = element_text(color="black",size=14))
 
-ggarrange(drought5, drought50, drought95, nrow=2, ncol=2)
+ggarrange(drought5, drought50, drought95, nrow=1, ncol=3, common.legend = TRUE)
 
 ```
 
-The below plot shows the relationship between shifts on PC1 in 5th, 50th, and 95th quantiles vs. the seed weight of species, using average values of results from a TRY database search. Gambel oak and pinyon were excluded from this analysis, as they were large outliers in seed weight (very heavy). Perhaps there is a better proxy for seed dispersal? Or I can scale values so that these species can be included?
+The below plot shows the relationship between shifts on PC1 in 5th, 50th, and 95th quantiles vs. the seed weight of species, using average values of results from a TRY database search. Gambel oak and pinyon were excluded from this analysis, as they were large outliers in seed weight (very heavy). Perhaps there is a better proxy for seed dispersal? Or I can scale values so that these species can be included? Even with scaling, these are large outliers. 
 
 ```{r}
 ####seed weight
 ##excluded gambel oak and pinyon as they were large outliers
-weight5 <- ggplot(pc1.diffs.traits[!pc1.diffs.traits$species.code %in% c(814,106),], aes(x=mean.weight.mg, y=abs(quant_5),color=species.name))+
-  geom_point()+
-  stat_smooth(method = "lm", col="red")+
+weight5 <- ggplot(pc1.diffs.traits[!pc1.diffs.traits$species.code %in% c(814,106),]
+, aes(x=mean.weight.mg, y=abs(quant_5),color=species.name))+
+  stat_smooth(method = "lm", col="black", lty=2)+
+  geom_point(size=3)+
   facet_wrap(~agent)+
-  ggtitle("Difference in 5th quantile on PC1 vs. seed weight")
+  scale_color_brewer(palette="Paired")+
+  ggtitle("PC1 5th quantile")+
+  ylab("Shift Magnitude")+
+  xlab("Seed Weight (mg)")+
+  theme(legend.position = "none",axis.text = element_text(color="black",size=14),text = element_text(size=14),legend.text = element_text(size=14),strip.text = element_text(color="black",size=14))
 
-weight50 <- ggplot(pc1.diffs.traits[!pc1.diffs.traits$species.code %in% c(814,106),], aes(x=mean.weight.mg, y=abs(quant_50),color=species.name))+
-  geom_point()+
-  stat_smooth(method = "lm", col="red")+
+weight50 <- ggplot(pc1.diffs.traits[!pc1.diffs.traits$species.code %in% c(814,106),]
+, aes(x=mean.weight.mg, y=abs(quant_50),color=species.name))+
+  stat_smooth(method = "lm", col="black", lty=2)+
+  geom_point(size=3)+
   facet_wrap(~agent)+
-  ggtitle("Difference in 50th quantile on PC1 vs. seed weight")
+  scale_color_brewer(palette="Paired")+
+  ggtitle("PC1 50th quantile")+
+  ylab("Shift Magnitude")+
+  xlab("Seed Weight (mg)")+
+  theme(legend.position = "none",axis.text = element_text(color="black",size=14),text = element_text(size=14),legend.text = element_text(size=14),strip.text = element_text(color="black",size=14))
 
-
-weight95 <- ggplot(pc1.diffs.traits[!pc1.diffs.traits$species.code %in% c(814,106),], aes(x=mean.weight.mg, y=abs(quant_95),color=species.name))+
-  geom_point()+
-  stat_smooth(method = "lm", col="red")+
+weight95 <- ggplot(pc1.diffs.traits[!pc1.diffs.traits$species.code %in% c(814,106),]
+, aes(x=mean.weight.mg, y=abs(quant_95),color=species.name))+
+  stat_smooth(method = "lm", col="black", lty=2)+
+  geom_point(size=3)+
   facet_wrap(~agent)+
-  ggtitle("Difference in 95th quantile on PC1 vs. seed weight")
+  scale_color_brewer(palette="Paired")+
+  ggtitle("PC1 95th quantile")+
+  ylab("Shift Magnitude")+
+  xlab("Seed Weight (mg)")+
+  theme(axis.text = element_text(color="black",size=14),text = element_text(size=14),legend.text = element_text(size=14),strip.text = element_text(color="black",size=14))
 
-ggarrange(weight5, weight50, weight95, nrow=2, ncol=2)
+ggarrange(weight5, weight50, weight95, nrow=1, ncol=3, common.legend = TRUE)
+
 
 ```
 
@@ -1296,60 +1560,111 @@ Now we'll analyze the relationship between species traits, disturbance, and the 
 #plot relationships
 ####shade tolerance
 shade5_2 <- ggplot(pc2.diffs.traits, aes(x=shade.tolerance, y=abs(quant_5),color=species.name))+
-  geom_point()+
-  stat_smooth(method = "lm", col="red")+
-  facet_wrap(~agent)
+  stat_smooth(method = "lm", col="black", lty=2)+
+  geom_point(size=3)+
+  facet_wrap(~agent)+
+  scale_color_brewer(palette="Paired")+
+  ggtitle("PC2 5th quantile")+
+  ylab("Shift Magnitude")+
+  xlab("Shade Tolerance Score")+
+  theme(legend.position = "none",axis.text = element_text(color="black",size=14),text = element_text(size=14),legend.text = element_text(size=14),strip.text = element_text(color="black",size=14))
 
 shade50_2 <- ggplot(pc2.diffs.traits, aes(x=shade.tolerance, y=abs(quant_50),color=species.name))+
-  geom_point()+
-  stat_smooth(method = "lm", col="red")+
-  facet_wrap(~agent)
+  stat_smooth(method = "lm", col="black", lty=2)+
+  geom_point(size=3)+
+  facet_wrap(~agent)+
+  scale_color_brewer(palette="Paired")+
+  ggtitle("PC2 50th quantile")+
+  ylab("Shift Magnitude")+
+  xlab("Shade Tolerance Score")+
+  theme(legend.position = "none",axis.text = element_text(color="black",size=14),text = element_text(size=14),legend.text = element_text(size=14),strip.text = element_text(color="black",size=14))
 
 shade95_2 <- ggplot(pc2.diffs.traits, aes(x=shade.tolerance, y=abs(quant_95),color=species.name))+
-  geom_point()+
-  stat_smooth(method = "lm", col="red")+
-  facet_wrap(~agent)
+  stat_smooth(method = "lm", col="black", lty=2)+
+  geom_point(size=3)+
+  facet_wrap(~agent)+
+  scale_color_brewer(palette="Paired")+
+  ggtitle("PC2 95th quantile")+
+  ylab("Shift Magnitude")+
+  xlab("Shade Tolerance Score")+
+  theme(axis.text = element_text(color="black",size=14),text = element_text(size=14),legend.text = element_text(size=14),strip.text = element_text(color="black",size=14))
 
-ggarrange(shade5_2, shade50_2, shade95_2, nrow=2, ncol=2)
+
+ggarrange(shade5_2, shade50_2, shade95_2, nrow=1, ncol=3, common.legend = TRUE)
 ```
 
 ```{r, echo=FALSE}
 ####drought tolerance
 drought5_2 <- ggplot(pc2.diffs.traits, aes(x=drought.tolerance, y=abs(quant_5),color=species.name))+
-  geom_point()+
-  stat_smooth(method = "lm", col="red")+
-  facet_wrap(~agent)
+  stat_smooth(method = "lm", col="black", lty=2)+
+  geom_point(size=3)+
+  facet_wrap(~agent)+
+  scale_color_brewer(palette="Paired")+
+  ggtitle("PC2 5th quantile")+
+  ylab("Shift Magnitude")+
+  xlab("Drought Tolerance Score")+
+  theme(legend.position = "none",axis.text = element_text(color="black",size=14),text = element_text(size=14),legend.text = element_text(size=14),strip.text = element_text(color="black",size=14))
 
 drought50_2 <- ggplot(pc2.diffs.traits, aes(x=drought.tolerance, y=abs(quant_50),color=species.name))+
-  geom_point()+
-  stat_smooth(method = "lm", col="red")+
-  facet_wrap(~agent)
+  stat_smooth(method = "lm", col="black", lty=2)+
+  geom_point(size=3)+
+  facet_wrap(~agent)+
+  scale_color_brewer(palette="Paired")+
+  ggtitle("PC2 50th quantile")+
+  ylab("Shift Magnitude")+
+  xlab("Drought Tolerance Score")+
+  theme(legend.position = "none",axis.text = element_text(color="black",size=14),text = element_text(size=14),legend.text = element_text(size=14),strip.text = element_text(color="black",size=14))
 
 drought95_2 <- ggplot(pc2.diffs.traits, aes(x=drought.tolerance, y=abs(quant_95),color=species.name))+
-  geom_point()+
-  stat_smooth(method = "lm", col="red")+
-  facet_wrap(~agent)
+  stat_smooth(method = "lm", col="black", lty=2)+
+  geom_point(size=3)+
+  facet_wrap(~agent)+
+  scale_color_brewer(palette="Paired")+
+  ylab("Shift Magnitude")+
+  xlab("Drought Tolerance Score")+
+  ggtitle("PC2 95th quantile")+
+  theme(axis.text = element_text(color="black",size=14),text = element_text(size=14),legend.text = element_text(size=14),strip.text = element_text(color="black",size=14))
 
-ggarrange(drought5_2, drought50_2, drought95_2, nrow=2, ncol=2)
+ggarrange(drought5_2, drought50_2, drought95_2, nrow=1, ncol=3, common.legend = TRUE)
 ```
 
 ```{r, echo=FALSE}
 ####seed weight
 ##excluded gambel oak and pinyon as they were large outliers
-weight5_2 <- ggplot(pc2.diffs.traits[!pc2.diffs.traits$species.code %in% c(814,106),], aes(x=mean.weight.mg, y=abs(quant_5),color=species.name))+
-  geom_point()+
-  stat_smooth(method = "lm", col="red")+
-  facet_wrap(~agent)
+weight5_2 <- ggplot(pc2.diffs.traits[!pc1.diffs.traits$species.code %in% c(814,106),]
+, aes(x=mean.weight.mg, y=abs(quant_5),color=species.name))+
+  stat_smooth(method = "lm", col="black", lty=2)+
+  geom_point(size=3)+
+  facet_wrap(~agent)+
+  scale_color_brewer(palette="Paired")+
+  ggtitle("PC2 5th quantile")+
+  ylab("Shift Magnitude")+
+  xlab("Seed Weight (mg)")+
+  theme(legend.position = "none",axis.text = element_text(color="black",size=14),text = element_text(size=14),legend.text = element_text(size=14),strip.text = element_text(color="black",size=14))
 
-weight50_2 <- ggplot(pc2.diffs.traits[!pc2.diffs.traits$species.code %in% c(814,106),], aes(x=mean.weight.mg, y=abs(quant_50),color=species.name))+
-  geom_point()+
-  stat_smooth(method = "lm", col="red")+
-  facet_wrap(~agent)
+weight50_2 <- ggplot(pc2.diffs.traits[!pc1.diffs.traits$species.code %in% c(814,106),]
+, aes(x=mean.weight.mg, y=abs(quant_50),color=species.name))+
+  stat_smooth(method = "lm", col="black", lty=2)+
+  geom_point(size=3)+
+  facet_wrap(~agent)+
+  scale_color_brewer(palette="Paired")+
+  ggtitle("PC2 50th quantile")+
+  ylab("Shift Magnitude")+
+  xlab("Seed Weight (mg)")+
+  theme(legend.position = "none",axis.text = element_text(color="black",size=14),text = element_text(size=14),legend.text = element_text(size=14),strip.text = element_text(color="black",size=14))
 
-weight95_2 <- ggplot(pc2.diffs.traits[!pc2.diffs.traits$species.code %in% c(814,106),], aes(x=mean.weight.mg, y=abs(quant_95),color=species.name))+
-  geom_point()+
-  stat_smooth(method = "lm", col="red")+
-  facet_wrap(~agent)
+weight95_2 <- ggplot(pc2.diffs.traits[!pc1.diffs.traits$species.code %in% c(814,106),]
+, aes(x=mean.weight.mg, y=abs(quant_95),color=species.name))+
+  stat_smooth(method = "lm", col="black", lty=2)+
+  geom_point(size=3)+
+  facet_wrap(~agent)+
+  scale_color_brewer(palette="Paired")+
+  ggtitle("PC2 95th quantile")+
+  ylab("Shift Magnitude")+
+  xlab("Seed Weight (mg)")+
+  theme(axis.text = element_text(color="black",size=14),text = element_text(size=14),legend.text = element_text(size=14),strip.text = element_text(color="black",size=14))
+
+ggarrange(weight5_2, weight50_2, weight95_2, nrow=1, ncol=3, common.legend = TRUE)
 ```
 
 By running some linear models we see that seed weight, drought and shade tolerance do not seem to predict shifts on PC2 significantly for any of the disturbance categories.
@@ -1397,13 +1712,265 @@ summary(pc2mod95_weight)
 #plot(pc2mod95_weight)
 ```
 
+I will now look at the effect of species traits on the combination of magnitude and direction of shifts (real value) on PC1 and PC2. We'll start with running some models for PC1. 
+
+```{r}
+##linear models
+par(mfrow=c(2,2))
+####shade tolerance
+dm_pc1mod5_shade <- lm(quant_5~shade.tolerance*agent,pc1.diffs.traits)
+summary(dm_pc1mod5_shade)
+```
+
+```{r, echo=FALSE, eval=FALSE}
+plot(dm_pc1mod5_shade)
+```
+
+```{r}
+dm_pc1mod50_shade <- lm(quant_50~shade.tolerance*agent,pc1.diffs.traits)
+summary(dm_pc1mod50_shade)
+```
+
+```{r, echo=FALSE, eval=FALSE}
+plot(dm_pc1mod50_shade)
+```
+
+```{r}
+dm_pc1mod95_shade <- lm(quant_95~shade.tolerance*agent,pc1.diffs.traits)
+summary(dm_pc1mod95_shade)
+```
+
+```{r, echo=FALSE, eval=FALSE}
+plot(dm_pc1mod95_shade)
+```
+
+```{r}
+####drought tolerance
+dm_pc1mod5_drought <- lm(quant_5~drought.tolerance*agent,pc1.diffs.traits)
+summary(dm_pc1mod5_drought)
+```
+
+```{r, echo=FALSE, eval=FALSE}
+plot(dm_pc1mod5_drought)
+```
+
+```{r}
+#significant interaction between drought tolerance and harvest for shifts in 5th percentile of PC1. Let's plot to see which direction this interaction is:
+ggplot(pc1.diffs.traits, aes(x=drought.tolerance, y=quant_5,color=species.name))+
+  stat_smooth(method = "lm", col="black", lty=2)+
+  geom_point(size=3)+
+  facet_wrap(~agent)+
+  scale_color_brewer(palette="Paired")+
+  ggtitle("PC1 5th quantile")+
+  ylab("Shift")+
+  xlab("Drought Tolerance Score")+
+  theme(axis.text = element_text(color="black",size=14),text = element_text(size=14),legend.text = element_text(size=14),strip.text = element_text(color="black",size=14))
+
+```
+
+```{r}
+dm_pc1mod50_drought <- lm(quant_50~drought.tolerance*agent,pc1.diffs.traits)
+summary(dm_pc1mod50_drought)
+```
+
+```{r, echo=FALSE, eval=FALSE}
+plot(dm_pc1mod50_drought)
+```
+
+```{r}
+dm_pc1mod95_drought <- lm(quant_95~drought.tolerance*agent,pc1.diffs.traits)
+summary(dm_pc1mod95_drought)
+```
+
+```{r, echo=FALSE, eval=FALSE}
+plot(dm_pc1mod95_drought)
+```
+
+```{r}
+ggplot(pc1.diffs.traits, aes(x=drought.tolerance, y=quant_95,color=species.name))+
+  stat_smooth(method = "lm", col="black", lty=2)+
+  geom_point(size=3)+
+  facet_wrap(~agent)+
+  scale_color_brewer(palette="Paired")+
+  ggtitle("PC1 95th quantile")+
+  ylab("Shift")+
+  xlab("Drought Tolerance Score")+
+  theme(axis.text = element_text(color="black",size=14),text = element_text(size=14),legend.text = element_text(size=14),strip.text = element_text(color="black",size=14))
+
+ggplot(pc1.diffs.traits, aes(x=drought.tolerance, y=quant_95,color=species.name))+
+  stat_smooth(method = "lm", col="black", lty=2)+
+  geom_point(size=3)+
+  scale_color_brewer(palette="Paired")+
+  ggtitle("PC1 95th quantile")+
+  ylab("Shift")+
+  xlab("Drought Tolerance Score")+
+  theme(axis.text = element_text(color="black",size=14),text = element_text(size=14),legend.text = element_text(size=14),strip.text = element_text(color="black",size=14))
+
+```
+
+```{r}
+####seed weight
+dm_pc1mod5_weight <- lm(quant_5~mean.weight.mg*agent,pc1.diffs.traits[!pc1.diffs.traits$species.code %in% c(814,106),])
+summary(dm_pc1mod5_weight)
+```
+
+```{r, echo=FALSE, eval=FALSE}
+plot(dm_pc1mod5_weight)
+```
+
+```{r}
+dm_pc1mod50_weight <- lm(quant_50~mean.weight.mg*agent,pc1.diffs.traits[!pc1.diffs.traits$species.code %in% c(814,106),])
+summary(dm_pc1mod50_weight)
+```
+
+```{r, echo=FALSE, eval=FALSE}
+plot(dm_pc1mod50_weight)
+```
+
+```{r}
+dm_pc1mod95_weight <- lm(quant_95~mean.weight.mg*agent,pc1.diffs.traits[!pc1.diffs.traits$species.code %in% c(814,106),])
+summary(dm_pc1mod95_weight)
+```
+
+```{r, echo=FALSE, eval=FALSE}
+plot(dm_pc1mod95_weight)
+```
+
+And now for PC2:
+
+```{r}
+##linear models
+par(mfrow=c(2,2))
+####shade tolerance
+dm_pc2mod5_shade <- lm(quant_5~shade.tolerance*agent,pc2.diffs.traits)
+summary(dm_pc2mod5_shade)
+```
+
+```{r, echo=FALSE, eval=FALSE}
+plot(dm_pc2mod5_shade)
+```
+
+```{r}
+dm_pc2mod50_shade <- lm(quant_50~shade.tolerance*agent,pc2.diffs.traits)
+summary(dm_pc2mod50_shade)
+```
+
+```{r, echo=FALSE, eval=FALSE}
+plot(dm_pc2mod50_shade)
+```
+
+```{r}
+dm_pc2mod95_shade <- lm(quant_95~shade.tolerance*agent,pc2.diffs.traits)
+summary(dm_pc2mod95_shade)
+```
+
+```{r, echo=FALSE, eval=FALSE}
+plot(dm_pc2mod95_shade)
+```
+
+```{r}
+####drought tolerance
+dm_pc2mod5_drought <- lm(quant_5~drought.tolerance*agent,pc2.diffs.traits)
+summary(dm_pc2mod5_drought)
+```
+
+```{r, echo=FALSE, eval=FALSE}
+plot(dm_pc2mod5_drought)
+```
+
+```{r}
+#marginal significant interaction between drought tolerance and harvest/none for shifts in 5th percentile of pc2. Let's plot to see which direction this interaction is:
+ggplot(pc2.diffs.traits, aes(x=drought.tolerance, y=quant_5,color=species.name))+
+  stat_smooth(method = "lm", col="black", lty=2)+
+  geom_point(size=3)+
+  facet_wrap(~agent)+
+  scale_color_brewer(palette="Paired")+
+  ggtitle("pc2 5th quantile")+
+  ylab("Shift")+
+  xlab("Drought Tolerance Score")+
+  theme(axis.text = element_text(color="black",size=14),text = element_text(size=14),legend.text = element_text(size=14),strip.text = element_text(color="black",size=14))
+
+```
+
+```{r}
+dm_pc2mod50_drought <- lm(quant_50~drought.tolerance*agent,pc2.diffs.traits)
+summary(dm_pc2mod50_drought)
+```
+
+```{r, echo=FALSE, eval=FALSE}
+plot(dm_pc2mod50_drought)
+```
+
+```{r}
+dm_pc2mod95_drought <- lm(quant_95~drought.tolerance*agent,pc2.diffs.traits)
+summary(dm_pc2mod95_drought)
+```
+
+```{r, echo=FALSE, eval=FALSE}
+plot(dm_pc2mod95_drought)
+```
+
+```{r}
+####seed weight
+dm_pc2mod5_weight <- lm(quant_5~mean.weight.mg*agent,pc2.diffs.traits[!pc2.diffs.traits$species.code %in% c(814,106),])
+summary(dm_pc2mod5_weight)
+```
+
+```{r, echo=FALSE, eval=FALSE}
+plot(dm_pc2mod5_weight)
+```
+
+```{r}
+ggplot(pc2.diffs.traits[!pc2.diffs.traits$species.code %in% c(814,106),], aes(x=mean.weight.mg, y=quant_5,color=species.name))+
+  stat_smooth(method = "lm", col="black", lty=2)+
+  geom_point(size=3)+
+  facet_wrap(~agent)+
+  scale_color_brewer(palette="Paired")+
+  ggtitle("PC2 5th quantile")+
+  ylab("Shift")+
+  xlab("Seed Weight(mg)")+
+  theme(axis.text = element_text(color="black",size=14),text = element_text(size=14),legend.text = element_text(size=14),strip.text = element_text(color="black",size=14))
+
+```
+
+```{r}
+dm_pc2mod50_weight <- lm(quant_50~mean.weight.mg*agent,pc2.diffs.traits[!pc2.diffs.traits$species.code %in% c(814,106),])
+summary(dm_pc2mod50_weight)
+```
+
+```{r, echo=FALSE, eval=FALSE}
+plot(dm_pc2mod50_weight)
+```
+
+```{r}
+ggplot(pc2.diffs.traits[!pc2.diffs.traits$species.code %in% c(814,106),], aes(x=mean.weight.mg, y=quant_50,color=species.name))+
+  stat_smooth(method = "lm", col="black", lty=2)+
+  geom_point(size=3)+
+  facet_wrap(~agent)+
+  scale_color_brewer(palette="Paired")+
+  ggtitle("PC2 50th quantile")+
+  ylab("Shift")+
+  xlab("Seed Weight(mg)")+
+  theme(axis.text = element_text(color="black",size=14),text = element_text(size=14),legend.text = element_text(size=14),strip.text = element_text(color="black",size=14))
+```
+
+```{r}
+dm_pc2mod95_weight <- lm(quant_95~mean.weight.mg*agent,pc2.diffs.traits[!pc2.diffs.traits$species.code %in% c(814,106),])
+summary(dm_pc2mod95_weight)
+```
+
+```{r, echo=FALSE, eval=FALSE}
+plot(dm_pc2mod95_weight)
+```
+
+
 Now I will explore how time since disturbance may be influencing shifts. I will narrow the plots in each disturbance category to only those that had a disturbance 5 or more years before monitoring. Since the FIA only measures conifer seedlings greater than 6in tall, we wouldn't expect these to show up in the first few years after a destructive disturbance. It looks like most plots were disturbed relatively recently, so it may not be possible to use this filter due to sample size - but definitely something to note in the discussion.
 
 ```{r}
 #first explore time since disturbance of plots
 dist %>% 
   group_by(Agent) %>% 
-  summarise(mean.TSD = mean(MEASYEAR - DSTRBYR),
+  dplyr::summarise(mean.TSD = mean(MEASYEAR - DSTRBYR),
             min.TSD = min(MEASYEAR - DSTRBYR),
             max.TSD = max(MEASYEAR - DSTRBYR))
 
@@ -1414,7 +1981,7 @@ ggplot(dist, aes(x=MEASYEAR - DSTRBYR))+
 dist %>% 
   filter(MEASYEAR - DSTRBYR > 4) %>% 
   group_by(Agent) %>% 
-  summarise(n=n())
+  dplyr::summarise(n=n())
 ```
 
 # Other
@@ -1427,7 +1994,7 @@ adult_centroids <- data.frame()
 for(i in 1:length(adult_data_pcapts)){
 m <- adult_data_pcapts %>% 
   pluck(i) %>% 
-  summarise(SPCD = unique(SPCD), Agent = unique(Agent), mean.pc1 = mean(PC1), mean.pc2 = mean(PC2)) 
+  dplyr::summarise(SPCD = unique(SPCD), Agent = unique(Agent), mean.pc1 = mean(PC1), mean.pc2 = mean(PC2)) 
 
 adult_centroids <- bind_rows(adult_centroids, m) %>% 
     unite(uid, c(SPCD,Agent), sep="_", remove=FALSE )
@@ -1439,7 +2006,7 @@ seedling_centroids <- data.frame()
 for(i in 1:length(seedling_data_pcapts)){
 m <- seedling_data_pcapts %>% 
   pluck(i) %>% 
-  summarise(SPCD = unique(SPCD), Agent = unique(Agent), mean.pc1 = mean(PC1), mean.pc2 = mean(PC2)) 
+  dplyr::summarise(SPCD = unique(SPCD), Agent = unique(Agent), mean.pc1 = mean(PC1), mean.pc2 = mean(PC2)) 
 
 seedling_centroids <- bind_rows(seedling_centroids, m) %>% 
     unite(uid, c(SPCD,Agent), sep="_", remove=FALSE )
@@ -1469,12 +2036,12 @@ unique.plotsdist <- dist %>%
 dist %>% 
   semi_join(unique.plots, by="PLT_CN") %>% 
   group_by(Agent) %>% 
-  summarise(n = n())
+  dplyr::summarise(n = n())
 
 dist %>% 
   semi_join(unique.plots, by="PLT_CN") %>% 
   group_by(Agent) %>% 
-  summarise(n = n(), max = max(DSTRBYR), min = min(DSTRBYR))
+  dplyr::summarise(n = n(), max = max(DSTRBYR), min = min(DSTRBYR))
 
 ###look at condition data
 cond <- read_csv("C:/Users/Katie/Google Drive/FIA project/compiled_data_annual2020/COND.csv")
@@ -1544,210 +2111,4 @@ leaflet(harvest.locations) %>%
   addTiles() %>%
   addCircles(lng = ~LON, lat = ~LAT, color="green")
 
-```
-
-# Univariate Analysis
-
-This table shows the p-value for a t-test to compare mean climatic moisture deficit between seedlings and adults of different species under different disturbance histories.
-
-```{r,echo=FALSE}
-p.table=data.frame()
-for(i in 1:length(names(adult_data))){
-  p_cmd <- t.test(adult_data[[names(adult_data)[i]]]$CMD,seedling_data[[names(adult_data)[i]]]$CMD)$p.value
-  p.table <- bind_rows(p.table, data.frame(names(adult_data)[i],p_cmd) )
-}
-
-p.table.sep <- p.table %>% 
-  rename(species_dist = names.adult_data..i.) %>% 
-  mutate(species_dist = as.character(species_dist)) %>% 
-  separate(species_dist, c("species","agent"),sep="_",extra="drop") %>% 
-  mutate(species = as.numeric(species)) %>% 
-  left_join(species.names, by=c("species" = "species.code"))
-
-datatable(p.table.sep, filter="top")
-```
-
-This is a table of the difference between the 95th percentile CMD in plots occupied by adults vs. seedlings of the same species in each disturbance type. I then perform an ANOVA to evaluate disturbance effects on shifts in the upper envelope boundary of CMD between adults and seedlings. Difference was calculated as (adult_95 - seedling_95)/(adult_95 - adult_05), or the difference in 95th percentile divided by the adult "tolerance" (as in Dobrowski et al. 2015)
-
-```{r,echo=FALSE}
-#' get_diff
-#'
-#' @param adult_data list of dataframes that are separated by species and agent. Dataframes contain info on climate variables of plots with adults of each species/agent.  
-#' @param seedling_data list of dataframes that are separated by species and agent. Dataframes contain info on climate variables of plots with seedlings of each species/agent. 
-#' @param var name of the desired climate variable for which the difference should be calculated. This can also be a principal component, or any column that exists in every dataframe in the list.  
-#' @param quant The quantile for which you want to calculate the difference between adults and seedlings.
-#'
-#' @return a dataframe with the difference in chosen quantile between adults and seedlings, for the chosen climate variable, under each disturbance agent.  
-#' @export
-#'
-#' @examples
-get_diff <- function(adult_data, seedling_data, var,quant){
-q.table = data.frame()
-for(i in 1:length(names(adult_data))){
-  adult.q<- adult_data %>% 
-    pluck(names(adult_data)[i]) %>% 
-    ungroup() %>% 
-    select(!!var) %>% 
-    summarise(quantile = quantile(!!var,probs = quant))
-  seed.q<- seedling_data %>% 
-    pluck(names(adult_data)[i]) %>% 
-    ungroup() %>% 
-    select(!!var) %>% 
-    summarise(quantile = quantile(!!var,probs = quant))
-  adult.95<- adult_data %>% 
-    pluck(names(adult_data)[i]) %>% 
-    ungroup() %>% 
-    select(!!var) %>% 
-    summarise(quantile = quantile(!!var,probs = 0.95))
-  adult.05 <- adult_data %>% 
-    pluck(names(adult_data)[i]) %>% 
-    ungroup() %>% 
-    select(!!var) %>% 
-    summarise(quantile = quantile(!!var,probs = 0.05))
-  adult.tolerance <- adult.95 - adult.05
-  q_diff = (seed.q - adult.q)/adult.tolerance
-  q.table <- bind_rows(q.table, data.frame(names(adult_data)[i],q_diff) )
-}
-q.table <- q.table %>% 
-  rename(!!paste("quant",quant*100,sep="_") := quantile,
-         uid = names.adult_data..i.)
-return(q.table) 
-}
-
-cmd.q95.table <- get_diff(adult_data, seedling_data, quo(CMD),0.95)
-cmd.q50.table <- get_diff(adult_data, seedling_data, quo(CMD),0.5)
-cmd.q5.table <- get_diff(adult_data, seedling_data, quo(CMD),0.05)
-
-cmd.q95.table.sep <- cmd.q95.table %>% 
-  mutate(uid = as.character(uid)) %>% 
-  separate(uid, c("species","agent"),sep="_",extra="drop") %>% 
-  mutate(species = as.numeric(species)) %>% 
-  left_join(species.names, by=c("species" = "species.code"))
-cmd.q50.table.sep <- cmd.q50.table %>% 
-  mutate(uid = as.character(uid)) %>% 
-  separate(uid, c("species","agent"),sep="_",extra="drop") %>% 
-  mutate(species = as.numeric(species)) %>% 
-  left_join(species.names, by=c("species" = "species.code"))
-cmd.q5.table.sep <- cmd.q5.table %>% 
-  mutate(uid = as.character(uid)) %>% 
-  separate(uid, c("species","agent"),sep="_",extra="drop") %>% 
-  mutate(species = as.numeric(species)) %>% 
-  left_join(species.names, by=c("species" = "species.code"))
-
-datatable(cmd.q95.table.sep)
-```
-
-Here I run an ANOVA to test for significantly different magnitudes of 5th, 50th and 95th percentile shifts in CMD between disturbance types across species. There is not a significant difference between disturbances in shifts in the 5th and 50th percentiles. For the 95th percentile, fire seems to be driving the biggest shifts, though the p-value is only marginally significant (p = 0.055).
-
-```{r, echo=FALSE}
-dist_mod95 <- lm(quant_95 ~ agent, data = cmd.q95.table.sep)
-anova(dist_mod95)
-dist_mod50 <- lm(quant_50 ~ agent, data = cmd.q50.table.sep)
-anova(dist_mod50)
-dist_mod5 <- lm(quant_5 ~ agent, data = cmd.q5.table.sep)
-anova(dist_mod5)
-
-ggplot(cmd.q95.table.sep,aes(x=agent, y=quant_95 ,fill=agent))+
-  geom_boxplot()
-ggplot(cmd.q50.table.sep,aes(x=agent, y=quant_50 ,fill=agent))+
-  geom_boxplot()
-ggplot(cmd.q5.table.sep,aes(x=agent, y=quant_5 ,fill=agent))+
-  geom_boxplot()
-```
-
-We could also just look at the magnitude of shifts (absolute value), in which case the magnitude of shift in the 95th percentile of CMD is greater for burned plots than for plots in other disturbance categories.
-
-```{r}
-##model for change in 95th percentile CMD differences among disturbances
-dist_mod95_abs <- lm(abs(quant_95) ~ agent, data = cmd.q95.table.sep)
-plot(dist_mod95_abs)
-leveneTest(abs(quant_95) ~ agent, data = cmd.q95.table.sep) #variances are equal
-kruskal.test(abs(quant_95) ~ agent, data = cmd.q95.table.sep)
-anova(dist_mod95_abs)
-##model for change in 50th percentile
-dist_mod50_abs <- lm(abs(quant_50) ~ agent, data = cmd.q50.table.sep)
-plot(dist_mod50_abs)
-anova(dist_mod50_abs)
-##model for change in 5th percentile
-dist_mod5_abs <- lm(abs(quant_5) ~ agent, data = cmd.q5.table.sep)
-plot(dist_mod5_abs)
-leveneTest(abs(quant_5) ~ agent, data = cmd.q5.table.sep) ##levene test is significant which means variances are not equal between groups, use kruskal wallis test instead of anova
-kruskal.test(abs(quant_5) ~ agent, data = cmd.q5.table.sep)
-
-```
-
-But if we look at the data by species, we see that the large shift in the 95th percentile CMD for Douglas-fir in burned areas is likely driving the higher magnitude shifts seen for burned plots in the boxplot above.
-
-```{r,echo=FALSE}
-#95th quantile
-ggplot(cmd.q95.table.sep,aes(x=species.name,y=quant_95,color=agent))+
-  geom_point()+
-  theme(axis.text.x = element_text(angle=45, hjust=1))
-#50th quantile
-ggplot(cmd.q50.table.sep,aes(x=species.name,y=quant_50,color=agent))+
-  geom_point()+
-  theme(axis.text.x = element_text(angle=45, hjust=1))
-#5th quantile
-ggplot(cmd.q5.table.sep,aes(x=species.name,y=quant_5,color=agent))+
-  geom_point()+
-  theme(axis.text.x = element_text(angle=45, hjust=1))
-```
-
-If we just look at whether the shifts in CMD percentiles are significantly different from 0, it is for the 95th and 50th percentiles, but not for the 5th percentile.
-
-```{r, echo=FALSE}
-#one sample Wilcoxen signed rank test for shift in 95th percentile CMD. Species are replicates
-wilcox.test(cmd.q95.table.sep$quant_95,y=NULL,alternative = "two.sided", mu=0)
-wilcox.test(cmd.q50.table.sep$quant_50,y=NULL,alternative = "two.sided", mu=0)
-wilcox.test(cmd.q5.table.sep$quant_5,y=NULL,alternative = "two.sided", mu=0)
-```
-
-If we look within each disturbance type, shifts in the 95th percentile of CMD are significant for all disturbance types except harvest, and no other shifts are significant.
-
-```{r, echo=FALSE}
-##look at significant change from 0 within each disturbance type.
-
-#' wiltest
-#'
-#' @param table the data table to use. Either cmd.q95.table.sep, cmd.q50.table.sep or cmd.q5.table.sep. These give the shifts in percentiles between adults and seedlings in CMD.  
-#' @param dist the disturbance agent. Either fire, harvest, insect.disease or none 
-#' @param quant the quantile that you want to test. Should match the table parameter.  
-#'
-#' @return the Wilcoxon test results for the given quantile.   
-#' @export
-#'
-#' @examples
-
-wiltest <- function(table,dist,quant){
-df<- table %>% 
-  filter(agent == dist) %>% 
-  select(quant) 
-
-return(wilcox.test(x=df[,1],y=NULL, alternative="two.sided",mu=0))}
-
-#list of disturbance agents
-agent.list = unique(cmd.q95.table.sep$agent)
-
-#get wilcoxon test results for change in 95th percentile across species in each disturbance type 
-test.results.95<- list()
-for(j in 1:length(agent.list)){
-test.results.95[[j]] <-  wiltest(cmd.q95.table.sep,agent.list[j],"quant_95")
-}
-names(test.results.95)<- agent.list
-#do the same for 50th percentile
-test.results.50<- list()
-for(j in 1:length(agent.list)){
-test.results.50[[j]] <-  wiltest(cmd.q50.table.sep,agent.list[j],"quant_50")
-}
-names(test.results.50)<- agent.list
-#do the same for 5th percentile
-test.results.5<- list()
-for(j in 1:length(agent.list)){
-test.results.5[[j]] <-  wiltest(cmd.q5.table.sep,agent.list[j],"quant_5")
-}
-names(test.results.5)<- agent.list
-#view results
-test.results.95
-test.results.50
-test.results.5
 ```
