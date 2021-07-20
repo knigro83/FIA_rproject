@@ -86,29 +86,34 @@ summary(is.na(dist_seeds_joined)) #there are NAs for the plots that are not in m
 ```
 
 ```{r}
+recent.plots <- dist %>% 
+                  dplyr::select("PLT_CN")
 
 plot_progression <- left_join(recent.plots, plot, by=c("PLT_CN"="CN")) %>% 
                       dplyr::select(c("PLT_CN","PREV_PLT_CN")) %>% 
                         left_join(plot, by=c("PREV_PLT_CN"="CN")) %>% 
                           dplyr::select(c("PLT_CN","PREV_PLT_CN","PREV_PLT_CN.y"))
-
+#make datatable with species recorded in most recent survey (SPCD) and in the previous survey (SPCD.prev)
 prev_plot_spp <- plot_progression %>% 
+  filter(!is.na(PREV_PLT_CN)) %>% 
   dplyr::select("PREV_PLT_CN") %>% 
-  right_join(adults, by=c("PREV_PLT_CN" = "PLT_CN"))
+  left_join(adults, by=c("PREV_PLT_CN" = "PLT_CN")) %>% 
+  left_join(plot_progression, by="PREV_PLT_CN") #%>% 
+  dplyr::rename(SPCD.prev = SPCD, n.prev = n) %>% 
+  full_join(dist_adults_joined, by="PLT_CN")
 
-dist_adults_joined %>% 
-  left_join(plot_progression,by="PLT_CN") %>% 
-  full_join(prev_plot_spp, by="PREV_PLT_CN") %>% 
-  View()
+length(unique(prev_plot_spp$PREV_PLT_CN))
+length(unique(prev_plot_spp$PLT_CN))
+length(unique(plot_progression$PLT_CN))
+length(unique(plot_progression$PREV_PLT_CN))
+length(unique(dist_adults_joined$PLT_CN))
+
+View(prev_plot_spp[!is.na(prev_plot_spp$SPCD) & !is.na(prev_plot_spp$SPCD.prev),])
   
-
-
-recent.plots <- dist %>% 
-                  dplyr::select("PLT_CN")
-
-left_join(adults, plot_progression, by=c("PLT_CN"="PREV_PLT_CN"))
-
-
+sample_prev_adult <- prev_plot_spp %>% 
+  filter(!is.na(Agent)) %>% 
+  group_by(SPCD, Agent) %>% 
+  dplyr::summarise(n_plots = n_distinct(PLT_CN))
 ```
 
 Here are tables of sample sizes for each species and disturbance type. The first shows adult sample sizes and the second shows seedling sample sizes.
