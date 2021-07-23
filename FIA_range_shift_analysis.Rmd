@@ -126,8 +126,15 @@ species.sum.long<- prev_plot_spp %>%
   distinct()
 ```
 
-This plot shows the number of trees with STATUS codes of 0-3 across all plots used in the analysis, separated by disturbance category. Burned plots had the most dead trees (50%), followed by insect/disease (33%), harvest (17%) and none (15%). Harvested plots also had 3% of trees classified as “removed”.
-```{r}
+This plot shows the number of trees with STATUS codes of 0-3 across all plots used in the analysis, separated by disturbance category. Status codes are as follows:
+
+* 0 no status. Tree is not in sample because either it was incorrectly tallied in the last sample, not currently tallied due to procedural change, or natural causes. 
+* 1 live
+* 2 dead
+* 3 removed by human activity 
+
+Burned plots had the most dead trees (50%), followed by insect/disease (33%), harvest (17%) and none (15%). Harvested plots also had 3% of trees classified as “removed”.
+```{r, echo=FALSE}
 #look at tree status codes
 tree.status <- dist %>% 
   left_join(tree, by="PLT_CN") %>% 
@@ -140,7 +147,9 @@ ggplot(tree.status, aes(x=Agent, y=freq, fill=factor(x)))+
   scale_y_continuous(labels = scales::percent_format())+
   scale_fill_brewer(palette = "Set1")
 # 0 = no status (tree not presently in the sample), 1 = live, 2 = dead, 3 = removed
+```
 
+```{r, echo=FALSE, results='hide'}
 #percent of harvested plots with status = 3
 tree.status %>% 
   filter(Agent == "harvest", x == 3) %>% 
@@ -174,6 +183,7 @@ tree.status %>%
   pull("freq") %>% 
   sum()*100
 ```
+
 The histogram below displays the year that plots in the analysis were measured. Some plots were measured twice, and we used both surveys to detect adult presence. These plots have both the recent survey year (all between 2010-2018) and the previous survey year (all between 2000-2013) displayed in the histogram. Some plots were only surveyed once, and their year of measurement is shown in pink (surveyed between 1995-2018). The second histogram displays the difference in years between the first and second survey for all plots that were surveyed twice.  
 
 ```{r, echo=FALSE}
@@ -499,7 +509,7 @@ summary(pc2.agent.mod)
 TukeyHSD(pc2.agent.mod)
 
 ggplot(pca_pts_by_dist[which(! pca_pts_by_dist$Agent == "other"),], aes(x=Agent,y=PC2,fill=Agent))+
-  geom_violin()+
+  geom_boxplot()+
   theme_bw()
 ```
 
