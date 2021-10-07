@@ -265,7 +265,7 @@ spp_hist_data <- species.sum.long %>%
   left_join(plot, by=c("PREV_PLT_CN" = "CN")) %>% 
   dplyr::select(c(PREV_PLT_CN:SPCD,MEASYEAR.y)) %>% 
   dplyr::rename("Prev.MEASYEAR" = "MEASYEAR.y")
-
+dev.new()
 par(mfrow=c(4,3))
 for(i in 1:length(species.names$species.code)){
 hist(spp_hist_data[spp_hist_data$SPCD==species.names$species.code[i],]$Rec.MEASYEAR, col=rgb(0,0,1,0.5), breaks=(max(spp_hist_data[which(spp_hist_data$SPCD==species.names$species.code[i] & !is.na(spp_hist_data$Rec.MEASYEAR)),]$Rec.MEASYEAR) - min(spp_hist_data[which(spp_hist_data$SPCD==species.names$species.code[i] & !is.na(spp_hist_data$Rec.MEASYEAR)),]$Rec.MEASYEAR))+1, main=paste("Histogram for",species.names$species.name[i],"adults",sep=" "),xlab="Measurement Year")
@@ -282,6 +282,7 @@ seed_hist_data <- dist_seeds_joined %>%
 
 summary(seed_hist_data$MEASYEAR.y == seed_hist_data$Rec.MEASYEAR)
 
+dev.new()
 par(mfrow=c(4,3))
 for(i in 1:length(species.names$species.code)){
 hist(seed_hist_data[seed_hist_data$SPCD == species.names$species.code[i],]$MEASYEAR.y, col=rgb(0,0,1,0.5), breaks=(max(seed_hist_data[which(seed_hist_data$SPCD==species.names$species.code[i] & !is.na(seed_hist_data$Rec.MEASYEAR)),]$Rec.MEASYEAR) - min(seed_hist_data[which(seed_hist_data$SPCD==species.names$species.code[i] & !is.na(seed_hist_data$Rec.MEASYEAR)),]$Rec.MEASYEAR))+1,  main=paste("Histogram for",species.names$species.name[i],"seedlings",sep=" "),xlab="Measurement Year")
@@ -311,7 +312,7 @@ merge_sp_dist_env <- function(joined_df, sp_code, agent_name, env_vars) {  sp_di
   return(sp_dist_env)
 }
    
-#FIA codes for all desired species (n=9) and disturbances (n=4)
+#FIA codes for all desired species (n=12) and disturbances (n=4)
 sp_codes <- as.character(unique(sample_seeds_over30$SPCD))
 dist_names <- c("fire","harvest","insect.disease","none")
 
@@ -391,21 +392,19 @@ env_vars_cut <- env_vars %>%
 ```{r,eval=FALSE,echo=FALSE}
 #look at linearity of relationships
 ncol(env_vars_cut)
-pairs(env_vars_cut[1:4], lower.panel = NULL)
-pairs(env_vars_cut[5:8], lower.panel = NULL)
+pairs(env_vars_cut, lower.panel = NULL)
 ```
 
 ```{r, echo=FALSE,echo=FALSE}
 ##log-transform precipitation variables to make relationships between climate variables more linear 
 env_vars_cut_trans <- env_vars_cut %>% 
-  mutate(MSP_log = log(MSP),SHM_log = log(SHM), PPT_wt_log = log(PPT_wt), PAS_log = log(PAS+0.999), .keep="unused")
+  mutate(MSP_log = log(MSP),SHM_log = log(SHM), PPT_wt_log = log(PPT_wt), PAS_log = log(PAS+0.999), DD_0_log = log(DD_0), .keep="unused")
 ```
 
 ```{r,eval=FALSE}
 #check linearity of relationships with plots
 #these take a while to produce
-pairs(env_vars_cut_trans[1:4], lower.panel = NULL)
-pairs(env_vars_cut_trans[5:8], lower.panel = NULL)
+pairs(env_vars_cut_trans, lower.panel=NULL)
 ```
 
 After removing some variables due to high correlation, some of the precipitation variables were log-transformed to make relationships linear, which is an assumption of PCA. The climate variable codes which were kept and their definitions are as follows:
@@ -992,7 +991,7 @@ facet_wrap(~ quant, labeller= labeller(quant=quant.labs))+
   theme(axis.text.x = element_text(angle=45, hjust = 1), axis.text = element_text(color="black",size=12), text = element_text(color="black",size=12), strip.text = element_text(color="black",size=12), legend.position = "none")
 ```
 
-There are also no significant differences between disturbance types in shifts on any of the percentiles of PC2. Though, the shift in the 5th percentile of PC2 was marginally significant with a p-value of 0.06. Looking at the boxplot, we see that this marginal significance is likely due to insect disease causing greater positive shifts in the 5th percentile of PC2 than the other disturbances.
+The only significant difference between disturbances in shifts on PC2 was for shifts of the 95th quantile. The shift in the 95th percentile of PC2 was  significant with a p-value of 0.03. Looking at the boxplot, we see that this marginal significance is likely due to insect disease causing greater positive shifts in the 5th percentile of PC2 than the other disturbances. When running a Tukey HSD test on it, the shift in insect/disease plots is significantly different from the fire and the undisturbed plots, but not from the harvested plots.
 
 ```{r, echo=FALSE, results='hide'}
 #calculate difference in 5th, 50th and 95th percentiles in pc2 position between adults and seedlings of each species and disturbance type 
@@ -1021,6 +1020,7 @@ summary(pc2.mod5)
 
 #check for significant differences in 50th percentile by disturbance type
 pc2.mod50 <- lm(quant_50 ~ agent, data=pc2.diffs.sep)
+par(mfrow=c(1,1))
 qqPlot(pc2.mod50)
 leveneTest(quant_50 ~ agent, data=pc2.diffs.sep) #I think this is ok since ANOVA F-test is robust to assumptions of equal variances and the residuals look pretty good. 
 par(mfrow=c(2,2))
@@ -1032,6 +1032,7 @@ pc2.mod95 <- lm(quant_95 ~ agent, data=pc2.diffs.sep)
 qqPlot(pc2.mod95)
 leveneTest(quant_95 ~ agent, data=pc2.diffs.sep)
 anova(pc2.mod95)
+TukeyHSD(aov(quant_95 ~ agent, data=pc2.diffs.sep))
 ```
 
 ##Species specific range shifts
@@ -1718,6 +1719,10 @@ length(unique(seed.weight.filter$ObservationID))
 seed.weight.summary <- seed.weight.filter %>% 
   group_by(species.code) %>% 
   dplyr::summarise(mean.weight.mg = mean(StdValue))
+
+seed.weight.filter %>% 
+  group_by(species.code) %>% 
+  dplyr::summarise(n=n())
 
 #combine
 trait.data<- data.frame(species.names,shade.tolerance = shade.tolerance, drought.tolerance= drought.tolerance) %>% 
