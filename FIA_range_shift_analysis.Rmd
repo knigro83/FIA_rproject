@@ -395,7 +395,7 @@ ncol(env_vars_cut)
 pairs(env_vars_cut, lower.panel = NULL)
 ```
 
-```{r, echo=FALSE,echo=FALSE}
+```{r, echo=FALSE}
 ##log-transform precipitation variables to make relationships between climate variables more linear 
 env_vars_cut_trans <- env_vars_cut %>% 
   mutate(MSP_log = log(MSP),SHM_log = log(SHM), PPT_wt_log = log(PPT_wt), PAS_log = log(PAS+0.999), DD_0_log = log(DD_0), .keep="unused")
@@ -1733,6 +1733,23 @@ pc1.diffs.traits <- pc1.diffs.sep %>%
   left_join(trait.data, by="species.name")
 pc2.diffs.traits <- pc2.diffs.sep %>% 
   left_join(trait.data, by="species.name")
+```
+
+Let's look at the correlations between trait data.
+
+```{r, echo=FALSE,}
+#look at correlations between traits
+cor(trait.data[,3:5])
+ggplot(trait.data,aes(x=drought.tolerance,y=shade.tolerance))+
+  geom_point()+
+  geom_smooth(method="lm")
+cor.test(trait.data$drought.tolerance,trait.data$shade.tolerance)
+#shade and drought tolerance are correlated so should I just pick one?
+ggplot(trait.data,aes(x=drought.tolerance,y=mean.weight.mg))+
+  geom_point()+
+  geom_smooth(method="lm")
+cor.test(trait.data$drought.tolerance,trait.data$mean.weight.mg)
+#drought tolerance and mean weight are not significantly correlated.
 ```
 
 The below plot shows the relationship between absolute value of shifts on PC1 in 5th, 50th, and 95th quantiles vs. the shade tolerance of species, using values in Niinemets & Valladares (2006).
