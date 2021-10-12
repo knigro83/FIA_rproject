@@ -392,7 +392,12 @@ env_vars_cut <- env_vars %>%
 ```{r,eval=FALSE,echo=FALSE}
 #look at linearity of relationships
 ncol(env_vars_cut)
-pairs(env_vars_cut, lower.panel = NULL)
+
+#pdf(file="C:/Users/Katie/Google Drive/FIA project/FIA_rproject/pre_trans_pairs.pdf")
+
+#pairs(env_vars_cut, lower.panel = NULL)
+
+#dev.off()
 ```
 
 ```{r, echo=FALSE}
@@ -404,7 +409,12 @@ env_vars_cut_trans <- env_vars_cut %>%
 ```{r,eval=FALSE}
 #check linearity of relationships with plots
 #these take a while to produce
+
+pdf(file="C:/Users/Katie/Google Drive/FIA project/FIA_rproject/post_trans_pairs.pdf")
+
 pairs(env_vars_cut_trans, lower.panel=NULL)
+
+dev.off()
 ```
 
 After removing some variables due to high correlation, some of the precipitation variables were log-transformed to make relationships linear, which is an assumption of PCA. The climate variable codes which were kept and their definitions are as follows:
@@ -423,7 +433,11 @@ After running the PCA on these variables, we see that the first two components c
 ```{r, echo = FALSE}
 #run the PCA on transformed climate variables
 set.seed(83)
-clim_pca <- prcomp(env_vars_cut_trans,scale.=T) #proceed from correlation matrix, which scales variables--important because our variables have different units
+#clim_pca <- prcomp(env_vars_cut_trans,scale.=T) #proceed from correlation matrix, which scales variables--important because our variables have different units
+#saveRDS(clim_pca, file = "FIA_pca.RDS")
+
+clim_pca <- readRDS("FIA_pca.RDS")
+
 summary(clim_pca)
 plot(clim_pca,type="l")
 ```
@@ -655,6 +669,8 @@ shapiro.test(none.diffs.pc1$quant_95)
 
 ```
 
+Difference data on the 5th quantile of PC1 for harvested plots is not normal. 
+
 ```{r,echo=FALSE, results="hide"}
 ###checking that paired t-test is same as one sample t-test on the differences - it is!!
 fire.adults<- c()
@@ -712,7 +728,7 @@ t.test(fire.diffs5, altervative="two.sided", mu=0, paired=FALSE)
 #'
 #' @param pc1.diffs.sep dataframe containing the calculated differences in 5th, 50th and 95th quantiles of one climate variable or principal component for each species/agent 
 #'
-#' @return a dataframe with the results of a Wilcoxen Signed Rank test, testing if the difference in quantile is significantly different from 0.   
+#' @return a dataframe with the results of a T-test, testing if the difference in quantile is significantly different from 0.   
 #' @export
 #'
 #' @examples
@@ -745,7 +761,7 @@ options(warn = 1)
 pvalues.pc1 <- get_pvalues(pc1.diffs.sep)
 pvalues.pc1
 
-#need to do Wilcoxon Signed Rank Test for 5th percentile of harvest
+#need to do Wilcoxon Signed Rank Test for 5th percentile of harvest because data is not normal 
 harvest5.test <- pc1.diffs.sep %>% 
   filter(agent == "harvest") %>% 
   pull("quant_5") %>% 
@@ -852,64 +868,51 @@ none.diffs.pc2<- pc2.diffs.sep %>%
 
 #fire 5th quantile
 ggqqplot(fire.diffs.pc2$quant_5)
-ggqqplot(fire.diffs.pc2$quant_5)
 shapiro.test(fire.diffs.pc2$quant_5)
 
 #fire 50th quantile -- NOT NORMAL
-ggqqplot(fire.diffs.pc2$quant_50)
 ggqqplot(fire.diffs.pc2$quant_50)
 shapiro.test(fire.diffs.pc2$quant_50)
 
 #fire 95th quantile
 ggqqplot(fire.diffs.pc2$quant_95)
-ggqqplot(fire.diffs.pc2$quant_95)
 shapiro.test(fire.diffs.pc2$quant_95)
 
 #harvest 5th quantile -- NOT NORMAL BC OF ONE OUTLIER
-ggqqplot(harvest.diffs.pc2$quant_5)
 ggqqplot(harvest.diffs.pc2$quant_5)
 shapiro.test(harvest.diffs.pc2$quant_5)
 
 #harvest 50th quantile
 ggqqplot(harvest.diffs.pc2$quant_50)
-ggqqplot(harvest.diffs.pc2$quant_50)
 shapiro.test(harvest.diffs.pc2$quant_50)
 
 #harvest 95th quantile -- NOT NORMAL
 ggqqplot(harvest.diffs.pc2$quant_95)
-ggqqplot(harvest.diffs.pc2$quant_95)
 shapiro.test(harvest.diffs.pc2$quant_95)
 
-#id 5th quantile
-ggqqplot(id.diffs.pc2$quant_5)
+#id 5th quantile -- NOT NORMAL 
 ggqqplot(id.diffs.pc2$quant_5)
 shapiro.test(id.diffs.pc2$quant_5)
 
 #id 50th quantile
 ggqqplot(id.diffs.pc2$quant_50)
-ggqqplot(id.diffs.pc2$quant_50)
 shapiro.test(id.diffs.pc2$quant_50)
 
-#id 95th quantile -- NOT NORMAL
-ggqqplot(id.diffs.pc2$quant_95)
+#id 95th quantile 
 ggqqplot(id.diffs.pc2$quant_95)
 shapiro.test(id.diffs.pc2$quant_95)
 
 #none 5th quantile
 ggqqplot(none.diffs.pc2$quant_5)
-ggqqplot(none.diffs.pc2$quant_5)
 shapiro.test(none.diffs.pc2$quant_5)
 
 #none 50th quantile
-ggqqplot(none.diffs.pc2$quant_50)
 ggqqplot(none.diffs.pc2$quant_50)
 shapiro.test(none.diffs.pc2$quant_50)
 
 #none 95th quantile
 ggqqplot(none.diffs.pc2$quant_95)
-ggqqplot(none.diffs.pc2$quant_95)
 shapiro.test(none.diffs.pc2$quant_95)
-
 ```
 
 
@@ -943,21 +946,21 @@ pc2.harvest95.test <- pc2.diffs.sep %>%
 
 pc2.harvest95.p.df <- data.frame(agent = "harvest", quant = "quant_95", p.value = pc2.harvest95.test$p.value, estimate = pc2.harvest95.test$estimate, lowerci = pc2.harvest95.test$conf.int[1], upperci = pc2.harvest95.test$conf.int[2])
 
-#95th id
-pc2.id95.test <- pc2.diffs.sep %>% 
+#5th id
+pc2.id5.test <- pc2.diffs.sep %>% 
   filter(agent == "insect.disease") %>% 
-  pull("quant_95") %>% 
+  pull("quant_5") %>% 
   wilcox.test(y = NULL, alternative = "two.sided", mu = 0, conf.int = TRUE, conf.level = 0.95)
 
-pc2.id95.p.df <- data.frame(agent = "insect.disease", quant = "quant_95", p.value = pc2.id95.test$p.value, estimate = pc2.id95.test$estimate, lowerci = pc2.id95.test$conf.int[1], upperci = pc2.id95.test$conf.int[2])
+pc2.id5.p.df <- data.frame(agent = "insect.disease", quant = "quant_5", p.value = pc2.id5.test$p.value, estimate = pc2.id5.test$estimate, lowerci = pc2.id5.test$conf.int[1], upperci = pc2.id5.test$conf.int[2])
 
 
-##replace 5th percentile of harvest with wilcoxon test values
+##replace t-test with wilcoxon test values
 pvalues.pc2<- pvalues.pc2 %>% 
                 rows_update(pc2.harvest5.p.df, by=c("agent","quant")) %>% 
                 rows_update(pc2.fire50.p.df, by=c("agent","quant")) %>% 
                 rows_update(pc2.harvest95.p.df, by=c("agent","quant")) %>% 
-                rows_update(pc2.id95.p.df, by=c("agent","quant"))
+                rows_update(pc2.id5.p.df, by=c("agent","quant"))
 ```
 
 ```{r, echo=FALSE}
@@ -1029,9 +1032,13 @@ anova(pc2.mod50)
 
 #check for significant differences in 95th percentile by disturbance type
 pc2.mod95 <- lm(quant_95 ~ agent, data=pc2.diffs.sep)
+par(mfrow=c(1,1))
 qqPlot(pc2.mod95)
 leveneTest(quant_95 ~ agent, data=pc2.diffs.sep)
 anova(pc2.mod95)
+par(mfrow=c(2,2))
+plot(pc2.mod95)
+par(mfrow=c(1,1))
 TukeyHSD(aov(quant_95 ~ agent, data=pc2.diffs.sep))
 ```
 
@@ -1073,9 +1080,11 @@ shifts.raw<- shifts.raw %>%
   left_join(species.names, by=c(species="species.code"))
 
 ggplot(shifts.raw)+
-  geom_errorbar(aes(x= agent, ymin=pos.05, ymax=pos.95, color=age, width=0.3), size=1.5, position = "dodge")+
+  geom_errorbar(aes(x= agent, ymin=pos.05, ymax=pos.95, color=age, width=0.3), size=0.5, position = "dodge")+
   facet_wrap(~species.name)+
-  scale_color_manual(values=c("black","green"))
+  scale_color_manual(values=c("black","green3"))+
+  ggtitle("PC1")+
+  theme(axis.text.x = element_text(angle=45,vjust=.7))
 
 
 ```
@@ -1140,18 +1149,49 @@ for(i in 1:48){
 vartest<- var.test(seedlingplots[[i]],adultplots[[i]],alternative="two.sided")
 vartest.results<-rbind(vartest.results, data.frame(num=i, p=vartest$p.value))
 }   
-
 ```
 
-```{r, echo=FALSE, eval=FALSE}
-#plot tests of normality on PC1 
-#adult
-multiplot(plotlist=plotlist,cols=6)
-multiplot(plotlist=qplotlist,cols=6)
+```{r}
+#shapiro test to formally evaluate normality of data. Even though, not all pass this test, I think we can still use t-test because sample size is relatively large 
 
-#seedling
-multiplot(plotlist=splotlist,cols=6)
-multiplot(plotlist=sqplotlist,cols=6)
+#shapiro test for adults
+shapiro.results.a<-data.frame()
+for(i in 1:48){
+shapiro<- shapiro.test(adultplots[[i]])
+shapiro.results.a<-rbind(shapiro.results.a, data.frame(num=i, p=shapiro$p))
+} 
+shapiro.results.a %>% 
+  filter(p<0.05)
+#look at those that failed normality test
+data.names<- data.frame(name = names(adult_data_pcapts),num=seq(1,48,1))
+
+#this table shows sample size for adult data that didn't pass normality test. Lowest for adults is 65, I think this is reasonably large to still use a t-test. 
+sample_size$species<- as.character(sample_size$species)
+shapiro.results.a %>% 
+  filter(p<0.05) %>% 
+  left_join(data.names, by='num') %>% 
+  separate(name,sep="_",into=c("species","agent","var")) %>% 
+  left_join(sample_size) %>% 
+  datatable()
+
+
+shapiro.results.s<-data.frame()
+for(i in 1:48){
+shapiro<- shapiro.test(seedlingplots[[i]])
+shapiro.results.s<-rbind(shapiro.results.s, data.frame(num=i, p=shapiro$p))
+} 
+head(shapiro.results.s)
+shapiro.results.s %>% 
+  filter(p<0.05)
+
+#this table shows sample size for seedling data that didn't pass normality test. Lowest is 31, then 44, 50. I think this is ok for t-test.   
+shapiro.results.s %>% 
+  filter(p<0.05) %>% 
+  left_join(data.names, by='num') %>% 
+  separate(name,sep="_",into=c("species","agent","var")) %>% 
+  left_join(sample_size) %>% 
+  datatable()
+
 ```
 
 ```{r, echo=FALSE, results="hide"}
@@ -1213,9 +1253,9 @@ ggplot(pc1.ttest.pvalues.sep, aes(x = agent, y = diff.means, fill = agent))+
   geom_text(data = subset(pc1.ttest.pvalues.sep, !is.na(sym.pos)), aes(x=agent, y=sym.pos), label="*", color="black")+
   facet_wrap(~species.name)+
   ylim(c(-0.2,0.4))+
-  ggtitle("Shifts on PC1")+
+  ggtitle("PC1")+
   xlab("")+
-  ylab("Difference in Mean")+
+  ylab("Difference in Means")+
   labs(fill = "Disturbance Agent")+
   theme_bw()+
   theme(axis.text.x = element_blank(), axis.text=element_text(color="black", size=12), legend.text = element_text(color="black", size=12), text=element_text(color="black", size=12), strip.text = element_text(color="black", size=11))
@@ -1280,16 +1320,59 @@ pc2_vartest.results %>%
   filter(p<0.05)
 ```
 
+
 ```{r, eval=FALSE, echo=FALSE}
 #plot checks for normality PC2
 ##adults
-multiplot(plotlist=pc2_plotlist,cols=6)
-multiplot(plotlist=pc2_qplotlist,cols=6)
+multiplot(plotlist=pc2_plotlist[1:16],cols=4)
+multiplot(plotlist=pc2_qplotlist[1:16],cols=4)
+multiplot(plotlist=pc2_qplotlist[17:32],cols=4)
+multiplot(plotlist=pc2_qplotlist[33:48],cols=4)
 ##seedlings
 multiplot(plotlist=pc2_splotlist,cols=6)
-multiplot(plotlist=pc2_sqplotlist,cols=6)
+multiplot(plotlist=pc2_sqplotlist[1:16],cols=4)
+multiplot(plotlist=pc2_sqplotlist[17:32],cols=4)
+multiplot(plotlist=pc2_sqplotlist[33:48],cols=4)
 ```
 
+```{r}
+#shapiro test to formally evaluate normality of data. Even though, not all pass this test, I think we can still use t-test because sample size is relatively large 
+
+#shapiro test for adults
+pc2.shapiro.results.a<-data.frame()
+for(i in 1:48){
+shapiro<- shapiro.test(pc2_adultplots[[i]])
+pc2.shapiro.results.a<-rbind(pc2.shapiro.results.a, data.frame(num=i, p=shapiro$p))
+} 
+pc2.shapiro.results.a %>% 
+  filter(p<0.05)
+
+#this table shows sample size for adult data that didn't pass normality test. Lowest for adults is 65, I think this is reasonably large to still use a t-test. 
+pc2.shapiro.results.a %>% 
+  filter(p<0.05) %>% 
+  left_join(data.names, by='num') %>% 
+  separate(name,sep="_",into=c("species","agent","var")) %>% 
+  left_join(sample_size) %>% 
+  datatable()
+
+
+pc2.shapiro.results.s<-data.frame()
+for(i in 1:48){
+shapiro<- shapiro.test(pc2_seedlingplots[[i]])
+pc2.shapiro.results.s<-rbind(pc2.shapiro.results.s, data.frame(num=i, p=shapiro$p))
+} 
+pc2.shapiro.results.s %>% 
+  filter(p<0.05)
+
+#this table shows sample size for seedling data that didn't pass normality test. Lowest is 31, then 44, 50. I think this is ok for t-test.   
+pc2.shapiro.results.s %>% 
+  filter(p<0.05) %>% 
+  left_join(data.names, by='num') %>% 
+  separate(name,sep="_",into=c("species","agent","var")) %>% 
+  left_join(sample_size) %>% 
+  datatable()
+
+```
 
 ```{r, echo=FALSE, results='hide'}
 #do the t-test with assumption of equal vars PC2
@@ -1349,9 +1432,9 @@ ggplot(pc2.ttest.pvalues.sep, aes(x = agent, y = diff.means, fill = agent))+
   geom_text(data = subset(pc2.ttest.pvalues.sep, !is.na(sym.pos)), aes(x=agent, y=sym.pos), label="*", color="black")+
   facet_wrap(~species.name)+
   ylim(c(-0.2,0.4))+
-  ggtitle("Shifts on PC2")+
+  ggtitle("PC2")+
   xlab("")+
-  ylab("Difference in Mean")+
+  ylab("Difference in Means")+
   labs(fill = "Disturbance Agent")+
   theme_bw()+
   theme(axis.text.x = element_blank(), axis.text=element_text(color="black",size=12), text=element_text(color="black",size=12), legend.text = element_text(color="black",size=12), strip.text = element_text(color="black",size=11))
