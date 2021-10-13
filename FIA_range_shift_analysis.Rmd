@@ -410,11 +410,11 @@ env_vars_cut_trans <- env_vars_cut %>%
 #check linearity of relationships with plots
 #these take a while to produce
 
-pdf(file="C:/Users/Katie/Google Drive/FIA project/FIA_rproject/post_trans_pairs.pdf")
+#pdf(file="C:/Users/Katie/Google Drive/FIA project/FIA_rproject/post_trans_pairs.pdf")
 
-pairs(env_vars_cut_trans, lower.panel=NULL)
+#pairs(env_vars_cut_trans, lower.panel=NULL)
 
-dev.off()
+#dev.off()
 ```
 
 After removing some variables due to high correlation, some of the precipitation variables were log-transformed to make relationships linear, which is an assumption of PCA. The climate variable codes which were kept and their definitions are as follows:
@@ -438,6 +438,11 @@ set.seed(83)
 
 clim_pca <- readRDS("FIA_pca.RDS")
 
+##to get eigenvalues, we do the square of the stdev
+eigenvals <- (clim_pca$sdev)^2
+eigenvals
+sum(eigenvals) #the sum of the eigenvalues = the number of variables (8)
+eigenvals/sum(eigenvals)#this is the proportion variance explained
 summary(clim_pca)
 plot(clim_pca,type="l")
 ```
@@ -445,7 +450,12 @@ plot(clim_pca,type="l")
 The variables most strongly correlated with PC1 are climate moisture deficit (CMD), precipitation as snow (PAS), number of frost free degree days (NFFD), degree days below zero (DD_0), and mean temperature of the coldest month (MCMT). The variables most strongly correlated with PC2 are mean summer precipitation (MSP) and winter precipitation (PPT_wt). So, PC1 seems to be a temperature related axis, while PC2 corresponds to precipitation.
 
 ```{r}
-clim_pca$rotation[,1:2]
+as.data.frame(clim_pca$rotation[,1:2]) %>% 
+  tibble::rownames_to_column() %>% 
+  arrange(desc(abs(PC1)))
+as.data.frame(clim_pca$rotation[,1:2]) %>% 
+  tibble::rownames_to_column() %>% 
+  arrange(desc(abs(PC2)))
 ```
 
 ```{r, echo=FALSE}
@@ -749,7 +759,9 @@ p.temp <- test.temp$p.value
 est.temp <- test.temp$estimate
 lower.temp <- test.temp$conf.int[1]
 upper.temp <- test.temp$conf.int[2]
-p.df <- data.frame(agent = paste(agent.list[i]), quant = paste("quant",quant.list[j],sep="_"), p.value = p.temp, estimate = est.temp, lowerci = lower.temp, upperci = upper.temp)
+tvalue.temp <- test.temp$statistic
+df.temp <- test.temp$parameter
+p.df <- data.frame(agent = paste(agent.list[i]), quant = paste("quant",quant.list[j],sep="_"), p.value = p.temp, estimate = est.temp, lowerci = lower.temp, upperci = upper.temp,t=tvalue.temp, df=df.temp)
 pc1.p.table <- bind_rows(pc1.p.table, p.df)
   }
 }
@@ -760,6 +772,8 @@ pc1.p.table <- bind_rows(pc1.p.table, p.df)
 options(warn = 1)
 pvalues.pc1 <- get_pvalues(pc1.diffs.sep)
 pvalues.pc1
+pvalues.pc1<- pvalues.pc1 %>% 
+  mutate(wilcoxon = "n")
 
 #need to do Wilcoxon Signed Rank Test for 5th percentile of harvest because data is not normal 
 harvest5.test <- pc1.diffs.sep %>% 
@@ -767,12 +781,13 @@ harvest5.test <- pc1.diffs.sep %>%
   pull("quant_5") %>% 
   wilcox.test(y = NULL, alternative = "two.sided", mu = 0, conf.int = TRUE, conf.level = 0.95)
 
-harvest5.p.df <- data.frame(agent = "harvest", quant = "quant_5", p.value = harvest5.test$p.value, estimate = harvest5.test$estimate, lowerci = harvest5.test$conf.int[1], upperci = harvest5.test$conf.int[2])
+harvest5.p.df <- data.frame(agent = "harvest", quant = "quant_5", p.value = harvest5.test$p.value, estimate = harvest5.test$estimate, lowerci = harvest5.test$conf.int[1], upperci = harvest5.test$conf.int[2], t=harvest5.test$statistic, df=NA, wilcoxon="y")
 
 ##replace 5th percentile of harvest with wilcoxon test values
 pvalues.pc1<- pvalues.pc1 %>% 
                 rows_update(harvest5.p.df,by=c("agent","quant"))
 
+pvalues.pc1
 ```
 
 The first plot here shows shifts on the 5th, 50th and 95th percentiles for all species combined, with individual species shifts plotted as dots. The second plot is the result of a Wilcoxon Signed Rank test (non-parametric t-test), showing the estimate as a diamond and the 95% confidence interval as lines. Asterisks indicate whether the shift was significantly different from zero (p\<0.05).
@@ -920,6 +935,8 @@ shapiro.test(none.diffs.pc2$quant_95)
 #perform T-tests
 pvalues.pc2 <- get_pvalues(pc2.diffs.sep)
 pvalues.pc2
+pvalues.pc2<- pvalues.pc2 %>% 
+  mutate(wilcoxon="n")
 
 #perform wilcoxon tests for non-normal data
 # 50th fire
@@ -928,7 +945,7 @@ pc2.fire50.test <- pc2.diffs.sep %>%
   pull("quant_50") %>% 
   wilcox.test(y = NULL, alternative = "two.sided", mu = 0, conf.int = TRUE, conf.level = 0.95)
 
-pc2.fire50.p.df <- data.frame(agent = "fire", quant = "quant_50", p.value = pc2.fire50.test$p.value, estimate = pc2.fire50.test$estimate, lowerci = pc2.fire50.test$conf.int[1], upperci = pc2.fire50.test$conf.int[2])
+pc2.fire50.p.df <- data.frame(agent = "fire", quant = "quant_50", p.value = pc2.fire50.test$p.value, estimate = pc2.fire50.test$estimate, lowerci = pc2.fire50.test$conf.int[1], upperci = pc2.fire50.test$conf.int[2],t=pc2.fire50.test$statistic,df=NA,wilcoxon="y")
 
 #5th harvest
 pc2.harvest5.test <- pc2.diffs.sep %>% 
@@ -936,7 +953,7 @@ pc2.harvest5.test <- pc2.diffs.sep %>%
   pull("quant_5") %>% 
   wilcox.test(y = NULL, alternative = "two.sided", mu = 0, conf.int = TRUE, conf.level = 0.95)
 
-pc2.harvest5.p.df <- data.frame(agent = "harvest", quant = "quant_5", p.value = pc2.harvest5.test$p.value, estimate = pc2.harvest5.test$estimate, lowerci = pc2.harvest5.test$conf.int[1], upperci = pc2.harvest5.test$conf.int[2])
+pc2.harvest5.p.df <- data.frame(agent = "harvest", quant = "quant_5", p.value = pc2.harvest5.test$p.value, estimate = pc2.harvest5.test$estimate, lowerci = pc2.harvest5.test$conf.int[1], upperci = pc2.harvest5.test$conf.int[2],t=pc2.harvest5.test$statistic,df=NA,wilcoxon="y")
 
 #95th harvest
 pc2.harvest95.test <- pc2.diffs.sep %>% 
@@ -944,7 +961,7 @@ pc2.harvest95.test <- pc2.diffs.sep %>%
   pull("quant_95") %>% 
   wilcox.test(y = NULL, alternative = "two.sided", mu = 0, conf.int = TRUE, conf.level = 0.95)
 
-pc2.harvest95.p.df <- data.frame(agent = "harvest", quant = "quant_95", p.value = pc2.harvest95.test$p.value, estimate = pc2.harvest95.test$estimate, lowerci = pc2.harvest95.test$conf.int[1], upperci = pc2.harvest95.test$conf.int[2])
+pc2.harvest95.p.df <- data.frame(agent = "harvest", quant = "quant_95", p.value = pc2.harvest95.test$p.value, estimate = pc2.harvest95.test$estimate, lowerci = pc2.harvest95.test$conf.int[1], upperci = pc2.harvest95.test$conf.int[2],t=pc2.harvest95.test$statistic,df=NA,wilcoxon="y")
 
 #5th id
 pc2.id5.test <- pc2.diffs.sep %>% 
@@ -952,7 +969,7 @@ pc2.id5.test <- pc2.diffs.sep %>%
   pull("quant_5") %>% 
   wilcox.test(y = NULL, alternative = "two.sided", mu = 0, conf.int = TRUE, conf.level = 0.95)
 
-pc2.id5.p.df <- data.frame(agent = "insect.disease", quant = "quant_5", p.value = pc2.id5.test$p.value, estimate = pc2.id5.test$estimate, lowerci = pc2.id5.test$conf.int[1], upperci = pc2.id5.test$conf.int[2])
+pc2.id5.p.df <- data.frame(agent = "insect.disease", quant = "quant_5", p.value = pc2.id5.test$p.value, estimate = pc2.id5.test$estimate, lowerci = pc2.id5.test$conf.int[1], upperci = pc2.id5.test$conf.int[2],t=pc2.id5.test$statistic,df=NA,wilcoxon="y")
 
 
 ##replace t-test with wilcoxon test values
@@ -961,6 +978,7 @@ pvalues.pc2<- pvalues.pc2 %>%
                 rows_update(pc2.fire50.p.df, by=c("agent","quant")) %>% 
                 rows_update(pc2.harvest95.p.df, by=c("agent","quant")) %>% 
                 rows_update(pc2.id5.p.df, by=c("agent","quant"))
+pvalues.pc2
 ```
 
 ```{r, echo=FALSE}
@@ -1835,6 +1853,31 @@ cor.test(trait.data$drought.tolerance,trait.data$mean.weight.mg)
 #drought tolerance and mean weight are not significantly correlated.
 ```
 
+My hypotheses are that shade tolerance and seed weight will significantly affect shift magnitude and that they will interact with disturbance type to produce different magnitude shifts. For example, I expect greater magnitude shifts for species with low shade tolerance in plots that have been burned or harvested, and to a lesser degree in plots that have been impacted by insects or disease. In contrast I expect that species with low shade tolerance will show lower magnitude shifts in areas that have not been disturbed compared to those with high shade tolerance. I expect seed weight to have a negative relationship with shift magnitude for all disturbance types, but I expect this relationship to be more pronounced in plots that have been burned or harvested. 
+
+```{r}
+#models looking at seed weight, shade tolerance, and their interaction with disturbance on shift magnitude for PC1. 
+
+#removed pinyon and gambel oak to make residuals vs. leverage graph better. 
+pc1_quant5_traitmod <- lm(log(abs(quant_5)) ~ agent*(shade.tolerance + scale(mean.weight.mg)), data=pc1.diffs.traits[!pc1.diffs.traits$species.code %in% c(814,106),])
+par(mfrow=c(2,2))
+plot(pc1_quant5_traitmod)
+summary(pc1_quant5_traitmod)
+anova(pc1_quant5_traitmod)
+
+pc1_quant50_traitmod <- lm(log(abs(quant_50)) ~ agent*(shade.tolerance + scale(mean.weight.mg)), data=pc1.diffs.traits[!pc1.diffs.traits$species.code %in% c(814,106),])
+par(mfrow=c(2,2))
+plot(pc1_quant50_traitmod)
+summary(pc1_quant50_traitmod)
+anova(pc1_quant50_traitmod)
+
+pc1_quant95_traitmod <- lm(log(abs(quant_95)) ~ agent*(shade.tolerance + scale(mean.weight.mg)), data=pc1.diffs.traits[!pc1.diffs.traits$species.code %in% c(814,106),])
+par(mfrow=c(2,2))
+plot(pc1_quant95_traitmod)
+summary(pc1_quant95_traitmod)
+anova(pc1_quant95_traitmod)
+```
+
 The below plot shows the relationship between absolute value of shifts on PC1 in 5th, 50th, and 95th quantiles vs. the shade tolerance of species, using values in Niinemets & Valladares (2006).
 
 ```{r, echo=FALSE}
@@ -2204,6 +2247,27 @@ qplot(drought.tolerance, abs(quant_95), shape = agent, color = agent, data = pc1
 ###PC2
 
 Now we'll analyze the relationship between species traits, disturbance, and the magnitude (absolute value) of shifts on PC2.
+
+```{r}
+pc2_quant5_traitmod <- lm(log(abs(quant_5)) ~ agent*(shade.tolerance + scale(mean.weight.mg)), data=pc2.diffs.traits[!pc2.diffs.traits$species.code %in% c(814,106),])
+par(mfrow=c(2,2))
+plot(pc2_quant5_traitmod)
+summary(pc2_quant5_traitmod)
+anova(pc2_quant5_traitmod)
+
+pc2_quant50_traitmod <- lm(log(abs(quant_50)) ~ agent*(shade.tolerance + scale(mean.weight.mg)), data=pc2.diffs.traits[!pc2.diffs.traits$species.code %in% c(814,106),])
+par(mfrow=c(2,2))
+plot(pc2_quant50_traitmod)
+summary(pc2_quant50_traitmod)
+anova(pc2_quant50_traitmod)
+
+pc2_quant95_traitmod <- lm(log(abs(quant_95)) ~ agent*(shade.tolerance + scale(mean.weight.mg)), data=pc2.diffs.traits[!pc2.diffs.traits$species.code %in% c(814,106),])
+par(mfrow=c(2,2))
+plot(pc2_quant95_traitmod)
+summary(pc2_quant95_traitmod)
+anova(pc2_quant95_traitmod)
+```
+
 
 ```{r, echo=FALSE}
 #plot relationships
@@ -2726,6 +2790,43 @@ ggplot(pc1.diffs.traits,aes(x=drought.tolerance, y=quant_95, shape = agent, colo
 
 ```
 
+```{r}
+#more ESA presentation style plots
+ggplot(pc1.diffs.traits,aes(x=shade.tolerance, y=abs(quant_5), shape = agent, color = agent))+
+  geom_point(size=3)+
+  geom_smooth(method = "lm", se = FALSE, fullrange = T, size=1)+
+  xlab("Shade Tolerance")+
+  ylab("5th quantile shift magnitude")+
+  theme_bw()+
+  theme(axis.text = element_text(color="black",size=14),text = element_text(size=14),legend.text = element_text(size=14),strip.text = element_text(color="black",size=14))
+
+ggplot(pc1.diffs.traits[!pc1.diffs.traits$species.code %in% c(106,814),],aes(x=mean.weight.mg, y=abs(quant_5), shape = agent, color = agent))+
+  geom_point(size=3)+
+  geom_smooth(method = "lm", se = FALSE, fullrange = T, size=1)+
+  xlab("Seed Weight (mg)")+
+  ylab("5th quantile shift magnitude")+
+  theme_bw()+
+  theme(axis.text = element_text(color="black",size=14),text = element_text(size=14),legend.text = element_text(size=14),strip.text = element_text(color="black",size=14))
+
+
+ggplot(pc1.diffs.traits[!pc1.diffs.traits$species.code %in% c(106,814),],aes(x=mean.weight.mg, y=abs(quant_50), shape = agent, color = agent))+
+  geom_point(size=3)+
+  geom_smooth(method = "lm", se = FALSE, fullrange = T, size=1)+
+  xlab("Seed Weight (mg)")+
+  ylab("50th quantile shift magnitude")+
+  theme_bw()+
+  theme(axis.text = element_text(color="black",size=14),text = element_text(size=14),legend.text = element_text(size=14),strip.text = element_text(color="black",size=14))
+
+ggplot(pc1.diffs.traits[!pc1.diffs.traits$species.code %in% c(106,814),],aes(x=mean.weight.mg, y=abs(quant_95), shape = agent, color = agent))+
+  geom_point(size=3)+
+  geom_smooth(method = "lm", se = FALSE, fullrange = T, size=1)+
+  xlab("Seed Weight (mg)")+
+  ylab("95th quantile shift magnitude")+
+  theme_bw()+
+  theme(axis.text = element_text(color="black",size=14),text = element_text(size=14),legend.text = element_text(size=14),strip.text = element_text(color="black",size=14))
+
+
+```
 ##Time Since Disturbance Effects
 
 Now I will explore how time since disturbance may be influencing shifts. I will narrow the plots in each disturbance category to only those that had a disturbance 5 or more years before monitoring. Since the FIA only measures conifer seedlings greater than 6in tall, we wouldn't expect these to show up in the first few years after a destructive disturbance. It looks like most plots were disturbed relatively recently, so it may not be possible to use this filter due to sample size - but definitely something to note in the discussion.
