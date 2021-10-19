@@ -31,6 +31,7 @@ library(car)
 library(ggmap)
 library(fitdistrplus)
 library(logspline)
+library(SIBER)
 ```
 
 Let's first read in the data.
@@ -2752,7 +2753,6 @@ sum(fire_15$adult_15)
 ```
 
 ```{r}
-library(SIBER)
 ##using SIBER to make niche ellipses
 colnames(adult_data_pcapts[[1]])==colnames(seedling_data_pcapts[[1]]) #check that colnames are same
 
@@ -2762,50 +2762,107 @@ fire_15_iso <- rbind(adult_data_pcapts[[1]],seedling_data_pcapts[[1]]) %>%
   mutate(group=c(rep(1,nrow(adult_data_pcapts[[1]])),rep(2,nrow(seedling_data_pcapts[[1]]))),community=1) %>% 
   dplyr::rename(iso1=PC1,iso2=PC2)
 
+#create siber object
 fire_15_siber <- createSiberObject(as.data.frame(fire_15_iso)
 )
+```
 
-community.hulls.args <- list(col = 1, lty = 1, lwd = 1)
+```{r}
+#extract all species x disturbance combinations and make into iso style data
+
+iso_data <- list()
+for(i in 1:length(adult_data_pcapts)){
+    temp_iso <- rbind(adult_data_pcapts[[i]],seedling_data_pcapts[[i]]) %>% 
+  dplyr::select(c("PC1","PC2")) %>% 
+  mutate(group=c(rep(1,nrow(adult_data_pcapts[[i]])),rep(2,nrow(seedling_data_pcapts[[i]]))),community=1) %>% 
+  dplyr::rename(iso1=PC1,iso2=PC2)
+    iso_data[[i]]<- temp_iso
+}
+names(iso_data)<-names(adult_data_pcapts)
+names(iso_data)
+```
+
+```{r}
+#make iso data into list of SIBER objects
+siber.objs <- list()
+for(i in 1:length(iso_data)){
+  temp.obj<- createSiberObject(as.data.frame(iso_data[[i]]))
+  siber.objs[[i]]<- temp.obj
+}
+names(siber.objs)<-names(adult_data_pcapts)
+
+```
+
+```{r}
+#estimate multivariate normal ellipses for each group using bayesian estimation
+
+# options for running jags
+parms <- list()
+parms$n.iter <- 2 * 10^4   # number of iterations to run the model for
+parms$n.burnin <- 1 * 10^3 # discard the first set of values
+parms$n.thin <- 10     # thin the posterior by this many
+parms$n.chains <- 2        # run this many chains
+
+# define the priors
+priors <- list()
+priors$R <- 1 * diag(2)
+priors$k <- 2
+priors$tau.mu <- 1.0E-3
+
+# fit the ellipses which uses an Inverse Wishart prior on the covariance matrix Sigma, and a vague normal prior on the means. Fitting is via the JAGS method.
+ellipses.posterior.list <- list()
+for(i in 1:length(siber.objs)){
+  temp.mvn <- siberMVN(siber.objs[[i]], parms, priors)
+  ellipses.posterior.list[[i]] <- temp.mvn
+  }
+names(ellipses.posterior.list)<-names(adult_data_pcapts)
+
+SEA.B.list <- list()
+for(i in 1:length(ellipses.posterior.list)){
+  temp.SEA.B <- siberEllipses(ellipses.posterior.list[[i]])
+  SEA.B.list[[i]] <- temp.SEA.B
+}
+names(SEA.B.list)<-names(adult_data_pcapts)
+
+```
+
+```{r}
+#plot siber niches for each species x disturbance combination
 group.ellipses.args  <- list(n = 100, p.interval = 0.95, lty = 1, lwd = 2)
-group.hulls.args     <- list(lty = 2,col=c("red","black"))
 
-#Group ellipses
-par(mfrow=c(1,1))
-plotSiberObject(fire_15_siber,
+par(mfrow=c(2,2))
+for(i in 1:length(siber.objs)){
+plotSiberObject(siber.objs[[i]],
                   ax.pad = 2, 
-                  hulls = F, community.hulls.args = community.hulls.args, 
+                  hulls = F, 
                   ellipses = T, group.ellipses.args = group.ellipses.args,
-                  group.hulls = T, group.hulls.args = group.hulls.args,
+                  group.hulls = F,
                   bty = "L",
                   iso.order = c(1,2),
                   xlab ="PC1",
-                  ylab ="PC2")
-                
-legend("topright",legend= c("adult","seedling"),
-        pch=19, col=c("black","red"))
+                  ylab ="PC2",
+                  main=paste(names(siber.objs)[i]))
+}
+```
 
-par(mfrow=c(1,1))
+```{r}
+#calculate niche areas and overlap
+for(i in 1:length(ellipses.posterior.list)){
+temp.overlap <- bayesianOverlap("1.1","1.2",ellipses.posterior.list[[i]],draws=NULL,p.interval=0.95)
 
-community.hulls.args <- list(col = 1, lty = 1, lwd = 1)
-group.ellipses.args  <- list(n = 100, p.interval = 0.95, lty = 1, lwd = 2)
-group.hull.args      <- list(lty = 2, col = "grey20")
+temp.overlap$exp.prop.adult = (temp.overlap$area2 - temp.overlap$overlap)/temp.overlap$area1
 
-# this time we will make the points a bit smaller by 
-# cex = 0.5
-plotSiberObject(fire_15_siber,
-                  ax.pad = 2, 
-                  hulls = F, community.hulls.args, 
-                  ellipses = F, group.ellipses.args,
-                  group.hulls = F, group.hull.args,
-                  bty = "L",
-                  iso.order = c(1,2),
-                  xlab="PC1",
-                  ylab="PC2",
-                  cex = 0.5
-                  )
-plotGroupEllipses(fire_15_siber, n = 100, p.interval = 0.95,lty = 1, lwd = 2)
-plotGroupEllipses(fire_15_siber, n = 100, p.interval = 0.95, ci.mean = T,lty = 1, lwd = 2)
+temp.overlap$contr.prop.adult = (temp.overlap$area1 - temp.overlap$overlap)/temp.overlap$area1
 
+overlap.list[[i]] <- temp.overlap
+}
+names(overlap.list)<- names(ellipses.posterior.list)
+```
+
+```{r}
+#Calculations on SIBER objects
+
+#group metrics
 group.ML <- groupMetricsML(fire_15_siber)
 print(group.ML)
 
