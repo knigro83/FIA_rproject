@@ -2736,21 +2736,6 @@ plot(dm_pc2mod95_weight)
 ```
 
 ###Niche models
-```{r}
-fire_15 <- env_vars_cut %>% 
-  mutate(PLT_CN=env_vars$X1) %>%
-  left_join(adult_data[[1]],by="PLT_CN") %>% 
-  mutate(SPCD = ifelse(is.na(SPCD),0,1)) %>% 
-  dplyr::rename(adult_15=SPCD) %>% 
-  left_join(seedling_data[[1]],by="PLT_CN") %>% 
-  mutate(SPCD = ifelse(is.na(SPCD),0,1)) %>%
-  dplyr::rename(seed_15=SPCD) %>% 
-  dplyr::select(c("adult_15","seed_15","MCMT.x","MSP.x","SHM.x","DD_0.x","NFFD.x","PAS.x","CMD.x","PPT_wt.x")) %>% 
-  dplyr::rename(x = adult_15, y = seed_15)
-View(fire_15)
-
-sum(fire_15$adult_15)
-```
 
 ```{r}
 ##using SIBER to make niche ellipses
@@ -2847,7 +2832,21 @@ plotSiberObject(siber.objs[[i]],
 
 ```{r}
 #calculate niche areas and overlap
+overlap.list<-list()
 for(i in 1:length(ellipses.posterior.list)){
+    cat(i, "\n")
+temp.overlap <- bayesianOverlap("1.1","1.2",ellipses.posterior.list[[i]],draws=NULL,p.interval=0.95)
+
+temp.overlap$exp.prop.adult = (temp.overlap$area2 - temp.overlap$overlap)/temp.overlap$area1
+
+temp.overlap$contr.prop.adult = (temp.overlap$area1 - temp.overlap$overlap)/temp.overlap$area1
+
+overlap.list[[i]] <- temp.overlap
+} ##overlap list has 36 complete entries. Need to do the rest
+
+#loop for the rest
+for(i in 37:length(ellipses.posterior.list)){
+    cat(i, "\n")
 temp.overlap <- bayesianOverlap("1.1","1.2",ellipses.posterior.list[[i]],draws=NULL,p.interval=0.95)
 
 temp.overlap$exp.prop.adult = (temp.overlap$area2 - temp.overlap$overlap)/temp.overlap$area1
@@ -2856,79 +2855,188 @@ temp.overlap$contr.prop.adult = (temp.overlap$area1 - temp.overlap$overlap)/temp
 
 overlap.list[[i]] <- temp.overlap
 }
+
 names(overlap.list)<- names(ellipses.posterior.list)
+
+save(overlap.list, file="overlap.list.RData")
+
+par(mfrow=c(1,1))
+hist(overlap.list[[1]]$exp.prop.adult,breaks=50)
+hist(overlap.list[[1]]$contr.prop.adult,breaks=50)
+
 ```
 
 ```{r}
-#Calculations on SIBER objects
+#summarize overlap by taking mean
+overlap.summary<-list()
+for(i in 1:length(overlap.list)){
+  temp.summary<- overlap.list[[i]] %>%
+    dplyr::summarise(adult.mean.area = mean(area1), seed.mean.area = mean(area2),overlap.mean.area=mean(overlap),mean.exp.prop.adult=mean(exp.prop.adult),mean.contr.prop.adult=mean(contr.prop.adult))
+  overlap.summary[[i]]<- temp.summary
+  }
 
-#group metrics
-group.ML <- groupMetricsML(fire_15_siber)
-print(group.ML)
-
-# options for running jags
-parms <- list()
-parms$n.iter <- 2 * 10^4   # number of iterations to run the model for
-parms$n.burnin <- 1 * 10^3 # discard the first set of values
-parms$n.thin <- 10     # thin the posterior by this many
-parms$n.chains <- 2        # run this many chains
-
-# define the priors
-priors <- list()
-priors$R <- 1 * diag(2)
-priors$k <- 2
-priors$tau.mu <- 1.0E-3
-
-# fit the ellipses which uses an Inverse Wishart prior
-# on the covariance matrix Sigma, and a vague normal prior on the 
-# means. Fitting is via the JAGS method.
-ellipses.posterior <- siberMVN(fire_15_siber, parms, priors)
-SEA.B <- siberEllipses(ellipses.posterior)
-siberDensityPlot(SEA.B, xticklabels = colnames(group.ML), 
-                xlab = c("Community | Group"),
-                ylab = expression("Standard Ellipse Area " ('\u2030' ^2) ),
-                bty = "L",
-                las = 1,
-                main = "SIBER ellipses on each group"
-                )
-points(1:ncol(SEA.B), group.ML[3,], col="red", pch = "x", lwd = 2)
-
-#Calculate some credible intervals 
-cr.p <- c(0.95, 0.99) # vector of quantiles
-
-# call to hdrcde:hdr using lapply()
-SEA.B.credibles <- lapply(
-  as.data.frame(SEA.B), 
-  function(x,...){tmp<-hdrcde::hdr(x)$hdr},
-  prob = cr.p)
-
-# do similar to get the modes, taking care to pick up multimodal posterior
-# distributions if present
-SEA.B.modes <- lapply(
-  as.data.frame(SEA.B), 
-  function(x,...){tmp<-hdrcde::hdr(x)$mode},
-  prob = cr.p, all.modes=T)
-
-#In this example, I will calculate the overlap between ellipses for groups 1 and 2 in community 1 (i.e. the green and yellow open circles of data).
-
-# The first ellipse is referenced using a character string representation where 
-# in "x.y", "x" is the community, and "y" is the group within that community.
-# So in this example: community 1, group 2
-ellipse1 <- "1.1" 
-
-# Ellipse two is similarly defined: community 1, group3
-ellipse2 <- "1.2"
-
-# The overlap of the maximum likelihood fitted standard ellipses are 
-# estimated using
-sea.overlap <- maxLikOverlap(ellipse1, ellipse2, fire_15_siber,p.interval = NULL, n = 100)
-
-# the overlap betweeen the corresponding 95% prediction ellipses is given by:
-ellipse95.overlap <- maxLikOverlap(ellipse1, ellipse2, fire_15_siber, p.interval = 0.95, n = 100)
-
-# so in this case, the expansion area of the seedlings would be
-seedling.exp.95 <- ellipse95.overlap[2] -  ellipse95.overlap[1] #this is what I would use in the trait model 
+overlap.table <- as.data.frame(matrix(unlist(overlap.summary),nrow = 48, ncol=5,byrow=TRUE))  
+colnames(overlap.table)<-names(overlap.summary[[1]])
+overlap.table<- overlap.table %>% 
+  mutate(names = names(overlap.list)) %>% 
+  separate(names,into=c("species","disturbance","extra"),sep="_") %>% 
+  mutate(species = as.numeric(species)) %>% 
+  left_join(species.names,by=c("species"="species.code"))
 ```
+
+Lets look at some plots of expansion and contraction across species and disturbances. 
+
+```{r}
+#some plots
+ggplot(overlap.table,aes(x=species.name,y=mean.exp.prop.adult,fill=disturbance))+
+  geom_bar(stat='identity',position='dodge')+
+  theme(axis.text.x = element_text(angle=45,vjust=0.9,hjust=0.8))
+
+ggplot(overlap.table,aes(x=disturbance,y=mean.exp.prop.adult))+
+  geom_boxplot()+
+  geom_jitter(height=0,width=0.2, aes(color=species.name),pch=15,size=2,alpha=0.7)+
+  scale_color_manual(values=c("#c9ce4e","#8b4cca","#6ccb5b","#c74a90","#8fcdb3","#d0503b","#708fc2","#c39553","#483262",
+"#4a633f","#cd9bb5","#6c3631"))
+
+ggplot(overlap.table,aes(x=disturbance,y=mean.contr.prop.adult))+
+  geom_boxplot()
+
+ggplot(overlap.table,aes(x=species.name,y=mean.contr.prop.adult,fill=disturbance))+
+  geom_bar(stat='identity',position='dodge')+
+  theme(axis.text.x = element_text(angle=45,vjust=0.9,hjust=0.8))
+
+ggplot(overlap.table %>% 
+  pivot_longer(c(mean.exp.prop.adult,mean.contr.prop.adult),names_to = "shift",values_to = "proportion")
+  ,aes(x=species.name,y=proportion,fill=shift))+
+  geom_boxplot()+
+  scale_color_manual(c("red","orange"))+
+  theme(axis.text.x = element_text(angle=45,vjust=0.9,hjust=0.8))
+```
+
+Interesting to see that fire and harvest seem to be the top 2 disuturbances driving expansion for most species. Let's test this with ANOVA.
+
+```{r}
+dist.exp.anova <- aov(log(mean.exp.prop.adult)~disturbance,data=niche.shift.trait.table)
+plot(dist.exp.anova)
+summary(dist.exp.anova) #significant difference between disturbances in expansion
+TukeyHSD(dist.exp.anova) #post-hoc comparisons shows that harvest is significantly higher than insect/disease and none, with fire in the middle. 
+
+dist.contr.anova<- aov(log(mean.contr.prop.adult)~disturbance, data=niche.shift.trait.table)
+plot(dist.contr.anova)
+summary(dist.contr.anova)#no difference between disturbances for contractions
+```
+
+###Trait Niche Analysis 
+```{r}
+niche.shift.trait.table <- overlap.table %>% 
+  left_join(trait.data,by="species.name")
+
+#models for expansion
+#shade tolerance
+exp.shade.mod<- lm(log(mean.exp.prop.adult)~shade.tolerance*disturbance,data=niche.shift.trait.table)
+summary(exp.shade.mod)
+par(mfrow=c(2,2))
+plot(exp.shade.mod)
+
+ggplot(niche.shift.trait.table,aes(x=shade.tolerance,y=mean.exp.prop.adult))+
+  geom_point()+
+  geom_smooth(method = "lm", se = FALSE, fullrange = T, size=1)+
+  facet_wrap(~disturbance)
+
+#seed weight
+#take out pinyon, gambel oak and juniper because they are primarily dispersed by animals
+exp.weight.mod<- lm(log(mean.exp.prop.adult)~scale(mean.weight.mg)*disturbance,data=niche.shift.trait.table %>% filter(! species.code %in% c(106,814,63)))
+par(mfrow=c(2,2))
+plot(exp.weight.mod)
+summary(exp.weight.mod)
+
+ggplot(data=niche.shift.trait.table %>% filter(! species.code %in% c(106,814,63)),aes(x=mean.weight.mg,y=mean.exp.prop.adult))+
+  geom_point()+
+  geom_smooth(method = "lm", se = FALSE, fullrange = T, size=1)+
+  facet_wrap(~disturbance)
+```
+
+```{r}
+#models for contraction
+
+#models for expansion
+#shade tolerance
+contr.shade.mod<- lm(mean.contr.prop.adult~shade.tolerance*disturbance,data=niche.shift.trait.table)
+par(mfrow=c(2,2))
+plot(contr.shade.mod)
+summary(contr.shade.mod)
+
+ggplot(niche.shift.trait.table,aes(x=shade.tolerance,y=mean.contr.prop.adult))+
+  geom_point()+
+  geom_smooth(method = "lm", se = FALSE, fullrange = T, size=1)+
+  facet_wrap(~disturbance)
+
+#seed weight
+#take out pinyon, gambel oak and juniper because they are primarily dispersed by animals
+contr.weight.mod<- lm(mean.contr.prop.adult~scale(mean.weight.mg)*disturbance,data=niche.shift.trait.table %>% filter(! species.code %in% c(106,814,63)))
+par(mfrow=c(2,2))
+plot(contr.weight.mod)
+summary(contr.weight.mod)
+
+ggplot(data=niche.shift.trait.table %>% filter(! species.code %in% c(106,814,63)),aes(x=mean.weight.mg,y=mean.contr.prop.adult))+
+  geom_point()+
+  geom_smooth(method = "lm", se = FALSE, fullrange = T, size=1)+
+  facet_wrap(~disturbance)
+```
+
+Looked at whether species in cooler/wetter habitats are expanding more/less than species in hotter/drier habitats by averaging each species' score on PC1 (higher = cooler/wetter). However, this does not seem to have any impact on expansion or contraction.  
+
+```{r}
+#thinking about using some kind of indication of cold vs. warm adapted species. Let's look at mean position of adults on PC1 for each species to rank them
+
+pc1.means<- vector()
+for(i in 1:length(adult_data_pcapts)){
+  temp.mean <- adult_data_pcapts[[i]] %>% 
+    dplyr::summarise(mean(PC1))
+  pc1.means[i]<-temp.mean 
+}
+unlist(pc1.means)
+
+pc1means.table <- as.data.frame(matrix(unlist(pc1.means),nrow=48,ncol=1))
+pc1means.table<- pc1means.table %>% 
+  mutate(names =  names(adult_data_pcapts)) %>% 
+  tidyr::separate(names,into=c("species.code","disturbance","extra"),sep="_") %>% 
+  mutate(species.code = as.numeric(species.code))
+colnames(pc1means.table)[1]<-"pc1mean"
+
+ggplot(pc1means.table,aes(x=pc1mean,y=rep(1,48),color=species.code))+
+  geom_point()
+
+ggplot(pc1means.table,aes(x=species.code,y=pc1mean))+
+  geom_boxplot()+
+  coord_flip()
+
+#model with average PC1 score across all disturbances as predictor
+niche.shift.trait.table<-
+  niche.shift.trait.table %>% 
+  left_join(pc1means.table,by=c("species.code","disturbance","extra"))
+
+pc1.exp.mod <- lm(log(mean.exp.prop.adult)~ pc1mean*disturbance, data=niche.shift.trait.table)
+plot(pc1.exp.mod)
+summary(pc1.exp.mod)
+
+ggplot(niche.shift.trait.table, aes(x=pc1mean,y=mean.exp.prop.adult))+
+  geom_point()+
+  geom_smooth(method="lm")+
+  facet_wrap(~disturbance)
+
+pc1.contr.mod <- lm(log(mean.contr.prop.adult)~ pc1mean*disturbance, data=niche.shift.trait.table)
+plot(pc1.contr.mod)
+summary(pc1.contr.mod)
+
+
+ggplot(niche.shift.trait.table, aes(x=pc1mean,y=mean.contr.prop.adult))+
+  geom_point()+
+  geom_smooth(method="lm")+
+  facet_wrap(~disturbance)
+```
+
+
 
 ###Plots of Trait effects for ESA presentation
 ```{r}
