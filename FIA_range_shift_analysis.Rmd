@@ -2738,43 +2738,29 @@ plot(dm_pc2mod95_weight)
 ###Niche models
 
 ```{r}
-##using SIBER to make niche ellipses
-colnames(adult_data_pcapts[[1]])==colnames(seedling_data_pcapts[[1]]) #check that colnames are same
-
-#combine seedling and adult sp=15, dist=fire
-fire_15_iso <- rbind(adult_data_pcapts[[1]],seedling_data_pcapts[[1]]) %>% 
-  dplyr::select(c("PC1","PC2")) %>% 
-  mutate(group=c(rep(1,nrow(adult_data_pcapts[[1]])),rep(2,nrow(seedling_data_pcapts[[1]]))),community=1) %>% 
-  dplyr::rename(iso1=PC1,iso2=PC2)
-
-#create siber object
-fire_15_siber <- createSiberObject(as.data.frame(fire_15_iso)
-)
-```
-
-```{r}
 #extract all species x disturbance combinations and make into iso style data
 
-iso_data <- list()
-for(i in 1:length(adult_data_pcapts)){
-    temp_iso <- rbind(adult_data_pcapts[[i]],seedling_data_pcapts[[i]]) %>% 
-  dplyr::select(c("PC1","PC2")) %>% 
-  mutate(group=c(rep(1,nrow(adult_data_pcapts[[i]])),rep(2,nrow(seedling_data_pcapts[[i]]))),community=1) %>% 
-  dplyr::rename(iso1=PC1,iso2=PC2)
-    iso_data[[i]]<- temp_iso
-}
-names(iso_data)<-names(adult_data_pcapts)
-names(iso_data)
+# iso_data <- list()
+# for(i in 1:length(adult_data_pcapts)){
+#     temp_iso <- rbind(adult_data_pcapts[[i]],seedling_data_pcapts[[i]]) %>% 
+#   dplyr::select(c("PC1","PC2")) %>% 
+#   mutate(group=c(rep(1,nrow(adult_data_pcapts[[i]])),rep(2,nrow(seedling_data_pcapts[[i]]))),community=1) %>% 
+#   dplyr::rename(iso1=PC1,iso2=PC2)
+#     iso_data[[i]]<- temp_iso
+# }
+# names(iso_data)<-names(adult_data_pcapts)
+# names(iso_data)
 ```
 
 ```{r}
 #make iso data into list of SIBER objects
-siber.objs <- list()
-for(i in 1:length(iso_data)){
-  temp.obj<- createSiberObject(as.data.frame(iso_data[[i]]))
-  siber.objs[[i]]<- temp.obj
-}
-names(siber.objs)<-names(adult_data_pcapts)
+
+# siber.objs <- list()
+# for(i in 1:length(iso_data)){
+#   temp.obj<- createSiberObject(as.data.frame(iso_data[[i]]))
+#   siber.objs[[i]]<- temp.obj
+# }
+# names(siber.objs)<-names(adult_data_pcapts)
 
 ```
 
@@ -2782,89 +2768,135 @@ names(siber.objs)<-names(adult_data_pcapts)
 #estimate multivariate normal ellipses for each group using bayesian estimation
 
 # options for running jags
-parms <- list()
-parms$n.iter <- 2 * 10^4   # number of iterations to run the model for
-parms$n.burnin <- 1 * 10^3 # discard the first set of values
-parms$n.thin <- 10     # thin the posterior by this many
-parms$n.chains <- 2        # run this many chains
+
+# parms <- list()
+# parms$n.iter <- 2 * 10^4   # number of iterations to run the model for
+# parms$n.burnin <- 1 * 10^3 # discard the first set of values
+# parms$n.thin <- 10     # thin the posterior by this many
+# parms$n.chains <- 2        # run this many chains
 
 # define the priors
-priors <- list()
-priors$R <- 1 * diag(2)
-priors$k <- 2
-priors$tau.mu <- 1.0E-3
+
+# priors <- list()
+# priors$R <- 1 * diag(2)
+# priors$k <- 2
+# priors$tau.mu <- 1.0E-3
 
 # fit the ellipses which uses an Inverse Wishart prior on the covariance matrix Sigma, and a vague normal prior on the means. Fitting is via the JAGS method.
-ellipses.posterior.list <- list()
-for(i in 1:length(siber.objs)){
-  temp.mvn <- siberMVN(siber.objs[[i]], parms, priors)
-  ellipses.posterior.list[[i]] <- temp.mvn
-  }
-names(ellipses.posterior.list)<-names(adult_data_pcapts)
 
-SEA.B.list <- list()
+# ellipses.posterior.list <- list()
+# for(i in 1:length(siber.objs)){
+#   temp.mvn <- siberMVN(siber.objs[[i]], parms, priors)
+#   ellipses.posterior.list[[i]] <- temp.mvn
+#   }
+# names(ellipses.posterior.list)<-names(adult_data_pcapts)
+# 
+# SEA.B.list <- list()
+# for(i in 1:length(ellipses.posterior.list)){
+#   temp.SEA.B <- siberEllipses(ellipses.posterior.list[[i]])
+#   SEA.B.list[[i]] <- temp.SEA.B
+# }
+# names(SEA.B.list)<-names(adult_data_pcapts)
+
+```
+
+```{r}
+##save model output
+#saveRDS(iso_data, file="iso_data.rds")
+#saveRDS(siber.objs, file="siber.objs.rds")
+#saveRDS(ellipses.posterior.list, file="ellipses.posterior.list.rds")
+#saveRDS(SEA.B.list, file="SEA.B.list.rds")
+```
+
+```{r}
+#read in siber files
+iso_data <- readRDS("iso_data.rds")
+siber.objs <- readRDS("siber.objs.rds")
+ellipses.posterior.list<- readRDS("ellipses.posterior.list.rds")
+SEA.B.list <- readRDS("SEA.B.list.rds")
+```
+
+```{r}
+#look at bayesian results
+par(mfrow=c(8,6))
 for(i in 1:length(ellipses.posterior.list)){
-  temp.SEA.B <- siberEllipses(ellipses.posterior.list[[i]])
-  SEA.B.list[[i]] <- temp.SEA.B
+  for (j in 1:2){
+    for(k in 1:6){
+      plot(ellipses.posterior.list[[i]][[j]][,k],type="l")
+    }
+  }
 }
-names(SEA.B.list)<-names(adult_data_pcapts)
+plot(ellipses.posterior.list[[1]][[1]][,5],type="l")
+nrow(ellipses.posterior.list[[1]][[1]])
 
 ```
 
 ```{r}
 #plot siber niches for each species x disturbance combination
-group.ellipses.args  <- list(n = 100, p.interval = 0.95, lty = 1, lwd = 2)
+plot.names <-   
+  as.data.frame(names(siber.objs)) %>% 
+  tidyr::separate(col="names(siber.objs)", into=c("species.code","disturbance","extra"), sep="_") %>% 
+    mutate(species.code = as.numeric(species.code)) %>% 
+    left_join(species.names,by="species.code") %>% 
+    dplyr::select(species.name, disturbance) %>% 
+    unite(col="name", c(species.name, disturbance), sep=" ",)
+  
+color.list = rep(c("#F8766D","#7CAE00","#00BFC4","#C77CFF"),12)
 
 par(mfrow=c(2,2))
 for(i in 1:length(siber.objs)){
-plotSiberObject(siber.objs[[i]],
-                  ax.pad = 2, 
-                  hulls = F, 
-                  ellipses = T, group.ellipses.args = group.ellipses.args,
-                  group.hulls = F,
-                  bty = "L",
-                  iso.order = c(1,2),
-                  xlab ="PC1",
-                  ylab ="PC2",
-                  main=paste(names(siber.objs)[i]))
+plot(x=unlist(c(siber.objs[[i]]$original.data %>% filter(group==1) %>% dplyr::select(iso1))),
+     y=unlist(c(siber.objs[[i]]$original.data %>% filter(group==1)%>% dplyr::select(iso2))),col="black", xlim=c(-6,6),ylim=c(-3,4),pch=16, xlab="PC1",ylab="PC2",main=paste(plot.names$name[i]),cex=1.2)+
+points(x=unlist(c(siber.objs[[i]]$original.data %>% filter(group==2) %>% dplyr::select(iso1))),
+     y=unlist(c(siber.objs[[i]]$original.data %>% filter(group==2)%>% dplyr::select(iso2))),col=alpha(color.list[i],0.6),pch=16)
+addEllipse(siber.objs[[i]]$ML.mu[[1]][ , , 1],
+                     siber.objs[[i]]$ML.cov[[1]][ , , 1],
+                     m = NULL,
+                     n = 100,
+                     p.interval = 0.95,
+                     ci.mean = FALSE,
+                     col = "black",
+                     lty = 1,
+                     lwd = 2)
+addEllipse(siber.objs[[i]]$ML.mu[[1]][ , , 2],
+                     siber.objs[[i]]$ML.cov[[1]][ , , 2],
+                     m = NULL,
+                     n = 100,
+                     p.interval = 0.95,
+                     ci.mean = FALSE,
+                     col = color.list[i],
+                     lty = 1,
+                     lwd = 2)
+legend(-6,-2,legend=c("Adult","Seedling"),col=c("black",alpha(color.list[i],0.6)), pch=16, lty=1, lwd=2,cex=1.2)
 }
 ```
 
 ```{r}
 #calculate niche areas and overlap
-overlap.list<-list()
-for(i in 1:length(ellipses.posterior.list)){
-    cat(i, "\n")
-temp.overlap <- bayesianOverlap("1.1","1.2",ellipses.posterior.list[[i]],draws=NULL,p.interval=0.95)
-
-temp.overlap$exp.prop.adult = (temp.overlap$area2 - temp.overlap$overlap)/temp.overlap$area1
-
-temp.overlap$contr.prop.adult = (temp.overlap$area1 - temp.overlap$overlap)/temp.overlap$area1
-
-overlap.list[[i]] <- temp.overlap
-} ##overlap list has 36 complete entries. Need to do the rest
-
-#loop for the rest
-for(i in 37:length(ellipses.posterior.list)){
-    cat(i, "\n")
-temp.overlap <- bayesianOverlap("1.1","1.2",ellipses.posterior.list[[i]],draws=NULL,p.interval=0.95)
-
-temp.overlap$exp.prop.adult = (temp.overlap$area2 - temp.overlap$overlap)/temp.overlap$area1
-
-temp.overlap$contr.prop.adult = (temp.overlap$area1 - temp.overlap$overlap)/temp.overlap$area1
-
-overlap.list[[i]] <- temp.overlap
-}
-
-names(overlap.list)<- names(ellipses.posterior.list)
-
-save(overlap.list, file="overlap.list.RData")
-
-par(mfrow=c(1,1))
-hist(overlap.list[[1]]$exp.prop.adult,breaks=50)
-hist(overlap.list[[1]]$contr.prop.adult,breaks=50)
+##this takes ~10 hours 
+# overlap.list<-list()
+# for(i in 1:length(ellipses.posterior.list)){
+#     cat(i, "\n")
+# temp.overlap <- bayesianOverlap("1.1","1.2",ellipses.posterior.list[[i]],draws=NULL,p.interval=0.95)
+# 
+# temp.overlap$exp.prop.adult = (temp.overlap$area2 - temp.overlap$overlap)/temp.overlap$area1
+# 
+# temp.overlap$contr.prop.adult = (temp.overlap$area1 - temp.overlap$overlap)/temp.overlap$area1
+# 
+# overlap.list[[i]] <- temp.overlap
+# } ##overlap list has 36 complete entries. Need to do the rest
+# 
+# names(overlap.list)<- names(ellipses.posterior.list)
+# 
+# save(overlap.list, file="overlap.list.RData")
 
 ```
+
+```{r}
+#read in overlap data
+load("overlap.list.RData")
+```
+
 
 ```{r}
 #summarize overlap by taking mean
@@ -2892,38 +2924,68 @@ ggplot(overlap.table,aes(x=species.name,y=mean.exp.prop.adult,fill=disturbance))
   geom_bar(stat='identity',position='dodge')+
   theme(axis.text.x = element_text(angle=45,vjust=0.9,hjust=0.8))
 
-ggplot(overlap.table,aes(x=disturbance,y=mean.exp.prop.adult))+
-  geom_boxplot()+
-  geom_jitter(height=0,width=0.2, aes(color=species.name),pch=15,size=2,alpha=0.7)+
-  scale_color_manual(values=c("#c9ce4e","#8b4cca","#6ccb5b","#c74a90","#8fcdb3","#d0503b","#708fc2","#c39553","#483262",
-"#4a633f","#cd9bb5","#6c3631"))
-
-ggplot(overlap.table,aes(x=disturbance,y=mean.contr.prop.adult))+
-  geom_boxplot()
-
 ggplot(overlap.table,aes(x=species.name,y=mean.contr.prop.adult,fill=disturbance))+
   geom_bar(stat='identity',position='dodge')+
   theme(axis.text.x = element_text(angle=45,vjust=0.9,hjust=0.8))
+
+
+expansion.plot <- ggplot(overlap.table,aes(x=disturbance,y=mean.exp.prop.adult))+
+  geom_boxplot(fill="gray")+
+  geom_jitter(height=0,width=0.2, aes(color=species.name),pch=15,size=2)+
+  scale_color_manual(values=c("#c9ce4e","#8b4cca","#6ccb5b","#c74a90","#8fcdb3","#d0503b","#708fc2","#c39553","#483262",
+"#4a633f","#cd9bb5","#6c3631"),name="Species")+
+  xlab("")+
+  ylab("Proportion Expanded")+
+  theme_bw()+
+  theme(axis.text=element_text(size=16,color="black"),legend.text = element_text(size=14),axis.title = element_text(size=14),legend.title = element_text(size=14))
+
+contraction.plot <- ggplot(overlap.table,aes(x=disturbance,y=mean.contr.prop.adult))+
+  geom_boxplot(fill="gray")+
+  geom_jitter(height=0,width=0.2, aes(color=species.name),pch=15,size=2)+
+  scale_color_manual(values=c("#c9ce4e","#8b4cca","#6ccb5b","#c74a90","#8fcdb3","#d0503b","#708fc2","#c39553","#483262",
+"#4a633f","#cd9bb5","#6c3631"),name="Species")+
+  xlab("")+
+  ylab("Proportion Contracted")+
+  theme_bw()+
+  theme(axis.text=element_text(size=16,color="black"),legend.text = element_text(size=16),axis.title = element_text(size=14),legend.title = element_text(size=16))
+
+ggarrange(contraction.plot, expansion.plot, nrow=1, ncol=2,common.legend = TRUE)
 
 ggplot(overlap.table %>% 
   pivot_longer(c(mean.exp.prop.adult,mean.contr.prop.adult),names_to = "shift",values_to = "proportion")
   ,aes(x=species.name,y=proportion,fill=shift))+
   geom_boxplot()+
-  scale_color_manual(c("red","orange"))+
-  theme(axis.text.x = element_text(angle=45,vjust=0.9,hjust=0.8))
+  xlab("")+
+  ylab("Mean Proportion Shift")+
+  scale_fill_manual(values=c("darkorange1","steelblue"),labels=c("Contraction", "Expansion"),name="Shift Type")+
+  theme_bw()+
+  theme(axis.text.x = element_text(angle=45,vjust=0.9,hjust=0.8),axis.text=element_text(size=16,color="black"),legend.text = element_text(size=16),axis.title = element_text(size=16),legend.title = element_text(size=16))
+
+ggplot(overlap.table %>% 
+  pivot_longer(c(mean.exp.prop.adult,mean.contr.prop.adult),names_to = "shift",values_to = "proportion")
+  ,aes(x=shift,y=proportion,fill=shift))+
+  geom_boxplot()+
+  xlab("")+
+  ylab("Mean Proportion Shift")+
+  scale_fill_manual(values=c("darkorange1","steelblue"),labels=c("Contraction", "Expansion"),name="Shift Type")+
+  theme_bw()+
+  theme(axis.text.x = element_text(angle=45,vjust=0.9,hjust=0.8),axis.text=element_text(size=16,color="black"),legend.text = element_text(size=16),axis.title = element_text(size=16),legend.title = element_text(size=16))
 ```
 
-Interesting to see that fire and harvest seem to be the top 2 disuturbances driving expansion for most species. Let's test this with ANOVA.
+Interesting to see that fire and harvest seem to be the top 2 disturbances driving expansion for most species. Let's test this with ANOVA.
 
 ```{r}
-dist.exp.anova <- aov(log(mean.exp.prop.adult)~disturbance,data=niche.shift.trait.table)
+dist.exp.anova <- aov(log(mean.exp.prop.adult)~disturbance,data=overlap.table)
 plot(dist.exp.anova)
 summary(dist.exp.anova) #significant difference between disturbances in expansion
 TukeyHSD(dist.exp.anova) #post-hoc comparisons shows that harvest is significantly higher than insect/disease and none, with fire in the middle. 
 
-dist.contr.anova<- aov(log(mean.contr.prop.adult)~disturbance, data=niche.shift.trait.table)
+dist.contr.anova<- aov(log(mean.contr.prop.adult)~disturbance, data=overlap.table)
 plot(dist.contr.anova)
 summary(dist.contr.anova)#no difference between disturbances for contractions
+
+t.test(overlap.table$mean.exp.prop.adult, overlap.table$mean.contr.prop.adult)
+
 ```
 
 ###Trait Niche Analysis 
@@ -2934,9 +2996,9 @@ niche.shift.trait.table <- overlap.table %>%
 #models for expansion
 #shade tolerance
 exp.shade.mod<- lm(log(mean.exp.prop.adult)~shade.tolerance*disturbance,data=niche.shift.trait.table)
-summary(exp.shade.mod)
 par(mfrow=c(2,2))
 plot(exp.shade.mod)
+summary(exp.shade.mod)
 
 ggplot(niche.shift.trait.table,aes(x=shade.tolerance,y=mean.exp.prop.adult))+
   geom_point()+
@@ -2945,7 +3007,7 @@ ggplot(niche.shift.trait.table,aes(x=shade.tolerance,y=mean.exp.prop.adult))+
 
 #seed weight
 #take out pinyon, gambel oak and juniper because they are primarily dispersed by animals
-exp.weight.mod<- lm(log(mean.exp.prop.adult)~scale(mean.weight.mg)*disturbance,data=niche.shift.trait.table %>% filter(! species.code %in% c(106,814,63)))
+exp.weight.mod<- lm(log(mean.exp.prop.adult)~mean.weight.mg*disturbance,data=niche.shift.trait.table %>% filter(! species.code %in% c(106,814,63)))
 par(mfrow=c(2,2))
 plot(exp.weight.mod)
 summary(exp.weight.mod)
@@ -2959,7 +3021,6 @@ ggplot(data=niche.shift.trait.table %>% filter(! species.code %in% c(106,814,63)
 ```{r}
 #models for contraction
 
-#models for expansion
 #shade tolerance
 contr.shade.mod<- lm(mean.contr.prop.adult~shade.tolerance*disturbance,data=niche.shift.trait.table)
 par(mfrow=c(2,2))
@@ -2973,7 +3034,7 @@ ggplot(niche.shift.trait.table,aes(x=shade.tolerance,y=mean.contr.prop.adult))+
 
 #seed weight
 #take out pinyon, gambel oak and juniper because they are primarily dispersed by animals
-contr.weight.mod<- lm(mean.contr.prop.adult~scale(mean.weight.mg)*disturbance,data=niche.shift.trait.table %>% filter(! species.code %in% c(106,814,63)))
+contr.weight.mod<- lm(mean.contr.prop.adult~mean.weight.mg*disturbance,data=niche.shift.trait.table %>% filter(! species.code %in% c(106,814,63)))
 par(mfrow=c(2,2))
 plot(contr.weight.mod)
 summary(contr.weight.mod)
