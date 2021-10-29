@@ -243,7 +243,7 @@ Let's set the minimum number of plots at 100. There are 21 species in the FIA da
 
 ```{r, echo=FALSE,warning=FALSE}
 #first make a dataframe to translate species codes to names
-species.names <- data.frame(species.code = c(15,17,19,63,93,101,106,108,113,122,202,242,746,814), species.name = c("white fir","grand fir","subalpine fir","alligator juniper","Engelmann spruce","whitebark pine","two needle pinyon","lodgepole pine","limber pine","ponderosa pine","Douglas-fir","western redcedar","trembling aspen","Gambel oak"))
+species.names <- data.frame(species.code = c(15,17,19,63,93,101,106,108,113,122,202,242,746,814,803), species.name = c("white fir","grand fir","subalpine fir","alligator juniper","Engelmann spruce","two needle pinyon","lodgepole pine","ponderosa pine","Douglas-fir","western redcedar","trembling aspen","Gambel oak","limber pine","whitebark pine","western larch"))
 
 #filter sample size table to species with adults in at least 100 plots 
 sample_adults_over100_cmb <- adult_sample_cmbsurv %>% 
@@ -261,11 +261,11 @@ datatable(sample_adults_over100_cmb)
 
 #look at seedling sample sizes
 sample_seeds %>% 
-  #filter(n_plots >= 100) %>% 
+  filter(n_plots >= 30) %>% 
   filter(!Agent %in% c("other","harvest")) %>% 
   group_by(SPCD) %>% 
-  #dplyr::summarise(dist_over100 = n_distinct(Agent)) %>% 
-  #filter(dist_over100 > 1) %>% 
+  dplyr::summarise(dist_over100 = n_distinct(Agent)) %>% 
+  filter(dist_over100 > 1) %>% 
   left_join(species.names, by=c("SPCD" = "species.code")) %>% 
   datatable()
 
@@ -1172,7 +1172,7 @@ head(shapiro.results.s)
 shapiro.results.s %>% 
   filter(p<0.05)
 
-#this table shows sample size for seedling data that didn't pass normality test. Lowest is 31, then 44, 50. I think this is ok for t-test.   
+#this table shows sample size for seedling data that didn't pass normality test. Lowest is 170 (aspen in insect.disease) so i think this is big enough to be fine.   
 shapiro.results.s %>% 
   filter(p<0.05) %>% 
   left_join(data.names, by='num') %>% 
@@ -1237,10 +1237,14 @@ pc1.ttest.pvalues.sep <- pc1.ttest.pvalues %>%
 This plot shows the difference in seedling vs. adult positions on PC1 (seedling mean - adult mean), separated by species and disturbance type. Differences in means greater than zero indicate that seedlings occupy higher values on PC1 (cooler climates) than adults whereas negative differnces in means indicate that seedlings occupy lower values on PC1 (warmer climates) than adults. Asterisks indicate that seedling and adult positions on PC1 are significantly different (p\<0.05), as evaluated with a T-test.
 
 ```{r,echo=FALSE}
+disturbance.colors<- c("#CC6666", "#9999CC", "#66CC99")
+
 ggplot(pc1.ttest.pvalues.sep, aes(x = agent, y = diff.means, fill = agent))+
   geom_col()+
   geom_text(data = subset(pc1.ttest.pvalues.sep, !is.na(sym.pos)), aes(x=agent, y=sym.pos), label="*", color="black")+
-  facet_wrap(~species.name)+
+  scale_fill_manual(values=disturbance.colors)+
+  geom_hline(yintercept=0,col="black")+
+  facet_wrap(~species.name,nrow=2)+
   ylim(c(-0.2,0.4))+
   ggtitle("PC1")+
   xlab("")+
@@ -1315,13 +1319,13 @@ pc2_vartest.results %>%
 ##adults
 multiplot(plotlist=pc2_plotlist[1:16],cols=4)
 multiplot(plotlist=pc2_qplotlist[1:16],cols=4)
-multiplot(plotlist=pc2_qplotlist[17:32],cols=4)
-multiplot(plotlist=pc2_qplotlist[33:48],cols=4)
+multiplot(plotlist=pc2_qplotlist[17:24],cols=4)
+
 ##seedlings
-multiplot(plotlist=pc2_splotlist,cols=6)
-multiplot(plotlist=pc2_sqplotlist[1:16],cols=4)
-multiplot(plotlist=pc2_sqplotlist[17:32],cols=4)
-multiplot(plotlist=pc2_sqplotlist[33:48],cols=4)
+multiplot(plotlist=pc2_splotlist,cols=4)
+multiplot(plotlist=pc2_sqplotlist[1:12],cols=4)
+multiplot(plotlist=pc2_sqplotlist[13:24],cols=4)
+
 ```
 
 ```{r}
@@ -1412,14 +1416,17 @@ pc2.ttest.pvalues
 pc2.ttest.pvalues.sep <- pc2.ttest.pvalues %>% 
   separate(uid, c("species","agent"),sep="_",extra="drop",remove = FALSE) %>% 
   mutate(species = as.numeric(species)) %>% 
-  left_join(species.names, by = c("species" = "species.code")) %>%   mutate(sym.pos = ifelse(p.value<0.05, 0.3, NA))
+  left_join(species.names, by = c("species" = "species.code")) %>%   mutate(sym.pos = ifelse(p.value<0.05, 0.3, NA)) %>% 
+  filter(!(agent=="insect.disease" & species.name %in% c("ponderosa pine","Gambel oak")))
 ```
 
 ```{r, echo=FALSE}
 ggplot(pc2.ttest.pvalues.sep, aes(x = agent, y = diff.means, fill = agent))+
   geom_col()+
   geom_text(data = subset(pc2.ttest.pvalues.sep, !is.na(sym.pos)), aes(x=agent, y=sym.pos), label="*", color="black")+
-  facet_wrap(~species.name)+
+  scale_fill_manual(values=disturbance.colors)+
+  geom_hline(yintercept=0,col="black")+
+  facet_wrap(~species.name, nrow=2)+
   ylim(c(-0.2,0.4))+
   ggtitle("PC2")+
   xlab("")+
@@ -1453,7 +1460,7 @@ ggplot(comb_pcapts %>% filter(age=="adult"), aes(x=PC1, y=PC2, color=factor(spec
   scale_color_manual(values=c("#c9ce4e","#8b4cca","#6ccb5b","#c74a90","#8fcdb3","#d0503b","#708fc2","#c39553","#483262",
 "#4a633f","#cd9bb5","#6c3631"),name="Species")+
   theme_bw()+
-  theme(axis.text = element_text(size=18), axis.title = element_text(size=18), legend.title = element_text(size=20),legend.text = element_text(size=20))
+  theme(axis.text = element_text(size=16), axis.title = element_text(size=16), legend.title = element_text(size=16),legend.text = element_text(size=16))
 
 ```
 
@@ -1786,10 +1793,10 @@ Now I will look at the effect of species traits on the magnitude of range shifts
 
 ```{r, echo=FALSE, message=FALSE, results='hide'}
 #make shade tolerance dataframe
-shade.tolerance <- c(4.33, 4.01,4.83, 2, 4.53, 1.44, 1.48,1.64,2.78,4.73, 1.21,2.09)
+shade.tolerance <- c(4.33, 4.01,4.83, 2, 4.53, 1.44, 1.48,1.64,2.78,4.73, 1.21,2.09, 1.56, 1, 1.35)
 
 #make drought tolerance dataframe
-drought.tolerance <- c(1.91, 2.33,2.02,5,2.58,4.97, 4.21, 4.32, 2.62,2.23, 1.77, 4.97)
+drought.tolerance <- c(1.91, 2.33,2.02,5,2.58,4.97, 4.21, 4.32, 2.62,2.23, 1.77, 4.97,4.72,5,2.42)
 
 #read in seed weight data
 seed.weight <- read_csv("C:/Users/Katie/Google Drive/FIA project/TRY data/TRY_seed_edited.csv")
