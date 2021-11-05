@@ -421,6 +421,17 @@ env_vars %>%
 
 env_vars_cut <- env_vars %>% 
   dplyr::select(-X1,-FIA_slope,-FIA_elev,-foldedaspect,-TD, -ppt, -tmean, -tmax, - tmin, -vpdmin, -vpdmax, -MWMT, -AHM, -DD5, -bFFP, -eFFP, -EMT, -Eref, -Tave_wt, -Tave_sm, -PPT_sm, -awc.total)
+
+env_vars_cut_alt <- env_vars %>% 
+  dplyr::select(-X1,-FIA_slope,-FIA_elev,-foldedaspect,-TD, -ppt, -tmean, -tmax, - tmin, -vpdmin, -vpdmax, -MWMT, -AHM, -DD5, -bFFP, -eFFP, -EMT, -Eref, -Tave_wt, -Tave_sm, -PPT_sm, -awc.total,-CMD, -MCMT)
+
+env_vars_cut_alt %>% 
+  cor() %>% 
+  abs()>0.9
+
+env_vars_cut_alt_trans <- env_vars_cut_alt %>% 
+  mutate(MSP_log = log(MSP),SHM_log = log(SHM), PPT_wt_log = log(PPT_wt), PAS_log = log(PAS+0.999), DD_0_log = log(DD_0), .keep="unused")
+
 ```
 
 ```{r,eval=FALSE,echo=FALSE}
@@ -471,6 +482,12 @@ set.seed(83)
 #saveRDS(clim_pca, file = "FIA_pca_nov.RDS")
 clim_pca <- readRDS("FIA_pca_nov.RDS")
 
+##climate pca without CMD
+alt_clim_pca <- prcomp(env_vars_cut_alt_trans, scale.=T)
+summary(alt_clim_pca)
+par(mfrow=c(1,1))
+plot(alt_clim_pca,type="l")
+
 ##to get eigenvalues, we do the square of the stdev
 eigenvals <- (clim_pca$sdev)^2
 eigenvals
@@ -490,11 +507,19 @@ as.data.frame(clim_pca$rotation[,1:2]) %>%
 as.data.frame(clim_pca$rotation[,1:2]) %>% 
   tibble::rownames_to_column() %>% 
   arrange(desc(abs(PC2)))
+
+as.data.frame(alt_clim_pca$rotation[,1:2]) %>% 
+  tibble::rownames_to_column() %>% 
+  arrange(desc(abs(PC1)))
 ```
 
 ```{r, echo=FALSE}
 #plot pca and climate variable loadings
 autoplot(clim_pca,x=1,y=2,colour="grey",loadings.colour="black", loadings=T, loadings.label=T, loadings.label.colour="black", scale=0, loadings.label.vjust=-1.5, loadings.label.size=8, alpha=0.5)+
+  theme_bw()+
+  theme(axis.text = element_text(color="black",size=18),text = element_text(size=18),legend.text = element_text(size=18))
+
+autoplot(alt_clim_pca,x=1,y=2,colour="grey",loadings.colour="black", loadings=T, loadings.label=T, loadings.label.colour="black", scale=0, loadings.label.vjust=-1.5, loadings.label.size=8, alpha=0.5)+
   theme_bw()+
   theme(axis.text = element_text(color="black",size=18),text = element_text(size=18),legend.text = element_text(size=18))
 ```
@@ -2030,26 +2055,26 @@ niche.shift.trait.table <- overlap.table %>%
 
 #models for expansion
 #shade tolerance
-exp.shade.mod<- lm(log(mean.exp.prop.adult)~shade.tolerance*disturbance,data=niche.shift.trait.table)
+exp.shade.mod<- lm(log(mean.exp.prop.adult)~shade.tolerance*disturbance,data=niche.shift.trait.table %>% filter(!species.name %in% c("grand fir","two needle pinyon","limber pine","ponderosa pine")))
 par(mfrow=c(2,2))
 plot(exp.shade.mod)
 Anova(exp.shade.mod, type='3')
 summary(exp.shade.mod)
 
-ggplot(niche.shift.trait.table,aes(x=shade.tolerance,y=mean.exp.prop.adult))+
+ggplot(niche.shift.trait.table %>% filter(!species.name %in% c("grand fir","two needle pinyon","limber pine","ponderosa pine")),aes(x=shade.tolerance,y=mean.exp.prop.adult))+
   geom_point()+
   geom_smooth(method = "lm", se = FALSE, fullrange = T, size=1)+
   facet_wrap(~disturbance)
 
 #seed weight
 #take out pinyon, gambel oak and juniper because they are primarily dispersed by animals
-exp.weight.mod<- lm(log(mean.exp.prop.adult)~mean.weight.mg*disturbance,data=niche.shift.trait.table %>% filter(! species %in% c(106,814,63)))
+exp.weight.mod<- lm(log(mean.exp.prop.adult)~mean.weight.mg*disturbance,data=niche.shift.trait.table %>% filter(!species.name %in% c("grand fir","two needle pinyon","limber pine","ponderosa pine","Gambel oak")))
 par(mfrow=c(2,2))
 plot(exp.weight.mod)
 Anova(exp.weight.mod, type='3')
 summary(exp.weight.mod)
 
-ggplot(data=niche.shift.trait.table %>% filter(! species %in% c(106,814,63)),aes(x=mean.weight.mg,y=mean.exp.prop.adult))+
+ggplot(data=niche.shift.trait.table %>% filter(!species.name %in% c("grand fir","two needle pinyon","limber pine","ponderosa pine","Gambel oak")),aes(x=mean.weight.mg,y=mean.exp.prop.adult))+
   geom_point()+
   geom_smooth(method = "lm", se = FALSE, fullrange = T, size=1)+
   facet_wrap(~disturbance)
