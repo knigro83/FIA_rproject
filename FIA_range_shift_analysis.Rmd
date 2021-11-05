@@ -71,9 +71,10 @@ fire<- read_csv("fire.plots2020.csv")
 ID<- read_csv("insect.disease.plots2020.csv")
 harvest<- read_csv("harvest.plots2020.csv")
 other<- read_csv("other.plots2020.csv")
+wind<- read_csv("wind.plots2020.csv")
 undis<- read_csv("undisturbed.plots2020.csv")
 
-dist <- bind_rows(fire,ID,harvest,other,undis)
+dist <- bind_rows(fire,ID,harvest,other,wind,undis)
 ```
 
 Join disturbance data with adult and seedling dataframes. There are NA's in the data because the adults and seeds dataframes have all plots, where as the disturbance dataframe only has plots that met my criteria. So this is ok.
@@ -249,7 +250,7 @@ Let's set the minimum number of plots at 100. There are 21 species in the FIA da
 #seedling sample 
 sample_seeds_over100 <- sample_seeds %>% 
   filter(n_plots >= 100) %>% 
-  filter(!Agent %in% c("harvest","other")) %>% 
+  filter(!Agent %in% c("harvest","other",'wind')) %>% 
   group_by(SPCD) %>% 
   dplyr::summarise(dist_over100 = n_distinct(Agent), disturbance = list(Agent)) %>% 
   filter(dist_over100 > 1) 
@@ -275,7 +276,7 @@ sample_seeds %>%
 #filter sample size table to species with adults in at least 100 plots 
 sample_adults_over100_cmb <- adult_sample_cmbsurv %>% 
   filter(n_plots >= 100) %>% 
-  filter(!Agent %in% c("harvest","other")) %>% 
+  filter(!Agent %in% c("harvest","other",'wind')) %>% 
   group_by(SPCD) %>%
   dplyr::summarise(dist_over100 = n_distinct(Agent),disturbance = list(Agent)) %>% 
   left_join(species.names, by=c("SPCD" = "species.code")) %>% 
@@ -288,7 +289,7 @@ This is a sample size table for each species, age and disturbance
 ```{r,echo=FALSE}
 sample_size <- adult_sample_cmbsurv %>% 
   filter(SPCD %in% species.names$species.code) %>% 
-  filter(!Agent %in% c('harvest','other')) %>% 
+  filter(!Agent %in% c('harvest','other','wind')) %>% 
   dplyr::rename(n.adult = n_plots) %>% 
   left_join(sample_seeds) %>% 
   dplyr::rename(n.seed = n_plots) %>% 
@@ -466,9 +467,9 @@ After running the PCA on these variables, we see that the first two components c
 ```{r, echo = FALSE}
 #run the PCA on transformed climate variables
 set.seed(83)
-clim_pca <- prcomp(env_vars_cut_trans,scale.=T) #proceed from correlation matrix, which scales variables--important because our variables have different units
-#saveRDS(clim_pca, file = "FIA_pca.RDS")
-clim_pca <- readRDS("FIA_pca.RDS")
+#clim_pca <- prcomp(env_vars_cut_trans,scale.=T) #proceed from correlation matrix, which scales variables--important because our variables have different units
+#saveRDS(clim_pca, file = "FIA_pca_nov.RDS")
+clim_pca <- readRDS("FIA_pca_nov.RDS")
 
 ##to get eigenvalues, we do the square of the stdev
 eigenvals <- (clim_pca$sdev)^2
@@ -555,7 +556,7 @@ disturbance.colors<- c("#CC6666", "#9999CC", "#66CC99")
 pca_pts_by_dist <- clim_pca_points %>% 
   left_join(dist, by=c("plot" = "PLT_CN"))
 
-ggplot(pca_pts_by_dist[which(! pca_pts_by_dist$Agent %in% c("other","harvest")),], aes(x=Agent,y=PC1,fill=Agent))+
+ggplot(pca_pts_by_dist[which(! pca_pts_by_dist$Agent %in% c("other","harvest","wind")),], aes(x=Agent,y=PC1,fill=Agent))+
   geom_boxplot()+
   scale_fill_manual(values=disturbance.colors)+
   theme_bw()
@@ -569,7 +570,7 @@ pc2.agent.mod <- aov(PC2~Agent, data=pca_pts_by_dist)
 summary(pc2.agent.mod)
 TukeyHSD(pc2.agent.mod)
 
-ggplot(pca_pts_by_dist[which(! pca_pts_by_dist$Agent %in% c("other","harvest")),], aes(x=Agent,y=PC2,fill=Agent))+
+ggplot(pca_pts_by_dist[which(! pca_pts_by_dist$Agent %in% c("other","harvest","wind")),], aes(x=Agent,y=PC2,fill=Agent))+
   geom_boxplot()+
   scale_fill_manual(values=disturbance.colors)+
   theme_bw()
@@ -643,6 +644,24 @@ pc1.diffs.sep <- pc1.diffs.table %>%
   separate(uid, c("species","agent"),sep="_",remove=FALSE, extra="drop") %>% 
   mutate(species = as.numeric(species)) %>% 
   left_join(species.names,by=c("species" = "species.code")) %>% 
+  filter(!(agent == "fire" & species.name %in% c("limber pine","two needle pinyon","grand fir"))) #%>% 
+  #filter(!(agent == 'insect.disease' & species.name == 'ponderosa pine'))
+```
+
+```{r, echo=FALSE, results='hide'}
+#calculate difference in 10th, 50th and 90th percentiles in PC1 position between adults and seedlings of each species and disturbance type 
+pc1.diffs.table.quant90 <- data.frame(uid = names(adult_data_pcapts))
+for(i in c(0.1, 0.5, 0.90)){
+diffs <- get_diff(adult_data_pcapts, seedling_data_pcapts, quo(PC1), i) 
+  pc1.diffs.table.quant90 <- pc1.diffs.table.quant90 %>% 
+    left_join(diffs, by = "uid")
+}
+
+#get dataframe in order for analysis and plotting
+pc1.diffs.sep.quant90 <- pc1.diffs.table.quant90 %>% 
+  separate(uid, c("species","agent"),sep="_",remove=FALSE, extra="drop") %>% 
+  mutate(species = as.numeric(species)) %>% 
+  left_join(species.names,by=c("species" = "species.code")) %>% 
   filter(!(agent == "fire" & species.name %in% c("limber pine","two needle pinyon","grand fir"))) %>% 
   filter(!(agent == 'insect.disease' & species.name == 'ponderosa pine'))
 ```
@@ -691,6 +710,53 @@ shapiro.test(none.diffs.pc1$quant_50)
 #none 95th quantile
 ggqqplot(none.diffs.pc1$quant_95)
 shapiro.test(none.diffs.pc1$quant_95)
+
+```
+
+```{r, echo=FALSE, eval=FALSE, results="hide"}
+##checking for normality
+fire.diffs.pc1.quant90<- pc1.diffs.sep.quant90 %>% 
+  filter(agent == "fire") 
+id.diffs.pc1.quant90<- pc1.diffs.sep.quant90 %>% 
+  filter(agent == "insect.disease") 
+none.diffs.pc1.quant90<- pc1.diffs.sep.quant90 %>% 
+  filter(agent == "none")
+
+#fire 10th quantile 
+ggqqplot(fire.diffs.pc1.quant90$quant_10)
+shapiro.test(fire.diffs.pc1.quant90$quant_10)
+
+#fire 50th quantile
+ggqqplot(fire.diffs.pc1.quant90$quant_50)
+shapiro.test(fire.diffs.pc1.quant90$quant_50)
+
+#fire 90th quantile 
+ggqqplot(fire.diffs.pc1.quant90$quant_90)
+shapiro.test(fire.diffs.pc1.quant90$quant_90)
+
+#id 10th quantile
+ggqqplot(id.diffs.pc1.quant90$quant_10)
+shapiro.test(id.diffs.pc1.quant90$quant_10)
+
+#id 50th quantile
+ggqqplot(id.diffs.pc1.quant90$quant_50)
+shapiro.test(id.diffs.pc1.quant90$quant_50)
+
+#id 90th quantile -- NOT NORMAL
+ggqqplot(id.diffs.pc1.quant90$quant_90)
+shapiro.test(id.diffs.pc1.quant90$quant_90)
+
+#none 10th quantile 
+ggqqplot(none.diffs.pc1.quant90$quant_10)
+shapiro.test(none.diffs.pc1.quant90$quant_10)
+
+#none 50th quantile
+ggqqplot(none.diffs.pc1.quant90$quant_50)
+shapiro.test(none.diffs.pc1.quant90$quant_50)
+
+#none 95th quantile
+ggqqplot(none.diffs.pc1.quant90$quant_90)
+shapiro.test(none.diffs.pc1.quant90$quant_90)
 
 ```
 
@@ -755,6 +821,64 @@ pvalues.pc1<- pvalues.pc1 %>%
 pvalues.pc1
 ```
 
+
+```{r,echo=FALSE, results="hide"}
+#test for significant shifts from zero for 90th and 10th quantiles
+
+#' get_pvalues
+#'
+#' @param pc1.diffs.sep dataframe containing the calculated differences in 5th, 50th and 95th quantiles of one climate variable or principal component for each species/agent 
+#'
+#' @return a dataframe with the results of a T-test, testing if the difference in quantile is significantly different from 0.   
+#' @export
+#'
+#' @examples
+get_pvalues_90 <- function(pc1.diffs.sep){
+agent.list = unique(pc1.diffs.sep$agent)
+quant.list = c(10, 50, 90)
+pc1.p.table = data.frame()
+for(i in 1:length(agent.list)){
+  cat(i, "\n")
+  for(j in 1:length(quant.list)){
+    cat(j, "\n")
+test.temp <- pc1.diffs.sep %>% 
+  filter(agent == agent.list[i]) %>% 
+  pull(!!paste("quant",quant.list[j],sep="_")) %>% 
+  t.test(y = NULL, alternative = "two.sided", mu = 0, paired = FALSE, var.equal = FALSE, conf.level = 0.95)
+    
+p.temp <- test.temp$p.value
+est.temp <- test.temp$estimate
+lower.temp <- test.temp$conf.int[1]
+upper.temp <- test.temp$conf.int[2]
+tvalue.temp <- test.temp$statistic
+df.temp <- test.temp$parameter
+p.df <- data.frame(agent = paste(agent.list[i]), quant = paste("quant",quant.list[j],sep="_"), p.value = p.temp, estimate = est.temp, lowerci = lower.temp, upperci = upper.temp,t=tvalue.temp, df=df.temp)
+pc1.p.table <- bind_rows(pc1.p.table, p.df)
+  }
+}
+  return(pc1.p.table)
+}
+#this call to options will tell me where the warnings occur. In this case, for the comparison of medians in the fire plots and harvest plots, the exact p-value cannot be calculated because there are values that are exactly equal to 0 in the data. I think this is ok.  
+options(warn = 1)
+pvalues.pc1.quant90 <- get_pvalues_90(pc1.diffs.sep.quant90)
+pvalues.pc1.quant90
+pvalues.pc1.quant90<- pvalues.pc1.quant90 %>% 
+  mutate(wilcoxon = "n")
+
+#need to do Wilcoxon Signed Rank Test for 90th percentile of insect/disease because data is not normal 
+id90.test <- pc1.diffs.sep.quant90 %>% 
+  filter(agent == "insect.disease") %>% 
+  pull("quant_90") %>% 
+  wilcox.test(y = NULL, alternative = "two.sided", mu = 0, conf.int = TRUE, conf.level = 0.95)
+
+id90.p.df <- data.frame(agent = "insect.disease", quant = "quant_90", p.value = id90.test$p.value, estimate = id90.test$estimate, lowerci = id90.test$conf.int[1], upperci = id90.test$conf.int[2], t=id90.test$statistic, df=NA, wilcoxon="y")
+
+##replace 90th percentile of insect/disease with wilcoxon test values
+pvalues.pc1.quant90<- pvalues.pc1.quant90 %>% 
+                rows_update(id90.p.df,by=c("agent","quant"))
+pvalues.pc1.quant90
+```
+
 The first plot here shows shifts on the 5th, 50th and 95th percentiles for all species combined, with individual species shifts plotted as dots. The second plot is the result of a Wilcoxon Signed Rank test (non-parametric t-test), showing the estimate as a diamond and the 95% confidence interval as lines. Asterisks indicate whether the shift was significantly different from zero (p\<0.05).
 
 ```{r, echo=FALSE}
@@ -792,12 +916,47 @@ facet_wrap(~ quant, labeller = labeller(quant=quant.labs))+
 
 ```
 
+```{r, echo=FALSE}
+#make data long for plotting
+pc1.diffs.long.quant90 <- pc1.diffs.sep.quant90 %>% 
+  pivot_longer(cols = c(quant_10, quant_50, quant_90), names_to = "quant", values_to = "diff")
+
+ggplot(pc1.diffs.long.quant90, aes(x=agent, y=diff))+
+  geom_boxplot(fill="lightgrey")+
+  geom_jitter(height=0,width=0.2, aes(color=species.name))+
+  facet_wrap(~quant)+
+  theme_bw()+
+  theme(axis.text.x = element_text(angle=45, hjust=1))
+
+##dataframe for stars
+pvalues.pc1.quant90<- pvalues.pc1.quant90 %>% 
+  mutate(sym.pos = ifelse(p.value<0.05,0.17,NA))
+
+quant.labs = c("10th quantile","50th quantile","90th quantile") 
+names(quant.labs)= c("quant_10","quant_50","quant_90")
+
+ggplot(pvalues.pc1.quant90, aes(x=agent, y=estimate, color = quant, fill=quant))+
+  geom_point(shape = 23, size = 3.5)+
+  geom_errorbar(aes(ymin=lowerci, ymax=upperci),width=0.3, size=1)+
+  scale_color_manual(values = c("#d7191c", "#fdae61","#2b83ba"))+
+  scale_fill_manual(values = c("#d7191c", "#fdae61","#2b83ba"))+
+  geom_text(data = subset(pvalues.pc1.quant90, !is.na(sym.pos)), aes(x=agent, y=sym.pos), label="*", color="black",size=8)+
+  geom_hline(yintercept=0, color="black", lty=2, size=1)+
+facet_wrap(~ quant, labeller = labeller(quant=quant.labs))+
+  ggtitle("Shifts on PC1")+
+  ylab("Difference on PC1")+
+  xlab("")+
+  theme_bw()+
+  theme(axis.text.x = element_text(angle=45, hjust = 1), axis.text = element_text(size=12, color="black"), text = element_text(size=12),legend.text = element_text(size=12),strip.text = element_text(color="black",size=12), legend.position = "none")
+
+```
+
 Here I test for significant differences among disturbance agents in adult vs. seedling differences in the three percentiles of PC1. There are no significant differences between disturbances in shifts on PC1.
 
 ```{r, echo=FALSE}
 library(car)
 pc1.diffs.fullset<- pc1.diffs.sep %>% 
-  filter(!species.name %in% c("ponderosa pine","limber pine","two needle pinyon","grand fir"))
+  filter(!species.name %in% c("limber pine","two needle pinyon","grand fir"))
 
 par(mfrow=c(1,1))
 
@@ -837,6 +996,25 @@ pc2.diffs.sep <- pc2.diffs.table %>%
   separate(uid, c("species","agent"),sep="_",remove=FALSE, extra="drop") %>% 
   mutate(species = as.numeric(species)) %>% 
   left_join(species.names,by=c("species" = "species.code")) %>% 
+  filter(!(agent == "fire" & species.name %in% c("limber pine","two needle pinyon","grand fir"))) #%>% 
+  #filter(!(agent == 'insect.disease' & species.name == 'ponderosa pine'))
+```
+
+```{r, echo=FALSE, results='hide'}
+#calculate difference in 10th, 50th and 90th percentiles in pc2 position between adults and seedlings of each species and disturbance type 
+pc2.diffs.table.quant90 <- data.frame(uid = names(adult_data_pcapts))
+for(i in c(0.1, 0.5, 0.9)){
+diffs <- get_diff(adult_data_pcapts, seedling_data_pcapts, quo(PC2), i) 
+  pc2.diffs.table.quant90 <- pc2.diffs.table.quant90 %>% 
+    left_join(diffs, by = "uid")
+}
+pc2.diffs.table.quant90
+
+#get dataframe in order for analysis and plotting
+pc2.diffs.sep.quant90 <- pc2.diffs.table.quant90 %>% 
+  separate(uid, c("species","agent"),sep="_",remove=FALSE, extra="drop") %>% 
+  mutate(species = as.numeric(species)) %>% 
+  left_join(species.names,by=c("species" = "species.code")) %>% 
   filter(!(agent == "fire" & species.name %in% c("limber pine","two needle pinyon","grand fir"))) %>% 
   filter(!(agent == 'insect.disease' & species.name == 'ponderosa pine'))
 ```
@@ -862,7 +1040,7 @@ shapiro.test(fire.diffs.pc2$quant_50)
 ggqqplot(fire.diffs.pc2$quant_95)
 shapiro.test(fire.diffs.pc2$quant_95)
 
-#id 5th quantile 
+#id 5th quantile
 ggqqplot(id.diffs.pc2$quant_5)
 shapiro.test(id.diffs.pc2$quant_5)
 
@@ -887,6 +1065,51 @@ ggqqplot(none.diffs.pc2$quant_95)
 shapiro.test(none.diffs.pc2$quant_95)
 ```
 
+```{r,echo=FALSE,eval=FALSE, results='hide'}
+##checking for normality
+fire.diffs.pc2.quant90<- pc2.diffs.sep.quant90 %>% 
+  filter(agent == "fire") 
+id.diffs.pc2.quant90<- pc2.diffs.sep.quant90 %>% 
+  filter(agent == "insect.disease") 
+none.diffs.pc2.quant90<- pc2.diffs.sep.quant90 %>% 
+  filter(agent == "none")
+
+#fire 5th quantile
+ggqqplot(fire.diffs.pc2.quant90$quant_10)
+shapiro.test(fire.diffs.pc2.quant90$quant_10)
+
+#fire 50th quantile 
+ggqqplot(fire.diffs.pc2.quant90$quant_50)
+shapiro.test(fire.diffs.pc2.quant90$quant_50)
+
+#fire 95th quantile
+ggqqplot(fire.diffs.pc2.quant90$quant_90)
+shapiro.test(fire.diffs.pc2.quant90$quant_90)
+
+#id 10th quantile -- NOT NORMAL
+ggqqplot(id.diffs.pc2.quant90$quant_10)
+shapiro.test(id.diffs.pc2.quant90$quant_10)
+
+#id 50th quantile
+ggqqplot(id.diffs.pc2.quant90$quant_50)
+shapiro.test(id.diffs.pc2.quant90$quant_50)
+
+#id 90th quantile 
+ggqqplot(id.diffs.pc2.quant90$quant_90)
+shapiro.test(id.diffs.pc2.quant90$quant_90)
+
+#none 10th quantile 
+ggqqplot(none.diffs.pc2.quant90$quant_10)
+shapiro.test(none.diffs.pc2.quant90$quant_10)
+
+#none 50th quantile
+ggqqplot(none.diffs.pc2.quant90$quant_50)
+shapiro.test(none.diffs.pc2.quant90$quant_50)
+
+#none 90th quantile
+ggqqplot(none.diffs.pc2.quant90$quant_90)
+shapiro.test(none.diffs.pc2.quant90$quant_90)
+```
 
 ```{r,echo=FALSE, results='hide'}
 #perform T-tests
@@ -896,7 +1119,7 @@ pvalues.pc2<- pvalues.pc2 %>%
   mutate(wilcoxon="n")
 
 #perform wilcoxon tests for non-normal data
-#95th id
+#5th none
 pc2.none5.test <- pc2.diffs.sep %>% 
   filter(agent == "none") %>% 
   pull("quant_5") %>% 
@@ -908,6 +1131,28 @@ pc2.none5.p.df <- data.frame(agent = "none", quant = "quant_5", p.value = pc2.no
 pvalues.pc2<- pvalues.pc2 %>% 
                 rows_update(pc2.none5.p.df, by=c("agent","quant"))
 pvalues.pc2
+```
+
+```{r,echo=FALSE, results='hide'}
+#perform T-tests
+pvalues.pc2.quant90 <- get_pvalues_90(pc2.diffs.sep.quant90)
+pvalues.pc2.quant90
+pvalues.pc2.quant90<- pvalues.pc2.quant90 %>% 
+  mutate(wilcoxon="n")
+
+#perform wilcoxon tests for non-normal data
+#10th id
+pc2.id10.test <- pc2.diffs.sep.quant90 %>% 
+  filter(agent == "insect.disease") %>% 
+  pull("quant_10") %>% 
+  wilcox.test(y = NULL, alternative = "two.sided", mu = 0, conf.int = TRUE, conf.level = 0.95)
+
+pc2.id10.p.df <- data.frame(agent = "insect.disease", quant = "quant_10", p.value = pc2.id10.test$p.value, estimate = pc2.id10.test$estimate, lowerci = pc2.id10.test$conf.int[1], upperci = pc2.id10.test$conf.int[2],t=pc2.id10.test$statistic,df=NA,wilcoxon="y")
+
+##replace t-test with wilcoxon test values
+pvalues.pc2.quant90<- pvalues.pc2.quant90 %>% 
+                rows_update(pc2.id10.p.df, by=c("agent","quant"))
+pvalues.pc2.quant90
 ```
 
 ```{r, echo=FALSE}
@@ -926,6 +1171,9 @@ ggplot(pc2.diffs.long, aes(x=agent, y=diff))+
 pvalues.pc2<- pvalues.pc2 %>% 
   mutate(sym.pos = ifelse(p.value<0.05,0.15,NA))
 
+quant.labs = c("5th quantile","50th quantile","95th quantile") 
+names(quant.labs)= c("quant_5","quant_50","quant_95")
+
 ggplot(pvalues.pc2, aes(x=agent, y=estimate, color = quant, fill=quant))+
   geom_point(shape = 23, size = 3.5)+
   geom_errorbar(aes(ymin=lowerci, ymax=upperci),width=0.3, size=1)+
@@ -941,13 +1189,47 @@ facet_wrap(~ quant, labeller= labeller(quant=quant.labs))+
   theme(axis.text.x = element_text(angle=45, hjust = 1), axis.text = element_text(color="black",size=12), text = element_text(color="black",size=12), strip.text = element_text(color="black",size=12), legend.position = "none")
 ```
 
+```{r, echo=FALSE}
+#make data long for plotting
+pc2.diffs.long.quant90 <- pc2.diffs.sep.quant90 %>% 
+  pivot_longer(cols = c(quant_10, quant_50, quant_90), names_to = "quant", values_to = "diff")
+
+ggplot(pc2.diffs.long.quant90, aes(x=agent, y=diff))+
+  geom_boxplot(fill="lightgrey")+
+  geom_jitter(height=0,width=0.2, aes(color=species.name))+
+  facet_wrap(~quant)+
+  theme_bw()+
+  theme(axis.text.x = element_text(angle=45, hjust=1))
+
+##dataframe for stars
+pvalues.pc2.quant90<- pvalues.pc2.quant90 %>% 
+  mutate(sym.pos = ifelse(p.value<0.05,0.15,NA))
+
+quant.labs = c("10th quantile","50th quantile","90th quantile") 
+names(quant.labs)= c("quant_10","quant_50","quant_90")
+
+ggplot(pvalues.pc2.quant90, aes(x=agent, y=estimate, color = quant, fill=quant))+
+  geom_point(shape = 23, size = 3.5)+
+  geom_errorbar(aes(ymin=lowerci, ymax=upperci),width=0.3, size=1)+
+  scale_color_manual(values = c("tan4", "#fdae61","turquoise"))+
+  scale_fill_manual(values = c("tan4", "#fdae61","turquoise"))+
+  geom_text(data = subset(pvalues.pc2.quant90, !is.na(sym.pos)), aes(x=agent, y=sym.pos), label="*", color="black",size=8)+
+  geom_hline(yintercept=0, color="black", size=1, lty=2)+
+facet_wrap(~ quant, labeller= labeller(quant=quant.labs))+
+  ggtitle("Shifts on PC2")+
+  xlab("")+
+  ylab("Difference on PC2")+
+  theme_bw()+
+  theme(axis.text.x = element_text(angle=45, hjust = 1), axis.text = element_text(color="black",size=12), text = element_text(color="black",size=12), strip.text = element_text(color="black",size=12), legend.position = "none")
+```
+
 The only significant difference between disturbances in shifts on PC2 was for shifts of the 95th quantile. The shift in the 95th percentile of PC2 was  significant with a p-value of 0.03. Looking at the boxplot, we see that this marginal significance is likely due to insect disease causing greater positive shifts in the 5th percentile of PC2 than the other disturbances. When running a Tukey HSD test on it, the shift in insect/disease plots is significantly different from the fire and the undisturbed plots, but not from the harvested plots.
 
 
 ```{r, echo=FALSE}
 #test for significant differences in the quantiles
 pc2.diffs.fullset<- pc2.diffs.sep %>% 
-  filter(!species.name %in% c("ponderosa pine","limber pine","two needle pinyon","grand fir"))
+  filter(!species.name %in% c("limber pine","two needle pinyon","grand fir"))
 
 
 #check for significant differences in 5th percentile by disturbance type
@@ -1182,7 +1464,7 @@ pc1.ttest.pvalues.sep <- pc1.ttest.pvalues %>%
   separate(uid, c("species","agent"),sep="_",extra="drop",remove = FALSE) %>% 
   mutate(species = as.numeric(species)) %>% 
   left_join(species.names, by = c("species" = "species.code")) %>%   mutate(sym.pos = ifelse(p.value<0.05, 0.35, NA)) %>% 
-  filter(!(agent == "insect.disease" & species.name == "ponderosa pine")) %>% 
+  #filter(!(agent == "insect.disease" & species.name == "ponderosa pine")) %>% 
   filter(!(agent == "fire" & species.name %in% c("limber pine","two needle pinyon","grand fir")))
 ```
 
@@ -1370,8 +1652,8 @@ pc2.ttest.pvalues.sep <- pc2.ttest.pvalues %>%
   separate(uid, c("species","agent"),sep="_",extra="drop",remove = FALSE) %>% 
   mutate(species = as.numeric(species)) %>% 
   left_join(species.names, by = c("species" = "species.code")) %>%   mutate(sym.pos = ifelse(p.value<0.05, 0.3, NA)) %>% 
-  filter(!(agent=="fire" & species.name %in% c("limber pine","two needle pinyon","grand fir"))) %>% 
-  filter(!(agent=="insect.disease" & species.name == "ponderosa pine"))
+  filter(!(agent=="fire" & species.name %in% c("limber pine","two needle pinyon","grand fir"))) #%>% 
+  #filter(!(agent=="insect.disease" & species.name == "ponderosa pine"))
 ```
 
 ```{r, echo=FALSE}
@@ -1381,7 +1663,7 @@ ggplot(pc2.ttest.pvalues.sep, aes(x = agent, y = diff.means, fill = agent))+
   scale_fill_manual(values=disturbance.colors)+
   geom_hline(yintercept=0,col="black")+
   facet_wrap(~species.name, nrow=3)+
-  ylim(c(-0.2,0.4))+
+  ylim(c(-0.31,0.4))+
   ggtitle("PC2")+
   xlab("")+
   ylab("Difference in Means")+
@@ -1554,8 +1836,29 @@ legend(-6,-1.5,legend=c("Adult","Seedling"),col=c("black",alpha(color.list[i],0.
 ```
 
 ```{r}
+#calculate niche areas and overlap for 90% confidence
+##this takes ~10 hours 
+# overlap.list.90<-list()
+# for(i in 1:length(ellipses.posterior.list)){
+#     cat(i, "\n")
+# temp.overlap <- bayesianOverlap("1.1","1.2",ellipses.posterior.list[[i]],draws=NULL,p.interval=0.90)
+# 
+# temp.overlap$exp.prop.adult = (temp.overlap$area2 - temp.overlap$overlap)/temp.overlap$area1
+# 
+# temp.overlap$contr.prop.adult = (temp.overlap$area1 - temp.overlap$overlap)/temp.overlap$area1
+# 
+# overlap.list.90[[i]] <- temp.overlap
+# } 
+# names(overlap.list.90)<- names(ellipses.posterior.list)
+# 
+# saveRDS(overlap.list.90, file = "overlap.list.90.nov.RDS")
+
+```
+
+```{r}
 #read in overlap data
 overlap.list <- readRDS("overlap.list.nov.RDS")
+#overlap.list.90 <- readRDS("overlap.list.90.nov.RDS")
 ```
 
 
@@ -1915,6 +2218,84 @@ ggarrange(shade.contr.plot, shade.exp.plot, weight.contr.plot, weight.exp.plot,p
 
 
 #Other
+
+##Species Investigation
+Ed asked the question of what the species composition is like in plots that are showing "contractions" AWAY from wet areas. So I am going to look at the species that experienced significant shifts away from wet areas to see if I can tease this out. 
+
+```{r}
+pc2.diffs.sep %>% 
+  filter(quant_95 < 0)
+
+ggplot(adult_data_pcapts[["93_insect.disease_cvars"]],aes(x=PC1,y=PC2))+
+  geom_point()+
+  geom_point(data=seedling_data_pcapts[["93_insect.disease_cvars"]],aes(x=PC1,y=PC2),color="purple")
+
+contr.plots.id93<- adult_data_pcapts[["93_insect.disease_cvars"]] %>% 
+  filter(PC2 > 2) %>% 
+  filter(!PLT_CN %in% seedling_data_pcapts[["93_insect.disease_cvars"]]$PLT_CN) %>% 
+  pull(PLT_CN)
+
+adults %>% 
+  filter(PLT_CN %in% contr.plots.id93) %>% 
+  group_by(PLT_CN) %>% 
+  ggplot(aes(y=factor(SPCD),x=factor(PLT_CN),fill=factor(SPCD)))+
+  geom_bar(stat='identity')
+
+locs93<- adults %>% 
+  filter(SPCD == '93') %>% 
+  left_join(plot, by=c("PLT_CN"="CN")) %>% 
+  dplyr::select(LAT,LON)
+
+contr.plots.id93.locs<- plot %>% 
+  filter(CN %in% contr.plots.id93) %>% 
+  dplyr::select(LAT, LON)
+
+usa<- map_data("state")
+
+ggplot()+
+  geom_polygon(data=usa,aes(x=long, y=lat, group=group),
+                color="black", fill="lightblue")+
+  geom_point(data=locs93, aes(x=LON, y=LAT))+
+  geom_point(data=contr.plots.id93.locs, aes(x=LON, y=LAT), color="purple")+
+  coord_quickmap()
+
+##lodgepole
+ggplot(adult_data_pcapts[["108_insect.disease_cvars"]],aes(x=PC1,y=PC2))+
+  geom_point()+
+  geom_point(data=seedling_data_pcapts[["108_insect.disease_cvars"]],aes(x=PC1,y=PC2),color="purple")
+
+contr.plots.id108<- adult_data_pcapts[["108_insect.disease_cvars"]] %>% 
+  filter(PC2 > 1.5) %>% 
+  filter(!PLT_CN %in% seedling_data_pcapts[["108_insect.disease_cvars"]]$PLT_CN) %>% 
+  pull(PLT_CN)
+
+adults %>% 
+  filter(PLT_CN %in% contr.plots.id108) %>% 
+  group_by(PLT_CN) %>% 
+  ggplot(aes(y=factor(SPCD),x=factor(PLT_CN),fill=factor(SPCD)))+
+  geom_bar(stat='identity')
+
+locs108<- adults %>% 
+  filter(SPCD == '108') %>% 
+  left_join(plot, by=c("PLT_CN"="CN")) %>% 
+  dplyr::select(LAT,LON)
+
+contr.plots.id108.locs<- plot %>% 
+  filter(CN %in% contr.plots.id108) %>% 
+  dplyr::select(LAT, LON)
+
+usa<- map_data("state")
+
+ggplot()+
+  geom_polygon(data=usa,aes(x=long, y=lat, group=group),
+                color="black", fill="lightblue")+
+  geom_point(data=locs108, aes(x=LON, y=LAT))+
+  geom_point(data=contr.plots.id108.locs, aes(x=LON, y=LAT), color="purple")+
+  coord_quickmap()
+
+```
+
+
 
 ##Original Trait analysis by PC
 
@@ -2989,6 +3370,8 @@ plot_niche("none", "106", "Pinyon", "#C77CFF")
 plot_niche("none","108","Lodgepole pine","#C77CFF")
 plot_niche("harvest", "108", "Lodgepole pine", "#7CAE00")
 plot_niche("insect.disease","108","Lodgepole pine","#00BFC4")
+
+plot_niche("insect.disease","122","ponderosa pine","#00BFC4")
 
 ##check for appropriate distribution for ellipse
 #lodgepole adults undisturbed
