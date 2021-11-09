@@ -48,7 +48,7 @@ env_vars <- read_csv("env_vars_FIA.csv")
 
 ```
 
-Now I will summarise the number of adults and seedlings of each species in each plot.
+Now I will summarize the number of adults and seedlings of each species in each plot.
 
 ```{r,echo=FALSE,warning=FALSE,message=FALSE, results='hide'}
 adults <- tree %>% 
@@ -91,7 +91,10 @@ summary(is.na(dist_seeds_joined)) #there are NAs for the plots that are not in m
 
 ```
 
-I will use both the most recent surveys and the previous survey (if applicable) to tally adult presence at a plot. If the adult of a species was present in at least one of the surveys, that plot will be counted as having adults of that species present. 
+
+##Selecting species for analysis 
+
+I will use both the most recent surveys and the previous survey (if applicable) to tally adult presence at a plot. If the adult of a species was present in at least one of the surveys (either alive or dead), that plot will be counted as having adults of that species present. 
 ```{r, echo=FALSE, results='hide'}
 ### count plots as containing adults if either the most current survey OR the previous survey documented the species ###
 
@@ -101,8 +104,8 @@ recent.plots <- dist %>%
 
 plot_progression <- left_join(recent.plots, plot, by=c("PLT_CN"="CN")) %>% 
                       dplyr::select(c("PLT_CN","PREV_PLT_CN")) %>% 
-                        left_join(plot, by=c("PREV_PLT_CN"="CN")) %>% 
-                          dplyr::select(c("PLT_CN","PREV_PLT_CN","PREV_PLT_CN.y"))
+                        left_join(plot, by=c("PREV_PLT_CN"="CN")) %>%
+  dplyr::select(c("PLT_CN","PREV_PLT_CN","PREV_PLT_CN.y"))
 
 #make datatable with species recorded in most recent survey (SPCD) and in the previous survey (SPCD.prev)
 prev_plot_spp <- plot_progression %>% 
@@ -123,7 +126,8 @@ species.sum <- prev_plot_spp %>%
   dplyr::summarise(spp = toString(unique(SPCD)),spp.prev = toString(unique(SPCD.prev)))
 #look at just plots where species differ between recent and previous surveys
 species.sum %>% 
-       filter(!spp == spp.prev)
+  filter(!spp == spp.prev) %>% 
+  filter(!spp.prev=="NA")
 
 ## melt dataframe so that all species are listed under "SPCD", whether identified in most recent survey or previous survey. Clean up the dataframe by removing unneccesary columns. Then remove duplicated rows that were created when recent survey was fully joined with previous survey 
 species.sum.long<- prev_plot_spp %>% 
@@ -132,73 +136,7 @@ species.sum.long<- prev_plot_spp %>%
   distinct()
 ```
 
-This plot shows the number of trees with STATUS codes of 0-3 across all plots used in the analysis, separated by disturbance category. Status codes are as follows:
-
-* 0 no status. Tree is not in sample because either it was incorrectly tallied in the last sample, not currently tallied due to procedural change, or natural causes. 
-* 1 live
-* 2 dead
-* 3 removed by human activity 
-
-Burned plots had the most dead trees (45%), followed by insect/disease (41%), harvest (19%) and none (18%). Harvested plots also had 5% of trees classified as “removed”.
-```{r, echo=FALSE}
-#look at tree status codes
-tree.status <- dist %>% 
-  left_join(tree, by="PLT_CN") %>% 
-  group_by(Agent) %>%
-  filter(!is.na(STATUSCD)) %>% 
-  dplyr::summarise(count(STATUSCD))
-
-ggplot(tree.status, aes(x=Agent, y=freq, fill=factor(x)))+
-  geom_bar(position = "fill", stat = "identity")+
-  scale_y_continuous(labels = scales::percent_format())+
-  scale_fill_brewer(palette = "Set1")
-# 0 = no status (tree not presently in the sample), 1 = live, 2 = dead, 3 = removed
-```
-
-```{r, echo=FALSE, results='hide'}
-#percent of harvested plots with status = 3
-tree.status %>% 
-  filter(Agent == "harvest", x == 3) %>% 
-  pluck("freq") /
-tree.status %>% 
-  filter(Agent == "harvest") %>% 
-  pull("freq") %>% 
-  sum()*100
-#percent of harvested plots with status = 2
-tree.status %>% 
-  filter(Agent == "harvest", x == 2) %>% 
-  pluck("freq") /
-tree.status %>% 
-  filter(Agent == "harvest") %>% 
-  pull("freq") %>% 
-  sum()*100
-#percent of ID plots with status = 2
-tree.status %>% 
-  filter(Agent == "insect.disease", x == 2) %>% 
-  pluck("freq") /
-tree.status %>% 
-  filter(Agent == "insect.disease") %>% 
-  pull("freq") %>% 
-  sum()*100
-#percent of none plots with status = 2
-tree.status %>% 
-  filter(Agent == "none", x == 2) %>% 
-  pluck("freq") /
-tree.status %>% 
-  filter(Agent == "none") %>% 
-  pull("freq") %>% 
-  sum()*100
-#percent of fire plots with status = 2
-tree.status %>% 
-  filter(Agent == "fire", x == 2) %>% 
-  pluck("freq") /
-tree.status %>% 
-  filter(Agent == "fire") %>% 
-  pull("freq") %>% 
-  sum()*100
-```
-
-The histogram below displays the year that plots in the analysis were measured. Some plots were measured twice, and we used both surveys to detect adult presence. These plots have both the recent survey year (all between 2010-2018) and the previous survey year (all between 2000-2013) displayed in the histogram. Some plots were only surveyed once, and their year of measurement is shown in pink (surveyed between 1995-2018). The second histogram displays the difference in years between the first and second survey for all plots that were surveyed twice.  
+The histogram below displays the year that plots in the analysis were measured. Some plots were measured twice, and we used both surveys to detect adult presence. These plots (~40%) have both the recent survey year (all between 2010-2018) and the previous survey year (all between 2000-2013) displayed in the histogram. Some plots (~60%) were only surveyed once, and their year of measurement is shown in pink (surveyed between 1995-2018). The second histogram displays the difference in years between the first and second survey for all plots that were surveyed twice.  
 
 ```{r, echo=FALSE}
 ##look at when recent vs. previous surveys were done
@@ -217,16 +155,18 @@ legend("topright",legend=c("MEASYEAR of plots with only 1 survey","recent MEASYE
 ######
 
 ##number of plots in each category
-length(timeline[is.na(timeline$PREV_PLT_CN),]$MEASYEAR.rec) #plots that didn't have a previous survey 
-length(timeline[!is.na(timeline$PREV_PLT_CN),]$MEASYEAR.rec) #plots that had a previous survey 
-24628/(24628+34828)
+no.prev.surv.plots <- length(timeline[is.na(timeline$PREV_PLT_CN),]$MEASYEAR.rec) 
+no.prev.surv.plots#plots that didn't have a previous survey 
+prev.surv.plots<- length(timeline[!is.na(timeline$PREV_PLT_CN),]$MEASYEAR.rec) 
+prev.surv.plots#plots that had a previous survey 
+no.prev.surv.plots/(prev.surv.plots+no.prev.surv.plots) #58% of plots in analysis only had one survey
 
 ##difference in years between first and second survey
 par(mfrow=c(1,1))
-hist(timeline$year.diff)
+hist(timeline$year.diff, main="Histogram of number of years between surveys") #most plots have 10 years between surveys
 ```
 
-Here are tables of sample sizes for each species and disturbance type. The first shows adult sample sizes and the second shows seedling sample sizes.
+Since some the plots have a most recent survey as early as 1995- 2006, we want to exclude these plots from our seedling sample, as seedlings present in 1995 are likely to be adult trees now and do not really capture the newer cohort of trees that we would expect to have been influenced by recent climate warming. Therefore, we will only look at plots most recently surveyed in or after 2007, which will include the later chunk of plots with only one survey and all the most recent visits of plots with two surveys. Below are tables of sample sizes for each species and disturbance type. The first shows adult sample sizes and the second shows seedling sample sizes.
 
 ```{r, echo=FALSE,warning=FALSE,message=FALSE}
 #calculate sample size for adults and seedlings
@@ -244,9 +184,9 @@ sample_seeds <- dist_seeds_joined %>%
 datatable(sample_seeds, caption = "Seedling Sample Size")
 ```
 
-Let's set the minimum number of plots at 100. There are 21 species in the FIA database that have 100 or more plots in one of the 3 disturbance types with adults present, but only 12 species with seedlings present in 100+ plots per disturbance type. The species codes for those 12 species are as follows:
+Let's set the minimum number of plots at 100. Since there are always less seedling plots than adult plots, we will look at the seedlings first. We will also only look at fire, insect/disease, and undisturbed categories since the other disturbance categories have very low sample sizes. 
 
-```{r}
+```{r, echo=FALSE}
 #seedling sample 
 sample_seeds_over100 <- sample_seeds %>% 
   filter(n_plots >= 100) %>% 
@@ -254,10 +194,7 @@ sample_seeds_over100 <- sample_seeds %>%
   group_by(SPCD) %>% 
   dplyr::summarise(dist_over100 = n_distinct(Agent), disturbance = list(Agent)) %>% 
   filter(dist_over100 > 1) 
-datatable(sample_seeds_over100) #there are 11 species with seedling plots > 100 in at least 2 disturbance types
-```
 
-```{r}
 #make a dataframe to translate species codes to names
 species.names <- data.frame(species.code = c(17,19,93,101,106,108,113,122,202,746,814), species.name = c("grand fir","subalpine fir","Engelmann spruce","whitebark pine","two needle pinyon","lodgepole pine","limber pine","ponderosa pine","Douglas-fir","trembling aspen","Gambel oak"))
 species.names<- species.names %>% 
@@ -266,23 +203,9 @@ species.names<- species.names %>%
 sample_seeds_over100 %>% 
   left_join(species.names, by=c("SPCD"="species.code")) %>% 
   datatable()
-
-sample_seeds %>% 
-  filter(SPCD %in% c(17,106,113,122))
 ```
 
-
-```{r, echo=FALSE,warning=FALSE}
-#filter sample size table to species with adults in at least 100 plots 
-sample_adults_over100_cmb <- adult_sample_cmbsurv %>% 
-  filter(n_plots >= 100) %>% 
-  filter(!Agent %in% c("harvest","other",'wind')) %>% 
-  group_by(SPCD) %>%
-  dplyr::summarise(dist_over100 = n_distinct(Agent),disturbance = list(Agent)) %>% 
-  left_join(species.names, by=c("SPCD" = "species.code")) %>% 
-  filter(SPCD %in% species.names$species.code)
-datatable(sample_adults_over100_cmb)
-```
+There are 11 species in the FIA database that have 100 or more plots in at least 2 of the 3 disturbance types with seedlings present. 
 
 This is a sample size table for each species, age and disturbance
 
@@ -318,7 +241,11 @@ seedling.sample <- ggplot(sample_size,aes(x=Agent, y=n.seed, fill=factor(species
 ggarrange(adult.sample,seedling.sample, common.legend = TRUE)
 ```
 
-The histograms below show the distribution of recent (blue) and previous (green) measurement years for the plots where adults of each species were found. Below are histograms for the measurement year of plots where seedlings of each species were found.  
+Looking at the seedling and adult sample sizes, we will exclude grand fir, limber pine, and two needle pinyon in fire plots from the analysis, because these groups have very low numbers of plots with seedlings. Ponderosa pine in insect/disease plots is also below our threshold of 100, but we will include this species/disturbance group as the sample size (65) seems sufficiently large and previous exploratory analysis confirmed that this group was not an outlier in analyses.  
+
+##Measurement years distribution
+
+The histograms below show the distribution of recent (blue) and previous (green) measurement years for the plots where adults and seedlings of each species were found.  
 ```{r, echo=FALSE}
 spp_hist_data <- species.sum.long %>% 
   left_join(plot, by=c("PREV_PLT_CN" = "CN")) %>% 
@@ -333,7 +260,7 @@ hist(spp_hist_data[spp_hist_data$SPCD==species.names$species.code[i],]$Prev.MEAS
 ```
 
 ```{r, echo=FALSE}
-
+#seedling histograms
 par(mfrow=c(4,3))
 for(i in 1:length(species.names$species.code)){
 hist(dist_seeds_joined[dist_seeds_joined$SPCD == species.names$species.code[i],]$MEASYEAR, col=rgb(0,0,1,0.5), breaks=(max(dist_seeds_joined[which(dist_seeds_joined$SPCD==species.names$species.code[i] & !is.na(dist_seeds_joined$MEASYEAR)),]$MEASYEAR) - min(dist_seeds_joined[which(dist_seeds_joined$SPCD==species.names$species.code[i] & !is.na(dist_seeds_joined$MEASYEAR)),]$MEASYEAR))+1,  main=paste("Histogram for",species.names$species.name[i],"seedlings",sep=" "),xlab="Measurement Year")
@@ -387,17 +314,17 @@ for(i in 1:length(sp_codes)){
 
 ```{r}
 ##writing out adult and seedling data with environmental vars
-write.csv(adult_data[[1]],paste(names(adult_data)[1],".csv",sep=""))
+#write.csv(adult_data[[1]],paste(names(adult_data)[1],".csv",sep=""))
 
 ```
 
 
 
-# Multivariate Analysis
+#Analysis
 
 ##Principal Components Analysis
 
-I will first run a principal components analysis (PCA) on a suite of climate variables for all plots included in the analysis (n = 59,456). Climate variables were collected from PRISM and [ClimateWNA] (<https://sites.ualberta.ca/~ahamann/data/climatewna.html>). First I will evaluate which climate variables are highty correlated (\>0.9) and only keep one of each highly correlated pair.
+I will first run a principal components analysis (PCA) on a suite of climate variables for all plots included in the analysis (n = 59,453). Climate variables were collected from PRISM and [ClimateWNA] (<https://sites.ualberta.ca/~ahamann/data/climatewna.html>). First I will evaluate which climate variables are highty correlated (\>0.9) and only keep one of each highly correlated pair.
 
 ```{r}
 #for some reason there are 3 plots in the environmental data that are not in the disturbance data. I think it has to do with how I eliminated plots with artificial regen. 
@@ -418,6 +345,7 @@ env_vars %>%
   filter(! is.na(awc.total)) %>% 
   cor() %>% 
   abs()>0.9
+##CMD is only super correlated to temperature variables and not precipitation variables, which makes me think it is overall more driven by temperature than precipitation
 
 env_vars_cut <- env_vars %>% 
   dplyr::select(-X1,-FIA_slope,-FIA_elev,-foldedaspect,-TD, -ppt, -tmean, -tmax, - tmin, -vpdmin, -vpdmax, -MWMT, -AHM, -DD5, -bFFP, -eFFP, -EMT, -Eref, -Tave_wt, -Tave_sm, -PPT_sm, -awc.total)
@@ -429,6 +357,7 @@ env_vars_cut_alt %>%
   cor() %>% 
   abs()>0.9
 
+#log transform precipitation variables to make relationships linear 
 env_vars_cut_alt_trans <- env_vars_cut_alt %>% 
   mutate(MSP_log = log(MSP),SHM_log = log(SHM), PPT_wt_log = log(PPT_wt), PAS_log = log(PAS+0.999), DD_0_log = log(DD_0), .keep="unused")
 
@@ -484,9 +413,9 @@ clim_pca <- readRDS("FIA_pca_nov.RDS")
 
 ##climate pca without CMD
 alt_clim_pca <- prcomp(env_vars_cut_alt_trans, scale.=T)
-summary(alt_clim_pca)
-par(mfrow=c(1,1))
-plot(alt_clim_pca,type="l")
+#summary(alt_clim_pca)
+#par(mfrow=c(1,1))
+#plot(alt_clim_pca,type="l")
 
 ##to get eigenvalues, we do the square of the stdev
 eigenvals <- (clim_pca$sdev)^2
@@ -498,9 +427,9 @@ par(mfrow=c(1,1))
 plot(clim_pca,type="l")
 ```
 
-The variables most strongly correlated with PC1 are climate moisture deficit (CMD), precipitation as snow (PAS), number of frost free degree days (NFFD), degree days below zero (DD_0), and mean temperature of the coldest month (MCMT). The variables most strongly correlated with PC2 are mean summer precipitation (MSP) and winter precipitation (PPT_wt). So, PC1 seems to be a temperature related axis, while PC2 corresponds to precipitation.
+The variables most strongly correlated with PC1 are climate moisture deficit (CMD), precipitation as snow (PAS), number of frost free degree days (NFFD), degree days below zero (DD_0), and mean temperature of the coldest month (MCMT). The variables most strongly correlated with PC2 are mean summer precipitation (MSP), winter precipitation (PPT_wt), and summer heat moisture index (SHM_log). So, PC1 seems to be a temperature related axis, while PC2 corresponds to precipitation.
 
-```{r}
+```{r, echo=FALSE}
 as.data.frame(clim_pca$rotation[,1:2]) %>% 
   tibble::rownames_to_column() %>% 
   arrange(desc(abs(PC1)))
@@ -508,9 +437,9 @@ as.data.frame(clim_pca$rotation[,1:2]) %>%
   tibble::rownames_to_column() %>% 
   arrange(desc(abs(PC2)))
 
-as.data.frame(alt_clim_pca$rotation[,1:2]) %>% 
-  tibble::rownames_to_column() %>% 
-  arrange(desc(abs(PC1)))
+# as.data.frame(alt_clim_pca$rotation[,1:2]) %>% 
+#   tibble::rownames_to_column() %>% 
+#   arrange(desc(abs(PC1)))
 ```
 
 ```{r, echo=FALSE}
@@ -519,9 +448,9 @@ autoplot(clim_pca,x=1,y=2,colour="grey",loadings.colour="black", loadings=T, loa
   theme_bw()+
   theme(axis.text = element_text(color="black",size=18),text = element_text(size=18),legend.text = element_text(size=18))
 
-autoplot(alt_clim_pca,x=1,y=2,colour="grey",loadings.colour="black", loadings=T, loadings.label=T, loadings.label.colour="black", scale=0, loadings.label.vjust=-1.5, loadings.label.size=8, alpha=0.5)+
-  theme_bw()+
-  theme(axis.text = element_text(color="black",size=18),text = element_text(size=18),legend.text = element_text(size=18))
+# autoplot(alt_clim_pca,x=1,y=2,colour="grey",loadings.colour="black", loadings=T, loadings.label=T, loadings.label.colour="black", scale=0, loadings.label.vjust=-1.5, loadings.label.size=8, alpha=0.5)+
+#   theme_bw()+
+#   theme(axis.text = element_text(color="black",size=18),text = element_text(size=18),legend.text = element_text(size=18))
 ```
 
 ```{r, echo = FALSE}
@@ -555,27 +484,11 @@ names(seedling_data_pcapts) <- names(seedling_data)
 
 ```
 
-```{r,echo=FALSE, eval=FALSE}
-#make example plot for presentation highlighting species presence on the PCA
-autoplot(clim_pca,x=1,y=2,colour="grey",loadings.colour="black", loadings=T, loadings.label=T, loadings.label.colour="black", scale=0, loadings.label.vjust=-1.5, loadings.label.size=3, alpha=0.5)+
-  geom_point(data=adult_data_pcapts[[26]],aes(x=PC1,y=PC2),color="red4")+
-  geom_point(data=seedling_data_pcapts[[26]],aes(x=PC1,y=PC2),color="red")+
-  theme_bw()+
-  theme(axis.text = element_text(color="black",size=11),text = element_text(size=11),legend.text = element_text(size=11))
-
-autoplot(clim_pca,x=1,y=2,colour="grey",loadings.colour="black", loadings=T, loadings.label=T, loadings.label.colour="black", scale=0, loadings.label.vjust=-1.5, loadings.label.size=3, alpha=0.5)+
-  geom_point(data=seedling_data_pcapts[[26]],aes(x=PC1,y=PC2),color="pink")+
-  theme_bw()+
-  theme(axis.text = element_text(color="black",size=11),text = element_text(size=11),legend.text = element_text(size=11))
-
-```
-
-These boxplots display the range of PC1 and PC2 coordinates that plots within each disturbance category occupy. The disturbances are pretty evenly distributed across climate space, with insect/disease and harvest occupying slightly higher values on PC1 and lower values on PC2, which correspond to cooler and wetter climates, and undisturbed and fire plots occupying slightly lower values on PC1 and higher values on PC2, corresponding to warmer and drier climates.
+These boxplots display the range of PC1 and PC2 coordinates that plots within each disturbance category occupy. The disturbances are pretty evenly distributed across climate space, with insect/disease plots occupying slightly higher values on PC1 and PC2, which correspond to cooler and wetter climates, and fire plots occupying slightly lower values on PC1 and PC2, corresponding to warmer and drier climates, with undisturbed plots having a median climate even hotter and drier than the other two disturbance categories (but also with the most variation). ANOVAs indicate that these three disturbances are all significantly different from each other in their positions on both PC1 and PC2, likely in part due to the extremely high sample size. 
 
 ```{r, echo=FALSE}
 #color palette
 disturbance.colors<- c("#CC6666", "#9999CC", "#66CC99")
-
 
 #summarize position on PC1 and 2 of plots in each disturbance category. 
 pca_pts_by_dist <- clim_pca_points %>% 
@@ -587,11 +500,12 @@ ggplot(pca_pts_by_dist[which(! pca_pts_by_dist$Agent %in% c("other","harvest","w
   theme_bw()
 
 #significant differnces in disturbances? yes
-pc1.agent.mod <- aov(PC1~Agent, data=pca_pts_by_dist)
+pc1.agent.mod <- aov(PC1~Agent, data=pca_pts_by_dist %>% filter(!Agent %in% c("other","harvest","wind")))
 summary(pc1.agent.mod)
 TukeyHSD(pc1.agent.mod)
 
-pc2.agent.mod <- aov(PC2~Agent, data=pca_pts_by_dist)
+##PC2
+pc2.agent.mod <- aov(PC2~Agent, data=pca_pts_by_dist %>% filter(!Agent %in% c("other","harvest","wind")))
 summary(pc2.agent.mod)
 TukeyHSD(pc2.agent.mod)
 
@@ -669,8 +583,7 @@ pc1.diffs.sep <- pc1.diffs.table %>%
   separate(uid, c("species","agent"),sep="_",remove=FALSE, extra="drop") %>% 
   mutate(species = as.numeric(species)) %>% 
   left_join(species.names,by=c("species" = "species.code")) %>% 
-  filter(!(agent == "fire" & species.name %in% c("limber pine","two needle pinyon","grand fir"))) #%>% 
-  #filter(!(agent == 'insect.disease' & species.name == 'ponderosa pine'))
+  filter(!(agent == "fire" & species.name %in% c("limber pine","two needle pinyon","grand fir"))) 
 ```
 
 ```{r, echo=FALSE, results='hide'}
@@ -690,6 +603,8 @@ pc1.diffs.sep.quant90 <- pc1.diffs.table.quant90 %>%
   filter(!(agent == "fire" & species.name %in% c("limber pine","two needle pinyon","grand fir"))) %>% 
   filter(!(agent == 'insect.disease' & species.name == 'ponderosa pine'))
 ```
+
+First I will assess whether the shifts in each quantile and disturbance are normally distributed, in which case a t-test will be used, otherwise a Wilcoxon signed rank test will be used. 
 
 ```{r, echo=FALSE, eval=FALSE, results="hide"}
 ##checking for normality
@@ -779,13 +694,13 @@ shapiro.test(none.diffs.pc1.quant90$quant_10)
 ggqqplot(none.diffs.pc1.quant90$quant_50)
 shapiro.test(none.diffs.pc1.quant90$quant_50)
 
-#none 95th quantile
+#none 90th quantile
 ggqqplot(none.diffs.pc1.quant90$quant_90)
 shapiro.test(none.diffs.pc1.quant90$quant_90)
 
 ```
 
-Difference data on the 5th quantile of PC1 for undisturbed plots and the 95th quantile of PC1 for burned plots is not normal. 
+Difference data on the 5th quantile of PC1 for undisturbed plots is not normal so we will use a Wilcoxon test for this group. 
 
 
 ```{r,echo=FALSE, results="hide"}
@@ -832,7 +747,7 @@ pvalues.pc1
 pvalues.pc1<- pvalues.pc1 %>% 
   mutate(wilcoxon = "n")
 
-#need to do Wilcoxon Signed Rank Test for 5th percentile of nonebecause data is not normal 
+#need to do Wilcoxon Signed Rank Test for 5th percentile of none because data is not normal 
 none5.test <- pc1.diffs.sep %>% 
   filter(agent == "none") %>% 
   pull("quant_5") %>% 
@@ -904,7 +819,7 @@ pvalues.pc1.quant90<- pvalues.pc1.quant90 %>%
 pvalues.pc1.quant90
 ```
 
-The first plot here shows shifts on the 5th, 50th and 95th percentiles for all species combined, with individual species shifts plotted as dots. The second plot is the result of a Wilcoxon Signed Rank test (non-parametric t-test), showing the estimate as a diamond and the 95% confidence interval as lines. Asterisks indicate whether the shift was significantly different from zero (p\<0.05).
+The first plot here shows shifts on the 5th, 50th and 95th percentiles for all species combined, with individual species shifts plotted as dots. The second plot is the result of T-tests and Wilcoxon Signed Rank tests (non-parametric t-test), showing the estimate as a diamond and the 95% confidence interval as lines. Asterisks indicate whether the shift was significantly different from zero (p\<0.05).
 
 ```{r, echo=FALSE}
 #make data long for plotting
@@ -976,10 +891,9 @@ facet_wrap(~ quant, labeller = labeller(quant=quant.labs))+
 
 ```
 
-Here I test for significant differences among disturbance agents in adult vs. seedling differences in the three percentiles of PC1. There are no significant differences between disturbances in shifts on PC1.
+Here I test for significant differences among disturbance agents in adult vs. seedling differences in the three percentiles of PC1. I only include species in this analysis that had data for all three disturbance types. There are no significant differences between disturbances in shifts on PC1.
 
 ```{r, echo=FALSE}
-library(car)
 pc1.diffs.fullset<- pc1.diffs.sep %>% 
   filter(!species.name %in% c("limber pine","two needle pinyon","grand fir"))
 
@@ -1004,7 +918,7 @@ anova(pc1.mod95)
 
 ###PC2
 
-And now for PC2, which corresponds most strongly to precipitation variables, with negative shifts representing seedling shifts to wetter climates and positive shifts representing seedling shifts to drier climates.
+And now for PC2, which corresponds most strongly to precipitation variables, with positive shifts representing seedling shifts to wetter climates and negative shifts representing seedling shifts to drier climates.
 
 ```{r, echo=FALSE, results='hide'}
 #calculate difference in 5th, 50th and 95th percentiles in pc2 position between adults and seedlings of each species and disturbance type 
@@ -1021,8 +935,7 @@ pc2.diffs.sep <- pc2.diffs.table %>%
   separate(uid, c("species","agent"),sep="_",remove=FALSE, extra="drop") %>% 
   mutate(species = as.numeric(species)) %>% 
   left_join(species.names,by=c("species" = "species.code")) %>% 
-  filter(!(agent == "fire" & species.name %in% c("limber pine","two needle pinyon","grand fir"))) #%>% 
-  #filter(!(agent == 'insect.disease' & species.name == 'ponderosa pine'))
+  filter(!(agent == "fire" & species.name %in% c("limber pine","two needle pinyon","grand fir"))) 
 ```
 
 ```{r, echo=FALSE, results='hide'}
@@ -1043,6 +956,8 @@ pc2.diffs.sep.quant90 <- pc2.diffs.table.quant90 %>%
   filter(!(agent == "fire" & species.name %in% c("limber pine","two needle pinyon","grand fir"))) %>% 
   filter(!(agent == 'insect.disease' & species.name == 'ponderosa pine'))
 ```
+
+Check for normality 
 
 ```{r,echo=FALSE,eval=FALSE, results='hide'}
 ##checking for normality
@@ -1089,6 +1004,8 @@ shapiro.test(none.diffs.pc2$quant_50)
 ggqqplot(none.diffs.pc2$quant_95)
 shapiro.test(none.diffs.pc2$quant_95)
 ```
+
+5th quantile shifts in undisturbed plots are non-normal
 
 ```{r,echo=FALSE,eval=FALSE, results='hide'}
 ##checking for normality
@@ -1180,6 +1097,8 @@ pvalues.pc2.quant90<- pvalues.pc2.quant90 %>%
 pvalues.pc2.quant90
 ```
 
+Now plot the differences
+
 ```{r, echo=FALSE}
 #make data long for plotting
 pc2.diffs.long <- pc2.diffs.sep %>% 
@@ -1248,7 +1167,7 @@ facet_wrap(~ quant, labeller= labeller(quant=quant.labs))+
   theme(axis.text.x = element_text(angle=45, hjust = 1), axis.text = element_text(color="black",size=12), text = element_text(color="black",size=12), strip.text = element_text(color="black",size=12), legend.position = "none")
 ```
 
-The only significant difference between disturbances in shifts on PC2 was for shifts of the 95th quantile. The shift in the 95th percentile of PC2 was  significant with a p-value of 0.03. Looking at the boxplot, we see that this marginal significance is likely due to insect disease causing greater positive shifts in the 5th percentile of PC2 than the other disturbances. When running a Tukey HSD test on it, the shift in insect/disease plots is significantly different from the fire and the undisturbed plots, but not from the harvested plots.
+There is a significant positive shift on the 5th quantile in fire plots, representing a contraction away from dry plots in areas that were burned. Conversely, insect/disease and undisturbed plots showed significant contractions on the 95th quantile (wettest plots) away from wet areas, with a significant negative shift in the median of insect/disease plots as well. ANOVAs indicate significant differences between disturbances in shifts on the 5th and 50th quantiles, with the biggest differences between fire and insect/disease plots, with undisturbed plots showing intermediate shifts. 
 
 
 ```{r, echo=FALSE}
@@ -1289,52 +1208,6 @@ par(mfrow=c(1,1))
 
 ##Species specific range shifts
 
-First I'm just going to look at whether each species is experiencing contraction, expansion, or shift on PC1. 
-
-```{r}
-shifts.raw<- data.frame(species=character(),agent=character(), age=character(), pos.05=numeric(), pos.95=numeric())
-for(i in 1:length(adult_data_pcapts)){
-adult.95<- adult_data_pcapts %>% 
-    pluck(names(adult_data_pcapts)[i]) %>% 
-    ungroup() %>% 
-    dplyr::select(PC1) %>% 
-    dplyr::summarise(quantile = quantile(PC1,probs = 0.95))%>% 
-    pull()
-adult.05 <- adult_data_pcapts %>% 
-    pluck(names(adult_data_pcapts)[i]) %>% 
-    ungroup() %>% 
-    dplyr::select(PC1) %>% 
-    dplyr::summarise(quantile = quantile(PC1,probs = 0.05))%>% 
-    pull()
-seed.95<- seedling_data_pcapts %>% 
-    pluck(names(seedling_data_pcapts)[i]) %>% 
-    ungroup() %>% 
-    dplyr::select(PC1) %>% 
-    dplyr::summarise(quantile = quantile(PC1,probs = 0.95))%>% 
-    pull()
-seed.05 <- seedling_data_pcapts %>% 
-    pluck(names(seedling_data_pcapts)[i]) %>% 
-    ungroup() %>% 
-    dplyr::select(PC1) %>% 
-    dplyr::summarise(quantile = quantile(PC1,probs = 0.05)) %>% 
-    pull()
-shifts.raw <- rbind(shifts.raw,data.frame(species=rep(unique(adult_data_pcapts[[i]]$SPCD),2), agent = rep(unique(adult_data_pcapts[[i]]$Agent),2), age = c("adult", "seed"),pos.05=c(adult.05,seed.05), pos.95 = c(adult.95,seed.95)))
-}
-
-shifts.raw<- shifts.raw %>% 
-  left_join(species.names, by=c(species="species.code"))
-
-ggplot(shifts.raw)+
-  geom_errorbar(aes(x= agent, ymin=pos.05, ymax=pos.95, color=age, width=0.3), size=0.5, position = "dodge")+
-  facet_wrap(~species.name)+
-  scale_color_manual(values=c("black","green3"))+
-  ggtitle("PC1")+
-  theme(axis.text.x = element_text(angle=45,vjust=.7))
-
-
-```
-
-
 The one species-specific test we can do, is a t-test comparing the mean positions on PC1 and PC2 of seedlings vs. adults in different disturbance types.
 
 ###PC1
@@ -1346,6 +1219,7 @@ First, PC1:
 #grab multiplot function script
 source("multiplot_fxn.R")
 
+#make density plots to check for normality in each of the species x disturbance x age category
 ##adult
 adultplots = list()
 for(i in 1:length(adult_data)){
@@ -1393,10 +1267,11 @@ vartest.results<-data.frame()
 for(i in 1:length(seedling_data)){
 vartest<- var.test(seedlingplots[[i]],adultplots[[i]],alternative="two.sided")
 vartest.results<-rbind(vartest.results, data.frame(num=i, p=vartest$p.value))
-}   ##most but not all have equal variance between adult and seedling data
+}  
+vartest.results##not all have equal variance between adult and seedling data
 ```
 
-```{r}
+```{r, echo=FALSE, results='hide'}
 #shapiro test to formally evaluate normality of data. Even though, not all pass this test, I think we can still use t-test because sample size is relatively large 
 
 #shapiro test for adults
@@ -1489,11 +1364,10 @@ pc1.ttest.pvalues.sep <- pc1.ttest.pvalues %>%
   separate(uid, c("species","agent"),sep="_",extra="drop",remove = FALSE) %>% 
   mutate(species = as.numeric(species)) %>% 
   left_join(species.names, by = c("species" = "species.code")) %>%   mutate(sym.pos = ifelse(p.value<0.05, 0.35, NA)) %>% 
-  #filter(!(agent == "insect.disease" & species.name == "ponderosa pine")) %>% 
   filter(!(agent == "fire" & species.name %in% c("limber pine","two needle pinyon","grand fir")))
 ```
 
-This plot shows the difference in seedling vs. adult positions on PC1 (seedling mean - adult mean), separated by species and disturbance type. Differences in means greater than zero indicate that seedlings occupy higher values on PC1 (cooler climates) than adults whereas negative differnces in means indicate that seedlings occupy lower values on PC1 (warmer climates) than adults. Asterisks indicate that seedling and adult positions on PC1 are significantly different (p\<0.05), as evaluated with a T-test.
+This plot shows the difference in seedling vs. adult positions on PC1 (seedling mean - adult mean), separated by species and disturbance type. Differences in means greater than zero indicate that seedlings occupy higher values on PC1 (cooler climates) than adults whereas negative differences in means indicate that seedlings occupy lower values on PC1 (warmer climates) than adults. Asterisks indicate that seedling and adult positions on PC1 are significantly different (p\<0.05), as evaluated with a T-test.
 
 ```{r,echo=FALSE}
 disturbance.colors<- c("#CC6666", "#9999CC", "#66CC99")
@@ -1515,7 +1389,7 @@ ggplot(pc1.ttest.pvalues.sep, aes(x = agent, y = diff.means, fill = agent))+
 
 ###PC2
 
-Now for PC2, where postive differences mean that seedlings occupied higher values on PC2 (drier climates) than adults, and negative differences mean that seedlings occupied lower values on PC2 (wetter climates).
+Now for PC2, where postive differences mean that seedlings occupied higher values on PC2 (wetter climates) than adults, and negative differences mean that seedlings occupied lower values on PC2 (drier climates).
 
 ```{r, echo=FALSE, results='hide'}
 ##check for normality on PC2
@@ -1699,31 +1573,31 @@ ggplot(pc2.ttest.pvalues.sep, aes(x = agent, y = diff.means, fill = agent))+
 
 ##Niche models
 
-```{r}
+```{r, echo=FALSE}
 #extract all species x disturbance combinations and make into iso style data
 #group 1 = adults, group 2 = seedlings
 
-iso_data <- list()
-for(i in 1:length(adult_data_pcapts)){
-    temp_iso <- rbind(adult_data_pcapts[[i]],seedling_data_pcapts[[i]]) %>%
-  dplyr::select(c("PC1","PC2")) %>%
-  mutate(group=c(rep(1,nrow(adult_data_pcapts[[i]])),rep(2,nrow(seedling_data_pcapts[[i]]))),community=1) %>%
-  dplyr::rename(iso1=PC1,iso2=PC2)
-    iso_data[[i]]<- temp_iso
-}
-names(iso_data)<-names(adult_data_pcapts)
-names(iso_data)
+# iso_data <- list()
+# for(i in 1:length(adult_data_pcapts)){
+#     temp_iso <- rbind(adult_data_pcapts[[i]],seedling_data_pcapts[[i]]) %>%
+#   dplyr::select(c("PC1","PC2")) %>%
+#   mutate(group=c(rep(1,nrow(adult_data_pcapts[[i]])),rep(2,nrow(seedling_data_pcapts[[i]]))),community=1) %>%
+#   dplyr::rename(iso1=PC1,iso2=PC2)
+#     iso_data[[i]]<- temp_iso
+# }
+# names(iso_data)<-names(adult_data_pcapts)
+# names(iso_data)
 ```
 
-```{r}
+```{r, echo=FALSE}
 #make iso data into list of SIBER objects
 
-siber.objs <- list()
-for(i in 1:length(iso_data)){
-  temp.obj<- createSiberObject(as.data.frame(iso_data[[i]]))
-  siber.objs[[i]]<- temp.obj
-}
-names(siber.objs)<-names(adult_data_pcapts)
+# siber.objs <- list()
+# for(i in 1:length(iso_data)){
+#   temp.obj<- createSiberObject(as.data.frame(iso_data[[i]]))
+#   siber.objs[[i]]<- temp.obj
+# }
+# names(siber.objs)<-names(adult_data_pcapts)
 
 #remove species*disturbance without enough data
 #siber.objs[which(names(siber.objs) %in% c("17_fire_cvars","106_fire_cvars","113_fire_cvars","122_insect.disease_cvars"))]<-NULL
@@ -1731,56 +1605,56 @@ names(siber.objs)<-names(adult_data_pcapts)
 names(siber.objs)
 ```
 
-```{r}
+```{r, echo=FALSE}
 #estimate multivariate normal ellipses for each group using bayesian estimation
 
 # options for running jags
 
-parms <- list()
-parms$n.iter <- 2 * 10^4   # number of iterations to run the model for
-parms$n.burnin <- 1 * 10^3 # discard the first set of values
-parms$n.thin <- 10     # thin the posterior by this many
-parms$n.chains <- 2        # run this many chains
+# parms <- list()
+# parms$n.iter <- 2 * 10^4   # number of iterations to run the model for
+# parms$n.burnin <- 1 * 10^3 # discard the first set of values
+# parms$n.thin <- 10     # thin the posterior by this many
+# parms$n.chains <- 2        # run this many chains
 
 # define the priors
 
-priors <- list()
-priors$R <- 1 * diag(2)
-priors$k <- 2
-priors$tau.mu <- 1.0E-3
+# priors <- list()
+# priors$R <- 1 * diag(2)
+# priors$k <- 2
+# priors$tau.mu <- 1.0E-3
 
 # fit the ellipses which uses an Inverse Wishart prior on the covariance matrix Sigma, and a vague normal prior on the means. Fitting is via the JAGS method.
+# 
+# ellipses.posterior.list <- list()
+# for(i in 1:length(siber.objs)){
+#   temp.mvn <- siberMVN(siber.objs[[i]], parms, priors)
+#   ellipses.posterior.list[[i]] <- temp.mvn
+#   }
+# names(ellipses.posterior.list)<-names(siber.objs)
 
-ellipses.posterior.list <- list()
-for(i in 1:length(siber.objs)){
-  temp.mvn <- siberMVN(siber.objs[[i]], parms, priors)
-  ellipses.posterior.list[[i]] <- temp.mvn
-  }
-names(ellipses.posterior.list)<-names(siber.objs)
-
-SEA.B.list <- list()
-for(i in 1:length(ellipses.posterior.list)){
-  temp.SEA.B <- siberEllipses(ellipses.posterior.list[[i]])
-  SEA.B.list[[i]] <- temp.SEA.B
-}
-names(SEA.B.list)<-names(siber.objs)
+# SEA.B.list <- list()
+# for(i in 1:length(ellipses.posterior.list)){
+#   temp.SEA.B <- siberEllipses(ellipses.posterior.list[[i]])
+#   SEA.B.list[[i]] <- temp.SEA.B
+# }
+# names(SEA.B.list)<-names(siber.objs)
 
 ```
 
-```{r}
+```{r, echo=FALSE}
 ##save model output
-# saveRDS(iso_data, file="iso_data.rds")
-# saveRDS(siber.objs, file="siber.objs.rds")
-# saveRDS(ellipses.posterior.list, file="ellipses.posterior.list.rds")
-# saveRDS(SEA.B.list, file="SEA.B.list.rds")
+ # saveRDS(iso_data, file="iso_data.update.nov.rds")
+ # saveRDS(siber.objs, file="siber.objs.update.nov.rds")
+ # saveRDS(ellipses.posterior.list, file="ellipses.posterior.list.update.nov.rds")
+ # saveRDS(SEA.B.list, file="SEA.B.list.update.nov.rds")
 ```
 
 ```{r}
 #read in siber files
-iso_data <- readRDS("iso_data.rds")
-siber.objs <- readRDS("siber.objs.rds")
-ellipses.posterior.list<- readRDS("ellipses.posterior.list.rds")
-SEA.B.list <- readRDS("SEA.B.list.rds")
+iso_data <- readRDS("iso_data.update.nov.rds")
+siber.objs <- readRDS("siber.objs.update.nov.rds")
+ellipses.posterior.list<- readRDS("ellipses.posterior.list.update.nov.rds")
+SEA.B.list <- readRDS("SEA.B.list.update.nov.rds")
 ```
 
 ```{r}
@@ -1843,46 +1717,47 @@ legend(-6,-1.5,legend=c("Adult","Seedling"),col=c("black",alpha(color.list[i],0.
 ```{r}
 #calculate niche areas and overlap
 ##this takes ~10 hours 
-overlap.list<-list()
-for(i in 1:length(ellipses.posterior.list)){
-    cat(i, "\n")
-temp.overlap <- bayesianOverlap("1.1","1.2",ellipses.posterior.list[[i]],draws=NULL,p.interval=0.95)
-
-temp.overlap$exp.prop.adult = (temp.overlap$area2 - temp.overlap$overlap)/temp.overlap$area1
-
-temp.overlap$contr.prop.adult = (temp.overlap$area1 - temp.overlap$overlap)/temp.overlap$area1
-
-overlap.list[[i]] <- temp.overlap
-}
-names(overlap.list)<- names(ellipses.posterior.list)
-
-saveRDS(overlap.list, file = "overlap.list.update.nov.RDS")
+# overlap.list<-list()
+# for(i in 1:length(ellipses.posterior.list)){
+#     cat(i, "\n")
+# temp.overlap <- bayesianOverlap("1.1","1.2",ellipses.posterior.list[[i]],draws=NULL,p.interval=0.95)
+# 
+# temp.overlap$exp.prop.adult = (temp.overlap$area2 - temp.overlap$overlap)/temp.overlap$area1
+# 
+# temp.overlap$contr.prop.adult = (temp.overlap$area1 - temp.overlap$overlap)/temp.overlap$area1
+# 
+# overlap.list[[i]] <- temp.overlap
+# }
+# names(overlap.list)<- names(ellipses.posterior.list)
+# 
+# saveRDS(overlap.list, file = "overlap.list.update.nov.RDS")
 
 ```
 
 ```{r}
 #calculate niche areas and overlap for 90% confidence
 ##this takes ~10 hours 
-overlap.list.90<-list()
-for(i in 1:length(ellipses.posterior.list)){
-    cat(i, "\n")
-temp.overlap <- bayesianOverlap("1.1","1.2",ellipses.posterior.list[[i]],draws=NULL,p.interval=0.90)
-
-temp.overlap$exp.prop.adult = (temp.overlap$area2 - temp.overlap$overlap)/temp.overlap$area1
-
-temp.overlap$contr.prop.adult = (temp.overlap$area1 - temp.overlap$overlap)/temp.overlap$area1
-
-overlap.list.90[[i]] <- temp.overlap
-}
-names(overlap.list.90)<- names(ellipses.posterior.list)
-
-saveRDS(overlap.list.90, file = "overlap.list.90.nov.RDS")
+# overlap.list.90<-list()
+# for(i in 1:length(ellipses.posterior.list)){
+#     cat(i, "\n")
+# temp.overlap <- bayesianOverlap("1.1","1.2",ellipses.posterior.list[[i]],draws=NULL,p.interval=0.90)
+# 
+# temp.overlap$exp.prop.adult = (temp.overlap$area2 - temp.overlap$overlap)/temp.overlap$area1
+# 
+# temp.overlap$contr.prop.adult = (temp.overlap$area1 - temp.overlap$overlap)/temp.overlap$area1
+# 
+# overlap.list.90[[i]] <- temp.overlap
+# }
+# names(overlap.list.90)<- names(ellipses.posterior.list)
+# 
+# saveRDS(overlap.list.90, file = "overlap.list.90.nov.RDS")
 
 ```
 
 ```{r}
 #read in overlap data
-overlap.list <- readRDS("overlap.list.nov.RDS")
+overlap.list <- readRDS("overlap.list.update.nov.RDS")
+names(overlap.list) <- names(ellipses.posterior.list)
 #overlap.list.90 <- readRDS("overlap.list.90.nov.RDS")
 ```
 
@@ -1896,7 +1771,7 @@ for(i in 1:length(overlap.list)){
   overlap.summary[[i]]<- temp.summary
   }
 
-overlap.table <- as.data.frame(matrix(unlist(overlap.summary),nrow = 29, ncol=5,byrow=TRUE))  
+overlap.table <- as.data.frame(matrix(unlist(overlap.summary),nrow = 33, ncol=5,byrow=TRUE))  
 colnames(overlap.table)<-names(overlap.summary[[1]])
 overlap.table<- overlap.table %>% 
   mutate(names = names(overlap.list)) %>% 
@@ -1909,40 +1784,43 @@ Lets look at some plots of expansion and contraction across species and disturba
 
 ```{r}
 #some plots
-ggplot(overlap.table,aes(x=species.name,y=mean.exp.prop.adult,fill=disturbance))+
+ggplot(overlap.table %>% filter(!(disturbance == 'fire' & species.name %in% c("limber pine","grand fir","two needle pinyon"))),aes(x=species.name,y=mean.exp.prop.adult,fill=disturbance))+
   geom_bar(stat='identity',position='dodge')+
+  scale_fill_manual(values=disturbance.colors)+
   theme(axis.text.x = element_text(angle=45,vjust=0.9,hjust=0.8))
 
-ggplot(overlap.table,aes(x=species.name,y=mean.contr.prop.adult,fill=disturbance))+
+ggplot(overlap.table %>% filter(!(disturbance == 'fire' & species.name %in% c("limber pine","grand fir","two needle pinyon"))),aes(x=species.name,y=mean.contr.prop.adult,fill=disturbance))+
   geom_bar(stat='identity',position='dodge')+
+  scale_fill_manual(values=disturbance.colors)+
   theme(axis.text.x = element_text(angle=45,vjust=0.9,hjust=0.8))
 
 
-expansion.plot <- ggplot(overlap.table,aes(x=disturbance,y=mean.exp.prop.adult))+
+expansion.plot <- ggplot(overlap.table %>% filter(!(disturbance == "fire" & species.name %in% c("limber pine", "grand fir","two needle pinyon"))),aes(x=disturbance,y=mean.exp.prop.adult))+
   geom_boxplot(fill="gray")+
   geom_jitter(height=0,width=0.2, aes(color=species.name),pch=15,size=2)+
   scale_color_manual(values=c("#c9ce4e","#8b4cca","#6ccb5b","#c74a90","#8fcdb3","#d0503b","#708fc2","#c39553","#483262",
 "#4a633f","#cd9bb5","#6c3631"),name="Species")+
   xlab("")+
   ylab("Proportion Expanded")+
+  ylim(c(-0.001,0.35))+
   theme_bw()+
   theme(axis.text=element_text(size=16,color="black"),legend.text = element_text(size=14),axis.title = element_text(size=14),legend.title = element_text(size=14))
 
-contraction.plot <- ggplot(overlap.table,aes(x=disturbance,y=mean.contr.prop.adult))+
+contraction.plot <- ggplot(overlap.table %>% filter(!(disturbance == "fire" & species.name %in% c("limber pine", "grand fir","two needle pinyon"))),aes(x=disturbance,y=mean.contr.prop.adult))+
   geom_boxplot(fill="gray")+
   geom_jitter(height=0,width=0.2, aes(color=species.name),pch=15,size=2)+
   scale_color_manual(values=c("#c9ce4e","#8b4cca","#6ccb5b","#c74a90","#8fcdb3","#d0503b","#708fc2","#c39553","#483262",
 "#4a633f","#cd9bb5","#6c3631"),name="Species")+
   xlab("")+
-  ylab("Proportion Contracted")+
+  ylab("Proportion Contracted")+   ylim(c(-0.001,0.35))+
   theme_bw()+
   theme(axis.text=element_text(size=16,color="black"),legend.text = element_text(size=16),axis.title = element_text(size=14),legend.title = element_text(size=16))
 
 ggarrange(contraction.plot, expansion.plot, nrow=1, ncol=2,common.legend = TRUE)
 
 ggplot(overlap.table %>% 
-  pivot_longer(c(mean.exp.prop.adult,mean.contr.prop.adult),names_to = "shift",values_to = "proportion")
-  ,aes(x=species.name,y=proportion,fill=shift))+
+  pivot_longer(c(mean.exp.prop.adult,mean.contr.prop.adult),names_to = "shift",values_to = "proportion") %>% 
+    filter(!(disturbance == "fire" & species %in% c(17,113,106))),aes(x=species.name,y=proportion,fill=shift))+
   geom_boxplot()+
   xlab("")+
   ylab("Mean Proportion Shift")+
@@ -1951,8 +1829,8 @@ ggplot(overlap.table %>%
   theme(axis.text.x = element_text(angle=45,vjust=0.9,hjust=0.8),axis.text=element_text(size=16,color="black"),legend.text = element_text(size=16),axis.title = element_text(size=16),legend.title = element_text(size=16))
 
 ggplot(overlap.table %>% 
-  pivot_longer(c(mean.exp.prop.adult,mean.contr.prop.adult),names_to = "shift",values_to = "proportion")
-  ,aes(x=shift,y=proportion,fill=shift))+
+  pivot_longer(c(mean.exp.prop.adult,mean.contr.prop.adult),names_to = "shift",values_to = "proportion")%>% 
+    filter(!(disturbance == "fire" & species %in% c(17,113,106))),aes(x=shift,y=proportion,fill=shift))+
   geom_boxplot()+
   xlab("")+
   ylab("Mean Proportion Shift")+
@@ -1961,35 +1839,42 @@ ggplot(overlap.table %>%
   theme(axis.text.x = element_text(angle=45,vjust=0.9,hjust=0.8),axis.text=element_text(size=16,color="black"),legend.text = element_text(size=16),axis.title = element_text(size=16),legend.title = element_text(size=16))
 ```
 
-Now I will look at differences between disturbances in the amount of contraction/expansion. 
+Now I will look at differences between disturbances in the amount of contraction/expansion. There are no significant differences between disturbance types and amount of contraction or expansion, however there is significantly more contraction across the board than expansion. 
 
-```{r}
-dist.exp.anova <- aov(log(mean.exp.prop.adult)~disturbance,data=overlap.table)
+```{r, echo=FALSE}
+overlap.table.partialset <- overlap.table %>% 
+  filter(!(disturbance == "fire" & species.name %in% c("grand fir","limber pine","two needle pinyon"))) 
+
+overlap.table.fullset <- overlap.table %>% 
+  filter(!species.name %in% c("grand fir","limber pine","two needle pinyon"))
+
+dist.exp.anova <- aov(log(mean.exp.prop.adult)~factor(disturbance),data=overlap.table.fullset)
 par(mfrow=c(2,2))
 plot(dist.exp.anova)
 summary(dist.exp.anova) #no significant difference between disturbances in expansion
 
-dist.contr.anova<- aov(log(mean.contr.prop.adult)~disturbance, data=overlap.table)
+dist.contr.anova<- aov(log(mean.contr.prop.adult)~factor(disturbance), data=overlap.table.fullset)
 plot(dist.contr.anova)
 summary(dist.contr.anova)#no difference between disturbances for contractions
 
-hist(overlap.table$mean.exp.prop.adult) #not normal
-hist(overlap.table$mean.contr.prop.adult)
-var.test(overlap.table$mean.exp.prop.adult, overlap.table$mean.contr.prop.adult, alternative = "two.sided")
-wilcox.test(overlap.table$mean.exp.prop.adult, overlap.table$mean.contr.prop.adult)
+hist(overlap.table.fullset$mean.exp.prop.adult) #not normal
+hist(overlap.table.fullset$mean.contr.prop.adult)
+var.test(overlap.table.fullset$mean.exp.prop.adult, overlap.table.fullset$mean.contr.prop.adult, alternative = "two.sided")
+wilcox.test(overlap.table.fullset$mean.exp.prop.adult, overlap.table.fullset$mean.contr.prop.adult) #significant difference between amount of contraction and amount of expansion
 
 ```
 
+There is a moderate correlation between expansion and contraction, with species/disturbances that experienced more expansion generally experiencing less contraction. 
 
-```{r}
+```{r, echo=FALSE}
 ##are expansion and contraction correlated?
-cor.test(overlap.table$mean.exp.prop.adult,overlap.table$mean.contr.prop.adult)
-plot(overlap.table$mean.exp.prop.adult,overlap.table$mean.contr.prop.adult)
+cor.test(overlap.table.fullset$mean.exp.prop.adult,overlap.table.fullset$mean.contr.prop.adult)
+par(mfrow=c(1,1))
+plot(overlap.table.fullset$mean.exp.prop.adult,overlap.table.fullset$mean.contr.prop.adult)
 
 ```
 
 ###Traits
-
 
 Now I will look at the effect of species traits on the amount of expansion/contraction experienced between the adult and seedling niche. 
 
@@ -2050,12 +1935,12 @@ My hypotheses are that shade tolerance and seed weight will significantly affect
 In order to test these hypotheses, I will model the amount of expansion and contraction for each species in each disturbance type as a function of either shade tolerance or seed weight, disturbance, and the interaction between the trait and disturbance category. 
 
 ```{r}
-niche.shift.trait.table <- overlap.table %>% 
+niche.shift.trait.table <- overlap.table.fullset %>% 
   left_join(trait.data,by="species.name")
 
 #models for expansion
 #shade tolerance
-exp.shade.mod<- lm(log(mean.exp.prop.adult)~shade.tolerance*disturbance,data=niche.shift.trait.table %>% filter(!species.name %in% c("grand fir","two needle pinyon","limber pine","ponderosa pine")))
+exp.shade.mod<- lm(log(mean.exp.prop.adult)~shade.tolerance*disturbance,data=niche.shift.trait.table %>% filter(!species.name %in% c("grand fir","two needle pinyon","limber pine")))
 par(mfrow=c(2,2))
 plot(exp.shade.mod)
 Anova(exp.shade.mod, type='3')
@@ -2068,7 +1953,7 @@ ggplot(niche.shift.trait.table %>% filter(!species.name %in% c("grand fir","two 
 
 #seed weight
 #take out pinyon, gambel oak and juniper because they are primarily dispersed by animals
-exp.weight.mod<- lm(log(mean.exp.prop.adult)~mean.weight.mg*disturbance,data=niche.shift.trait.table %>% filter(!species.name %in% c("grand fir","two needle pinyon","limber pine","ponderosa pine","Gambel oak")))
+exp.weight.mod<- lm(log(mean.exp.prop.adult)~mean.weight.mg*disturbance,data=niche.shift.trait.table %>% filter(!species.name %in% c("grand fir","two needle pinyon","limber pine","Gambel oak")))
 par(mfrow=c(2,2))
 plot(exp.weight.mod)
 Anova(exp.weight.mod, type='3')
@@ -2084,20 +1969,20 @@ ggplot(data=niche.shift.trait.table %>% filter(!species.name %in% c("grand fir",
 #models for contraction
 
 #shade tolerance
-contr.shade.mod<- lm(log(mean.contr.prop.adult)~shade.tolerance*disturbance,data=niche.shift.trait.table)
+contr.shade.mod<- lm(log(mean.contr.prop.adult)~shade.tolerance*disturbance,data=niche.shift.trait.table %>% filter(!species.name %in% c("grand fir","two needle pinyon","limber pine")))
 par(mfrow=c(2,2))
 plot(contr.shade.mod)
 Anova(contr.shade.mod, type='3')
 summary(contr.shade.mod)
 
-ggplot(niche.shift.trait.table,aes(x=shade.tolerance,y=mean.contr.prop.adult))+
+ggplot(niche.shift.trait.table %>% filter(!species.name %in% c("grand fir","two needle pinyon","limber pine")),aes(x=shade.tolerance,y=mean.contr.prop.adult))+
   geom_point()+
   geom_smooth(method = "lm", se = FALSE, fullrange = T, size=1)+
   facet_wrap(~disturbance)
 
 #seed weight
 #take out pinyon, gambel oak and juniper because they are primarily dispersed by animals
-contr.weight.mod<- lm(log(mean.contr.prop.adult)~mean.weight.mg*disturbance,data=niche.shift.trait.table %>% filter(! species %in% c(106,814,63)))
+contr.weight.mod<- lm(log(mean.contr.prop.adult)~mean.weight.mg*factor(disturbance),data=niche.shift.trait.table %>% filter(! species %in% c(106,814,63)))
 par(mfrow=c(2,2))
 plot(contr.weight.mod)
 Anova(contr.weight.mod, type='3')
@@ -2122,43 +2007,43 @@ IDslopevNslope <- c(0, 0, 0, 0, 0, 0, -1, 1)
 lht(contr.weight.mod.alt, IDslopevNslope, rhs = c(0))
 
 weight.contr.plot <- ggplot(data=niche.shift.trait.table %>% filter(! species %in% c(106,814,63)),aes(x=mean.weight.mg,y=log(mean.contr.prop.adult),color=disturbance))+
-  geom_point(size=3)+
-  geom_smooth(method = "lm", se = FALSE, fullrange = T, size=1)+
+  geom_point(size=1)+
+  geom_smooth(method = "lm", se = FALSE, fullrange = T, size=.5)+
   theme_bw()+
   xlab("Mean Seed Weight (mg)")+ ylab("Log(Mean Contraction)")+
     scale_color_manual(values=disturbance.colors)+
   ylim(c(-6.5, -1))+
-  theme(axis.text = element_text(size=18),axis.title = element_text(size=18),legend.text = element_text(size=18),legend.title = element_text(size=18))
+  theme(axis.text = element_text(size=10),axis.title = element_text(size=10),legend.text = element_text(size=10),legend.title = element_text(size=10))
 ```
 
 ```{r}
 #other 3 plots for insignificant models
 weight.exp.plot <- ggplot(data=niche.shift.trait.table %>% filter(! species %in% c(106,814,63)),aes(x=mean.weight.mg,y=log(mean.exp.prop.adult),color=disturbance))+
-  geom_point(size=3)+
-  geom_smooth(method = "lm", se = FALSE, fullrange = T, size=1)+
+  geom_point(size=1)+
+  geom_smooth(method = "lm", se = FALSE, fullrange = T, size=.5)+
   theme_bw()+
   xlab("Mean Seed Weight (mg)")+ ylab("Log(Mean Expansion)")+
     scale_color_manual(values=disturbance.colors)+
   ylim(c(-6.5, -1))+
-  theme(axis.text = element_text(size=18),axis.title = element_text(size=18),legend.text = element_text(size=18),legend.title = element_text(size=18))
+  theme(axis.text = element_text(size=10),axis.title = element_text(size=10),legend.text = element_text(size=10),legend.title = element_text(size=10))
 
 shade.contr.plot <- ggplot(data=niche.shift.trait.table,aes(x=shade.tolerance,y=log(mean.contr.prop.adult),color=disturbance))+
-  geom_point(size=3)+
-  geom_smooth(method = "lm", se = FALSE, fullrange = T, size=1)+
+  geom_point(size=1)+
+  geom_smooth(method = "lm", se = FALSE, fullrange = T, size=0.5)+
   theme_bw()+
   xlab("Shade Tolerance")+ ylab("Log(Mean Contraction)")+
     scale_color_manual(values=disturbance.colors)+
   ylim(c(-6.5, -1))+
-  theme(axis.text = element_text(size=18),axis.title = element_text(size=18),legend.text = element_text(size=18),legend.title = element_text(size=18))
+  theme(axis.text = element_text(size=10),axis.title = element_text(size=10),legend.text = element_text(size=10),legend.title = element_text(size=10))
 
 shade.exp.plot <- ggplot(data=niche.shift.trait.table,aes(x=shade.tolerance,y=log(mean.exp.prop.adult),color=disturbance))+
-  geom_point(size=3)+
-  geom_smooth(method = "lm", se = FALSE, fullrange = T, size=1)+
+  geom_point(size=1)+
+  geom_smooth(method = "lm", se = FALSE, fullrange = T, size=0.5)+
   theme_bw()+
   xlab("Shade Tolerance")+ ylab("Log(Mean Expansion)")+
   scale_color_manual(values=disturbance.colors)+
   ylim(c(-6.5, -1))+
-  theme(axis.text = element_text(size=18),axis.title = element_text(size=18),legend.text = element_text(size=18),legend.title = element_text(size=18))
+  theme(axis.text = element_text(size=10),axis.title = element_text(size=10),legend.text = element_text(size=10),legend.title = element_text(size=10))
 
 
 ```
@@ -2184,52 +2069,54 @@ pc1means.table<- pc1means.table %>%
   mutate(names =  names(adult_data_pcapts)) %>% 
   tidyr::separate(names,into=c("species.code","disturbance","extra"),sep="_") %>% 
   mutate(species.code = as.numeric(species.code)) %>% 
-  left_join(species.names)
-colnames(pc1means.table)[1]<-"pc1mean"
+  left_join(species.names) %>% 
+  dplyr::rename(pc1mean = V1) %>% 
+  group_by(species.name) %>% 
+  dplyr::summarise(pc1speciesmean = mean(pc1mean)) %>% ungroup()
 
-ggplot(pc1means.table,aes(x=pc1mean,y=rep(1,length(pc1.means)),color=factor(species.name)))+
+ggplot(pc1means.table,aes(x=pc1speciesmean,y=rep(1,nrow(pc1means.table)),color=factor(species.name)))+
   geom_point()
 
-ggplot(pc1means.table,aes(x=factor(species.name),y=pc1mean))+
+ggplot(pc1means.table,aes(x=factor(species.name),y=pc1speciesmean))+
   geom_boxplot()+
   coord_flip()
 
 #model with average PC1 score across all disturbances as predictor
 niche.shift.trait.table<-
   niche.shift.trait.table %>% 
-  left_join(pc1means.table,by=c("species.name","disturbance","extra"))
+  left_join(pc1means.table,by=c("species.name"))
 
-pc1.exp.mod <- lm(log(mean.exp.prop.adult)~ pc1mean*disturbance, data=niche.shift.trait.table)
+pc1.exp.mod <- lm(log(mean.exp.prop.adult)~ pc1speciesmean*disturbance, data=niche.shift.trait.table)
 plot(pc1.exp.mod)
 Anova(pc1.exp.mod, type='3')
 summary(pc1.exp.mod)
-emtrends(pc1.exp.mod, pairwise ~ disturbance, var = "pc1mean")
+emtrends(pc1.exp.mod, pairwise ~ disturbance, var = "pc1speciesmean")
 
 
-pc1.exp.plot <- ggplot(data=niche.shift.trait.table,aes(x=pc1mean,y=log(mean.exp.prop.adult),color=disturbance))+
-  geom_point(size=3)+
-  geom_smooth(method = "lm", se = FALSE, fullrange = T, size=1)+
+pc1.exp.plot <- ggplot(data=niche.shift.trait.table,aes(x=pc1speciesmean,y=log(mean.exp.prop.adult),color=disturbance))+
+  geom_point(size=1)+
+  geom_smooth(method = "lm", se = FALSE, fullrange = T, size=.5)+
   theme_bw()+
   xlab("PC1 Mean Score")+ ylab("Log(Mean Expansion)")+
   scale_color_manual(values=disturbance.colors)+
   ylim(c(-6.5, -1))+
-  theme(axis.text = element_text(size=18),axis.title = element_text(size=18),legend.text = element_text(size=18),legend.title = element_text(size=18))
+  theme(axis.text = element_text(size=10),axis.title = element_text(size=10),legend.text = element_text(size=10),legend.title = element_text(size=10))
 
-pc1.contr.mod <- lm(log(mean.contr.prop.adult)~ pc1mean*disturbance, data=niche.shift.trait.table)
+pc1.contr.mod <- lm(log(mean.contr.prop.adult)~ pc1speciesmean*disturbance, data=niche.shift.trait.table)
 plot(pc1.contr.mod)
 Anova(pc1.contr.mod, type='3')
 summary(pc1.contr.mod)
-emtrends(pc1.contr.mod, pairwise ~ disturbance, var = "pc1mean")
+emtrends(pc1.contr.mod, pairwise ~ disturbance, var = "pc1speciesmean")
 
 
-pc1.contr.plot<- ggplot(data=niche.shift.trait.table,aes(x=pc1mean,y=log(mean.contr.prop.adult),color=disturbance))+
-  geom_point(size=3)+
-  geom_smooth(method = "lm", se = FALSE, fullrange = T, size=1)+
+pc1.contr.plot<- ggplot(data=niche.shift.trait.table,aes(x=pc1speciesmean,y=log(mean.contr.prop.adult),color=disturbance))+
+  geom_point(size=1)+
+  geom_smooth(method = "lm", se = FALSE, fullrange = T, size=.5)+
   theme_bw()+
   xlab("PC1 Mean Score")+ ylab("Log(Mean Contraction)")+
   scale_color_manual(values=disturbance.colors)+
   ylim(c(-6.5, -1))+
-  theme(axis.text = element_text(size=18),axis.title = element_text(size=18),legend.text = element_text(size=18),legend.title = element_text(size=18))
+  theme(axis.text = element_text(size=10),axis.title = element_text(size=10),legend.text = element_text(size=10),legend.title = element_text(size=10))
 
 
 ggarrange(shade.contr.plot, shade.exp.plot, weight.contr.plot, weight.exp.plot,pc1.contr.plot,pc1.exp.plot,  nrow=3, ncol=2, common.legend = TRUE)
@@ -2243,6 +2130,74 @@ ggarrange(shade.contr.plot, shade.exp.plot, weight.contr.plot, weight.exp.plot,p
 
 
 #Other
+
+##Tree status exploration
+This plot shows the number of trees with STATUS codes of 0-3 across all plots used in the analysis, separated by disturbance category. Status codes are as follows:
+
+* 0 no status. Tree is not in sample because either it was incorrectly tallied in the last sample, not currently tallied due to procedural change, or natural causes. 
+* 1 live
+* 2 dead
+* 3 removed by human activity 
+
+Burned plots had the most dead trees (45%), followed by insect/disease (41%), harvest (19%) and none (18%). Harvested plots also had 5% of trees classified as “removed”.
+```{r, echo=FALSE}
+#look at tree status codes
+tree.status <- dist %>% 
+  left_join(tree, by="PLT_CN") %>% 
+  group_by(Agent) %>%
+  filter(!is.na(STATUSCD)) %>% 
+  dplyr::summarise(count(STATUSCD))
+
+ggplot(tree.status, aes(x=Agent, y=freq, fill=factor(x)))+
+  geom_bar(position = "fill", stat = "identity")+
+  scale_y_continuous(labels = scales::percent_format())+
+  scale_fill_brewer(palette = "Set1")
+# 0 = no status (tree not presently in the sample), 1 = live, 2 = dead, 3 = removed
+```
+
+```{r, echo=FALSE, results='hide'}
+#percent of harvested plots with status = 3
+tree.status %>% 
+  filter(Agent == "harvest", x == 3) %>% 
+  pluck("freq") /
+tree.status %>% 
+  filter(Agent == "harvest") %>% 
+  pull("freq") %>% 
+  sum()*100
+#percent of harvested plots with status = 2
+tree.status %>% 
+  filter(Agent == "harvest", x == 2) %>% 
+  pluck("freq") /
+tree.status %>% 
+  filter(Agent == "harvest") %>% 
+  pull("freq") %>% 
+  sum()*100
+#percent of ID plots with status = 2
+tree.status %>% 
+  filter(Agent == "insect.disease", x == 2) %>% 
+  pluck("freq") /
+tree.status %>% 
+  filter(Agent == "insect.disease") %>% 
+  pull("freq") %>% 
+  sum()*100
+#percent of none plots with status = 2
+tree.status %>% 
+  filter(Agent == "none", x == 2) %>% 
+  pluck("freq") /
+tree.status %>% 
+  filter(Agent == "none") %>% 
+  pull("freq") %>% 
+  sum()*100
+#percent of fire plots with status = 2
+tree.status %>% 
+  filter(Agent == "fire", x == 2) %>% 
+  pluck("freq") /
+tree.status %>% 
+  filter(Agent == "fire") %>% 
+  pull("freq") %>% 
+  sum()*100
+```
+
 
 ##Species Investigation
 Ed asked the question of what the species composition is like in plots that are showing "contractions" AWAY from wet areas. So I am going to look at the species that experienced significant shifts away from wet areas to see if I can tease this out. 
@@ -3325,6 +3280,24 @@ View(dist %>%
   filter(dist_year == MEASYEAR))
 ```
 
+
+##Example PCA plot with highlighted species 
+
+```{r,echo=FALSE, eval=FALSE}
+#make example plot for presentation highlighting species presence on the PCA
+autoplot(clim_pca,x=1,y=2,colour="grey",loadings.colour="black", loadings=T, loadings.label=T, loadings.label.colour="black", scale=0, loadings.label.vjust=-1.5, loadings.label.size=3, alpha=0.5)+
+  geom_point(data=adult_data_pcapts[[26]],aes(x=PC1,y=PC2),color="red4")+
+  geom_point(data=seedling_data_pcapts[[26]],aes(x=PC1,y=PC2),color="red")+
+  theme_bw()+
+  theme(axis.text = element_text(color="black",size=11),text = element_text(size=11),legend.text = element_text(size=11))
+
+autoplot(clim_pca,x=1,y=2,colour="grey",loadings.colour="black", loadings=T, loadings.label=T, loadings.label.colour="black", scale=0, loadings.label.vjust=-1.5, loadings.label.size=3, alpha=0.5)+
+  geom_point(data=seedling_data_pcapts[[26]],aes(x=PC1,y=PC2),color="pink")+
+  theme_bw()+
+  theme(axis.text = element_text(color="black",size=11),text = element_text(size=11),legend.text = element_text(size=11))
+
+```
+
 ##Climate Niches
 
 Now I will plot the climate "niche" of each species for each disturbance type in the two dimensional PCA space to visualize the niche shifts.
@@ -3812,5 +3785,52 @@ leaflet(id.locations) %>%
 leaflet(harvest.locations) %>%
   addTiles() %>%
   addCircles(lng = ~LON, lat = ~LAT, color="green")
+
+```
+
+##Plotting shifts in a different way
+
+Look at whether each species is experiencing contraction, expansion, or shift on PC1. 
+
+```{r}
+shifts.raw<- data.frame(species=character(),agent=character(), age=character(), pos.05=numeric(), pos.95=numeric())
+for(i in 1:length(adult_data_pcapts)){
+adult.95<- adult_data_pcapts %>% 
+    pluck(names(adult_data_pcapts)[i]) %>% 
+    ungroup() %>% 
+    dplyr::select(PC1) %>% 
+    dplyr::summarise(quantile = quantile(PC1,probs = 0.95))%>% 
+    pull()
+adult.05 <- adult_data_pcapts %>% 
+    pluck(names(adult_data_pcapts)[i]) %>% 
+    ungroup() %>% 
+    dplyr::select(PC1) %>% 
+    dplyr::summarise(quantile = quantile(PC1,probs = 0.05))%>% 
+    pull()
+seed.95<- seedling_data_pcapts %>% 
+    pluck(names(seedling_data_pcapts)[i]) %>% 
+    ungroup() %>% 
+    dplyr::select(PC1) %>% 
+    dplyr::summarise(quantile = quantile(PC1,probs = 0.95))%>% 
+    pull()
+seed.05 <- seedling_data_pcapts %>% 
+    pluck(names(seedling_data_pcapts)[i]) %>% 
+    ungroup() %>% 
+    dplyr::select(PC1) %>% 
+    dplyr::summarise(quantile = quantile(PC1,probs = 0.05)) %>% 
+    pull()
+shifts.raw <- rbind(shifts.raw,data.frame(species=rep(unique(adult_data_pcapts[[i]]$SPCD),2), agent = rep(unique(adult_data_pcapts[[i]]$Agent),2), age = c("adult", "seed"),pos.05=c(adult.05,seed.05), pos.95 = c(adult.95,seed.95)))
+}
+
+shifts.raw<- shifts.raw %>% 
+  left_join(species.names, by=c(species="species.code"))
+
+ggplot(shifts.raw)+
+  geom_errorbar(aes(x= agent, ymin=pos.05, ymax=pos.95, color=age, width=0.3), size=0.5, position = "dodge")+
+  facet_wrap(~species.name)+
+  scale_color_manual(values=c("black","green3"))+
+  ggtitle("PC1")+
+  theme(axis.text.x = element_text(angle=45,vjust=.7))
+
 
 ```
