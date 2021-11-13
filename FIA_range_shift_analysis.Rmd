@@ -1764,6 +1764,22 @@ names(overlap.list)<- names(ellipses.posterior.list)
 
 saveRDS(overlap.list, file = "overlap.list.14spp.nov.first13.RDS")
 
+overlap.list <- readRDS("overlap.list.14spp.nov.first13.RDS")
+
+for(i in 14:length(ellipses.posterior.list)){
+    cat(i, "\n")
+temp.overlap <- bayesianOverlap("1.1","1.2",ellipses.posterior.list[[i]],draws=NULL,p.interval=0.95)
+
+temp.overlap$exp.prop.adult = (temp.overlap$area2 - temp.overlap$overlap)/temp.overlap$area1
+
+temp.overlap$contr.prop.adult = (temp.overlap$area1 - temp.overlap$overlap)/temp.overlap$area1
+
+overlap.list[[i]] <- temp.overlap
+}
+names(overlap.list)<- names(ellipses.posterior.list)
+
+saveRDS(overlap.list, file = "overlap.list.14spp.nov.RDS")
+
 ```
 
 ```{r}
