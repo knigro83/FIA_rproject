@@ -45,6 +45,7 @@ plot<- read_csv("annual_plots2020.csv")
 
 ##read in environmental vars
 env_vars <- read_csv("env_vars_FIA.csv")
+colnames(env_vars)[1]<-"PLT_CN"
 
 ```
 
@@ -248,7 +249,7 @@ seedling.sample <- ggplot(sample_size,aes(x=Agent, y=n.seed, fill=factor(species
 ggarrange(adult.sample,seedling.sample, common.legend = TRUE)
 ```
 
-Looking at the seedling and adult sample sizes, we will exclude grand fir, limber pine, and two needle pinyon in fire plots from the analysis, because these groups have very low numbers of plots with seedlings. Ponderosa pine in insect/disease plots is also below our threshold of 100, but we will include this species/disturbance group as the sample size (65) seems sufficiently large and previous exploratory analysis confirmed that this group was not an outlier in analyses.  
+Looking at the seedling and adult sample sizes, we will exclude white fir, grand fir, limber pine, two needle pinyon, singleleaf pinyon, and western redcedar in fire plots from the analysis, because these groups have very low numbers of plots with seedlings. 
 
 ##Measurement years distribution
 
@@ -292,7 +293,7 @@ merge_sp_dist_env <- function(joined_df, sp_code, agent_name, env_vars) {  sp_di
     filter(SPCD == sp_code &
              Agent == agent_name) %>% 
     dplyr::select(SPCD, PLT_CN, Agent, dist_year, source) %>% 
-    left_join(env_vars, by = c("PLT_CN" = "X1"))
+    left_join(env_vars, by = "PLT_CN")
   
   return(sp_dist_env)
 }
@@ -337,7 +338,7 @@ I will first run a principal components analysis (PCA) on a suite of climate var
 #for some reason there are 3 plots in the environmental data that are not in the disturbance data. I think it has to do with how I eliminated plots with artificial regen. 
 #let's just eliminate these 3 plots from the environmental data
 env_vars <- env_vars %>% 
-  filter(X1 %in% dist$PLT_CN)
+  filter(PLT_CN %in% dist$PLT_CN)
 
 ```
 
@@ -348,17 +349,17 @@ colnames(env_vars)
 
 ```{r, echo=FALSE}
 env_vars %>% 
-  dplyr::select(-X1,-FIA_slope,-FIA_elev,-foldedaspect,-TD) %>% 
+  dplyr::select(-PLT_CN,-FIA_slope,-FIA_elev,-foldedaspect,-TD) %>% 
   filter(! is.na(awc.total)) %>% 
   cor() %>% 
   abs()>0.9
 ##CMD is only super correlated to temperature variables and not precipitation variables, which makes me think it is overall more driven by temperature than precipitation
 
 env_vars_cut <- env_vars %>% 
-  dplyr::select(-X1,-FIA_slope,-FIA_elev,-foldedaspect,-TD, -ppt, -tmean, -tmax, - tmin, -vpdmin, -vpdmax, -MWMT, -AHM, -DD5, -bFFP, -eFFP, -EMT, -Eref, -Tave_wt, -Tave_sm, -PPT_sm, -awc.total)
+  dplyr::select(-PLT_CN,-FIA_slope,-FIA_elev,-foldedaspect,-TD, -ppt, -tmean, -tmax, - tmin, -vpdmin, -vpdmax, -MWMT, -AHM, -DD5, -bFFP, -eFFP, -EMT, -Eref, -Tave_wt, -Tave_sm, -PPT_sm, -awc.total)
 
 env_vars_cut_alt <- env_vars %>% 
-  dplyr::select(-X1,-FIA_slope,-FIA_elev,-foldedaspect,-TD, -ppt, -tmean, -tmax, - tmin, -vpdmin, -vpdmax, -MWMT, -AHM, -DD5, -bFFP, -eFFP, -EMT, -Eref, -Tave_wt, -Tave_sm, -PPT_sm, -awc.total,-CMD, -MCMT)
+  dplyr::select(-PLT_CN,-FIA_slope,-FIA_elev,-foldedaspect,-TD, -ppt, -tmean, -tmax, - tmin, -vpdmin, -vpdmax, -MWMT, -AHM, -DD5, -bFFP, -eFFP, -EMT, -Eref, -Tave_wt, -Tave_sm, -PPT_sm, -awc.total,-CMD, -MCMT)
 
 env_vars_cut_alt %>% 
   cor() %>% 
@@ -464,7 +465,7 @@ autoplot(clim_pca,x=1,y=2,colour="grey",loadings.colour="black", loadings=T, loa
 #make dataframe with PCA coordinates of all plots 
 clim_pca_points <- as.data.frame(clim_pca$x)
 clim_pca_points <- clim_pca_points %>% 
-  bind_cols(plot = env_vars$X1)
+  bind_cols(plot = env_vars$PLT_CN)
 
 #left join the positions on the PCA for adults and seedlings in all disturbance types by their plot ID #s
 adult_data_pcapts <-
@@ -495,7 +496,7 @@ These boxplots display the range of PC1 and PC2 coordinates that plots within ea
 
 ```{r, echo=FALSE}
 #color palette
-disturbance.colors<- c("#CC6666", "#9999CC", "#66CC99")
+disturbance.colors<- c("#661100", "#6699CC", "#888888")
 
 #summarize position on PC1 and 2 of plots in each disturbance category. 
 pca_pts_by_dist <- clim_pca_points %>% 
@@ -1401,7 +1402,6 @@ pc1.ttest.pvalues.sep <- pc1.ttest.pvalues %>%
 This plot shows the difference in seedling vs. adult positions on PC1 (seedling mean - adult mean), separated by species and disturbance type. Differences in means greater than zero indicate that seedlings occupy higher values on PC1 (cooler climates) than adults whereas negative differences in means indicate that seedlings occupy lower values on PC1 (warmer climates) than adults. Asterisks indicate that seedling and adult positions on PC1 are significantly different (p\<0.05), as evaluated with a T-test.
 
 ```{r,echo=FALSE}
-disturbance.colors<- c("#661100", "#6699CC", "#888888")
 
 ggplot(pc1.ttest.pvalues.sep, aes(x = agent, y = diff.means, fill = agent))+
   geom_col()+
@@ -1689,7 +1689,10 @@ SEA.B.list <- readRDS("SEA.B.list.14spp.nov.rds")
 
 ```{r}
 #look at trace plots for bayesian models
-par(mfrow=c(6,2))
+
+pdf("trace.plots_nov2021.pdf")
+
+par(mfrow=c(3,2))
 for(i in 1:length(ellipses.posterior.list)){
   for (j in 1:2){
     for(k in 1:6){
@@ -1697,9 +1700,12 @@ for(i in 1:length(ellipses.posterior.list)){
     }
   }
 }
-plot(ellipses.posterior.list[[1]][[1]][,5],type="l")
-nrow(ellipses.posterior.list[[1]][[1]])
 
+dev.off()
+
+head(ellipses.posterior.list[[1]])
+nrow(ellipses.posterior.list[[1]][[1]])
+head(ellipses.posterior.list[[1]][[1]])
 ```
 
 ```{r}
@@ -1713,10 +1719,11 @@ plot.names <-
     unite(col="name", c(species.name, disturbance), sep=" ",)
 
 disturbance.colors
-color.list = c(disturbance.colors[2:3],rep(disturbance.colors,3),disturbance.colors[2:3],disturbance.colors,disturbance.colors[2:3],disturbance.colors[c(1,3)],rep(disturbance.colors,3))
+color.list = c(disturbance.colors[2:3],disturbance.colors[2:3],rep(disturbance.colors,3),disturbance.colors[2:3],disturbance.colors,disturbance.colors[2:3],disturbance.colors,disturbance.colors[2:3],disturbance.colors,disturbance.colors[2:3],rep(disturbance.colors,2))
 
 par(mfrow=c(1,1))
 for(i in 1:length(siber.objs)){
+  png(filename = paste("C:/Users/Katie/Google Drive/FIA project/FIA_rproject/siberplots/",names(siber.objs)[i],".jpeg",sep=""))
 plot(x=unlist(c(siber.objs[[i]]$original.data %>% filter(group==1) %>% dplyr::select(iso1))),
      y=unlist(c(siber.objs[[i]]$original.data %>% filter(group==1)%>% dplyr::select(iso2))),col="black", xlim=c(-6,6),ylim=c(-3,4),pch=16, xlab="PC1",ylab="PC2",main=paste(plot.names$name[i]),cex=1.2)+
 points(x=unlist(c(siber.objs[[i]]$original.data %>% filter(group==2) %>% dplyr::select(iso1))),
@@ -1741,44 +1748,45 @@ addEllipse(siber.objs[[i]]$ML.mu[[1]][ , , 2],
                      lwd = 2)
 legend(-6,-1.5,legend=c("Adult","Seedling"),col=c("black",alpha(color.list[i],0.6)), pch=16, lty=1, lwd=2,cex=1.2)
 
+dev.off()
 }
 ```
 
 ```{r}
 #calculate niche areas and overlap
 ##this takes ~10 hours 
-install.packages("beepr")
-
-overlap.list<-list()
-for(i in 1:length(ellipses.posterior.list)){
-    cat(i, "\n")
-temp.overlap <- bayesianOverlap("1.1","1.2",ellipses.posterior.list[[i]],draws=NULL,p.interval=0.95)
-
-temp.overlap$exp.prop.adult = (temp.overlap$area2 - temp.overlap$overlap)/temp.overlap$area1
-
-temp.overlap$contr.prop.adult = (temp.overlap$area1 - temp.overlap$overlap)/temp.overlap$area1
-
-overlap.list[[i]] <- temp.overlap
-}
-names(overlap.list)<- names(ellipses.posterior.list)
-
-saveRDS(overlap.list, file = "overlap.list.14spp.nov.first13.RDS")
-
-overlap.list <- readRDS("overlap.list.14spp.nov.first13.RDS")
-
-for(i in 14:length(ellipses.posterior.list)){
-    cat(i, "\n")
-temp.overlap <- bayesianOverlap("1.1","1.2",ellipses.posterior.list[[i]],draws=NULL,p.interval=0.95)
-
-temp.overlap$exp.prop.adult = (temp.overlap$area2 - temp.overlap$overlap)/temp.overlap$area1
-
-temp.overlap$contr.prop.adult = (temp.overlap$area1 - temp.overlap$overlap)/temp.overlap$area1
-
-overlap.list[[i]] <- temp.overlap
-}
-names(overlap.list)<- names(ellipses.posterior.list)
-
-saveRDS(overlap.list, file = "overlap.list.14spp.nov.RDS")
+# install.packages("beepr")
+# 
+# overlap.list<-list()
+# for(i in 1:length(ellipses.posterior.list)){
+#     cat(i, "\n")
+# temp.overlap <- bayesianOverlap("1.1","1.2",ellipses.posterior.list[[i]],draws=NULL,p.interval=0.95)
+# 
+# temp.overlap$exp.prop.adult = (temp.overlap$area2 - temp.overlap$overlap)/temp.overlap$area1
+# 
+# temp.overlap$contr.prop.adult = (temp.overlap$area1 - temp.overlap$overlap)/temp.overlap$area1
+# 
+# overlap.list[[i]] <- temp.overlap
+# }
+# names(overlap.list)<- names(ellipses.posterior.list)
+# 
+# saveRDS(overlap.list, file = "overlap.list.14spp.nov.first13.RDS")
+# 
+# overlap.list <- readRDS("overlap.list.14spp.nov.first13.RDS")
+# 
+# for(i in 14:length(ellipses.posterior.list)){
+#     cat(i, "\n")
+# temp.overlap <- bayesianOverlap("1.1","1.2",ellipses.posterior.list[[i]],draws=NULL,p.interval=0.95)
+# 
+# temp.overlap$exp.prop.adult = (temp.overlap$area2 - temp.overlap$overlap)/temp.overlap$area1
+# 
+# temp.overlap$contr.prop.adult = (temp.overlap$area1 - temp.overlap$overlap)/temp.overlap$area1
+# 
+# overlap.list[[i]] <- temp.overlap
+# }
+# names(overlap.list)<- names(ellipses.posterior.list)
+# 
+# saveRDS(overlap.list, file = "overlap.list.14spp.nov.RDS")
 
 ```
 
@@ -1804,7 +1812,7 @@ saveRDS(overlap.list, file = "overlap.list.14spp.nov.RDS")
 
 ```{r}
 #read in overlap data
-overlap.list <- readRDS("overlap.list.update.nov.RDS")
+overlap.list <- readRDS("overlap.list.14spp.nov.RDS")
 names(overlap.list) <- names(ellipses.posterior.list)
 #overlap.list.90 <- readRDS("overlap.list.90.nov.RDS")
 ```
@@ -1819,7 +1827,7 @@ for(i in 1:length(overlap.list)){
   overlap.summary[[i]]<- temp.summary
   }
 
-overlap.table <- as.data.frame(matrix(unlist(overlap.summary),nrow = 33, ncol=5,byrow=TRUE))  
+overlap.table <- as.data.frame(matrix(unlist(overlap.summary),nrow = 36, ncol=5,byrow=TRUE))  
 colnames(overlap.table)<-names(overlap.summary[[1]])
 overlap.table<- overlap.table %>% 
   mutate(names = names(overlap.list)) %>% 
@@ -1846,21 +1854,19 @@ ggplot(overlap.table %>% filter(!(disturbance == 'fire' & species.name %in% c("l
 expansion.plot <- ggplot(overlap.table %>% filter(!(disturbance == "fire" & species.name %in% c("limber pine", "grand fir","two needle pinyon"))),aes(x=disturbance,y=mean.exp.prop.adult))+
   geom_boxplot(fill="gray")+
   geom_jitter(height=0,width=0.2, aes(color=species.name),pch=15,size=2)+
-  scale_color_manual(values=c("#c9ce4e","#8b4cca","#6ccb5b","#c74a90","#8fcdb3","#d0503b","#708fc2","#c39553","#483262",
-"#4a633f","#cd9bb5","#6c3631"),name="Species")+
+  scale_color_manual(values=c("#d55f90","#5aa554","#ad74d6","#9ab13f","#6070d5","#cd9337","#563686","#45c097","#8b2965","#9b8a40","#ca71c0","#b95336","#628ed6","#ba4758"),name="Species")+
   xlab("")+
   ylab("Proportion Expanded")+
-  ylim(c(-0.001,0.35))+
+  ylim(c(-0.001,0.42))+
   theme_bw()+
   theme(axis.text=element_text(size=16,color="black"),legend.text = element_text(size=14),axis.title = element_text(size=14),legend.title = element_text(size=14))
 
 contraction.plot <- ggplot(overlap.table %>% filter(!(disturbance == "fire" & species.name %in% c("limber pine", "grand fir","two needle pinyon"))),aes(x=disturbance,y=mean.contr.prop.adult))+
   geom_boxplot(fill="gray")+
   geom_jitter(height=0,width=0.2, aes(color=species.name),pch=15,size=2)+
-  scale_color_manual(values=c("#c9ce4e","#8b4cca","#6ccb5b","#c74a90","#8fcdb3","#d0503b","#708fc2","#c39553","#483262",
-"#4a633f","#cd9bb5","#6c3631"),name="Species")+
+  scale_color_manual(values=c("#d55f90","#5aa554","#ad74d6","#9ab13f","#6070d5","#cd9337","#563686","#45c097","#8b2965","#9b8a40","#ca71c0","#b95336","#628ed6","#ba4758"),name="Species")+
   xlab("")+
-  ylab("Proportion Contracted")+   ylim(c(-0.001,0.35))+
+  ylab("Proportion Contracted")+   ylim(c(-0.001,0.42))+
   theme_bw()+
   theme(axis.text=element_text(size=16,color="black"),legend.text = element_text(size=16),axis.title = element_text(size=14),legend.title = element_text(size=16))
 
@@ -1887,14 +1893,14 @@ ggplot(overlap.table %>%
   theme(axis.text.x = element_text(angle=45,vjust=0.9,hjust=0.8),axis.text=element_text(size=16,color="black"),legend.text = element_text(size=16),axis.title = element_text(size=16),legend.title = element_text(size=16))
 ```
 
-Now I will look at differences between disturbances in the amount of contraction/expansion. There are no significant differences between disturbance types and amount of contraction or expansion, however there is significantly more contraction across the board than expansion. 
+Now I will look at differences between disturbances in the amount of contraction/expansion. There are no significant differences between disturbance types and amount of contraction or expansion, however there is significantly more contraction across the board than expansion. This is true for both the set of species with all disturbances (n=8) and all species (n=14).
+
+Full set results:
 
 ```{r, echo=FALSE}
-overlap.table.partialset <- overlap.table %>% 
-  filter(!(disturbance == "fire" & species.name %in% c("grand fir","limber pine","two needle pinyon"))) 
-
+overlap.table.partialset <- overlap.table 
 overlap.table.fullset <- overlap.table %>% 
-  filter(!species.name %in% c("grand fir","limber pine","two needle pinyon"))
+  filter(!species.name %in% c("white fir","grand fir","limber pine","two needle pinyon","singleleaf pinyon","western redcedar"))
 
 dist.exp.anova <- aov(log(mean.exp.prop.adult)~factor(disturbance),data=overlap.table.fullset)
 par(mfrow=c(2,2))
@@ -1905,10 +1911,32 @@ dist.contr.anova<- aov(log(mean.contr.prop.adult)~factor(disturbance), data=over
 plot(dist.contr.anova)
 summary(dist.contr.anova)#no difference between disturbances for contractions
 
+par(mfrow=c(1,1))
 hist(overlap.table.fullset$mean.exp.prop.adult) #not normal
-hist(overlap.table.fullset$mean.contr.prop.adult)
+hist(overlap.table.fullset$mean.contr.prop.adult) #normal-ish
 var.test(overlap.table.fullset$mean.exp.prop.adult, overlap.table.fullset$mean.contr.prop.adult, alternative = "two.sided")
 wilcox.test(overlap.table.fullset$mean.exp.prop.adult, overlap.table.fullset$mean.contr.prop.adult) #significant difference between amount of contraction and amount of expansion
+```
+
+Partial Set Results:
+
+```{r, echo=FALSE}
+#partial set analysis
+dist.exp.anova.partial <- aov(log(mean.exp.prop.adult)~factor(disturbance),data=overlap.table.partialset)
+par(mfrow=c(2,2))
+plot(dist.exp.anova.partial)
+summary(dist.exp.anova.partial) #no significant difference between disturbances in expansion
+
+dist.contr.anova.partial<- aov(log(mean.contr.prop.adult)~factor(disturbance), data=overlap.table.partialset)
+plot(dist.contr.anova.partial)
+summary(dist.contr.anova.partial)#no difference between disturbances for contractions
+
+par(mfrow=c(1,1))
+hist(overlap.table.partialset$mean.exp.prop.adult) #not normal
+hist(overlap.table.partialset$mean.contr.prop.adult) #normal-ish
+var.test(overlap.table.partialset$mean.exp.prop.adult, overlap.table.partialset$mean.contr.prop.adult, alternative = "two.sided")
+wilcox.test(overlap.table.partialset$mean.exp.prop.adult, overlap.table.partialset$mean.contr.prop.adult) #significant difference between amount of contraction and amount of expansion
+
 
 ```
 
@@ -1919,6 +1947,10 @@ There is a moderate correlation between expansion and contraction, with species/
 cor.test(overlap.table.fullset$mean.exp.prop.adult,overlap.table.fullset$mean.contr.prop.adult)
 par(mfrow=c(1,1))
 plot(overlap.table.fullset$mean.exp.prop.adult,overlap.table.fullset$mean.contr.prop.adult)
+
+cor.test(overlap.table.partialset$mean.exp.prop.adult,overlap.table.partialset$mean.contr.prop.adult)
+par(mfrow=c(1,1))
+plot(overlap.table.partialset$mean.exp.prop.adult,overlap.table.partialset$mean.contr.prop.adult)
 
 ```
 
@@ -1931,9 +1963,12 @@ Now I will look at the effect of species traits on the amount of expansion/contr
 
 #make shade tolerance dataframe from https://figshare.com/collections/TOLERANCE_TO_SHADE_DROUGHT_AND_WATERLOGGING_OF_TEMPERATE_NORTHERN_HEMISPHERE_TREES_AND_SHRUBS/3309258
 
-trait.data <- data.frame(species.name = species.names$species.name, shade.tolerance=c(4.01,4.83,4.53,1,1.44,1.48,1.56,1.64,2.78,1.21,2.09))
+trait.data <- data.frame(species.name = species.names$species.name,
+                         shade.tolerance=c(4.33,4.01,4.83,4.53,1,1.44,1.48,1.56,1.64,1.17,2.78,4.73,1.21,2.09),
+                         dispersal = c(rep("wind",4),rep("animal",2),"wind","animal","wind","animal",rep("wind",3),"animal"))
 
 #read in seed weight data
+#need to get weights for new species
 seed.weight <- read_csv("C:/Users/Katie/Google Drive/FIA project/TRY data/TRY_seed_edited.csv")
 
 try.names <- data.frame(scientific.name = unique(seed.weight$AccSpeciesName), species.name = c("white fir","grand fir","subalpine fir","alligator juniper","Engelmann spruce","lodgepole pine","two needle pinyon","ponderosa pine","trembling aspen","Douglas-fir","Gambel oak","western redcedar","western larch","whitebark pine","limber pine"))
@@ -1970,7 +2005,7 @@ Let's look at the correlations between trait data.
 
 ```{r, echo=FALSE,}
 #look at correlations between traits
-cor(trait.data[,2:3])
+cor(trait.data[,2:4])
 ggplot(trait.data,aes(x=shade.tolerance,y=mean.weight.mg))+
   geom_point()+
   geom_smooth(method="lm")
@@ -1983,97 +2018,109 @@ My hypotheses are that shade tolerance and seed weight will significantly affect
 In order to test these hypotheses, I will model the amount of expansion and contraction for each species in each disturbance type as a function of either shade tolerance or seed weight, disturbance, and the interaction between the trait and disturbance category. 
 
 ```{r}
+##full set analysis 
+
 niche.shift.trait.table <- overlap.table.fullset %>% 
   left_join(trait.data,by="species.name")
 
 #models for expansion
 #shade tolerance
-exp.shade.mod<- lm(log(mean.exp.prop.adult)~shade.tolerance*disturbance,data=niche.shift.trait.table %>% filter(!species.name %in% c("grand fir","two needle pinyon","limber pine")))
+exp.shade.mod<- lm(log(mean.exp.prop.adult)~shade.tolerance*disturbance,data=niche.shift.trait.table)
 par(mfrow=c(2,2))
 plot(exp.shade.mod)
 Anova(exp.shade.mod, type='3')
 summary(exp.shade.mod)
 
-ggplot(niche.shift.trait.table %>% filter(!species.name %in% c("grand fir","two needle pinyon","limber pine","ponderosa pine")),aes(x=shade.tolerance,y=mean.exp.prop.adult))+
+ggplot(niche.shift.trait.table,aes(x=shade.tolerance,y=mean.exp.prop.adult))+
   geom_point()+
   geom_smooth(method = "lm", se = FALSE, fullrange = T, size=1)+
   facet_wrap(~disturbance)
 
 #seed weight
-#take out pinyon, gambel oak and juniper because they are primarily dispersed by animals
-exp.weight.mod<- lm(log(mean.exp.prop.adult)~mean.weight.mg*disturbance,data=niche.shift.trait.table %>% filter(!species.name %in% c("grand fir","two needle pinyon","limber pine","Gambel oak")))
+#take out animal dispersed trees
+#ponderosa is still a bit of an outlier here
+exp.weight.mod<- lm(log(mean.exp.prop.adult)~mean.weight.mg*disturbance,data=niche.shift.trait.table %>% filter(!dispersal == "animal"))
 par(mfrow=c(2,2))
 plot(exp.weight.mod)
 Anova(exp.weight.mod, type='3')
 summary(exp.weight.mod)
 
-ggplot(data=niche.shift.trait.table %>% filter(!species.name %in% c("grand fir","two needle pinyon","limber pine","ponderosa pine","Gambel oak")),aes(x=mean.weight.mg,y=mean.exp.prop.adult))+
+ggplot(data=niche.shift.trait.table %>% filter(!dispersal == "animal"),aes(x=mean.weight.mg,y=mean.exp.prop.adult))+
   geom_point()+
   geom_smooth(method = "lm", se = FALSE, fullrange = T, size=1)+
   facet_wrap(~disturbance)
+
+#dispersal mode
+exp.disp.mod<- lm(log(mean.exp.prop.adult)~dispersal*disturbance,data=niche.shift.trait.table)
+par(mfrow=c(2,2))
+plot(exp.disp.mod)
+Anova(exp.disp.mod, type='3')
+summary(exp.disp.mod)
+
+ggplot(data=niche.shift.trait.table,aes(x=dispersal,y=mean.exp.prop.adult))+
+  geom_boxplot()+
+  facet_wrap(~disturbance)
+
+
 ```
 
 ```{r}
 #models for contraction
 
 #shade tolerance
-contr.shade.mod<- lm(log(mean.contr.prop.adult)~shade.tolerance*disturbance,data=niche.shift.trait.table %>% filter(!species.name %in% c("grand fir","two needle pinyon","limber pine")))
+contr.shade.mod<- lm(log(mean.contr.prop.adult)~shade.tolerance*disturbance,data=niche.shift.trait.table)
 par(mfrow=c(2,2))
 plot(contr.shade.mod)
 Anova(contr.shade.mod, type='3')
 summary(contr.shade.mod)
 
-ggplot(niche.shift.trait.table %>% filter(!species.name %in% c("grand fir","two needle pinyon","limber pine")),aes(x=shade.tolerance,y=mean.contr.prop.adult))+
+ggplot(niche.shift.trait.table, aes(x=shade.tolerance,y=mean.contr.prop.adult))+
   geom_point()+
   geom_smooth(method = "lm", se = FALSE, fullrange = T, size=1)+
   facet_wrap(~disturbance)
 
 #seed weight
-#take out pinyon, gambel oak and juniper because they are primarily dispersed by animals
-contr.weight.mod<- lm(log(mean.contr.prop.adult)~mean.weight.mg*factor(disturbance),data=niche.shift.trait.table %>% filter(! species %in% c(106,814,63)))
+#take out animal dispersed trees
+#ponderosa is still a bit of an outlier here - this is what's driving significant results
+contr.weight.mod<- lm(log(mean.contr.prop.adult)~mean.weight.mg*factor(disturbance),data=niche.shift.trait.table %>% filter(!dispersal == "animal"))
 par(mfrow=c(2,2))
 plot(contr.weight.mod)
 Anova(contr.weight.mod, type='3')
 summary(contr.weight.mod)
 emtrends(contr.weight.mod, pairwise ~ disturbance, var = "mean.weight.mg")
 
-contr.weight.mod.alt<- lm(mean.contr.prop.adult~disturbance+mean.weight.mg:disturbance-1,data=niche.shift.trait.table %>% filter(! species %in% c(106,814,63)))
-summary(contr.weight.mod.alt)
+#dispersal mode
+contr.disp.mod<- lm(log(mean.contr.prop.adult)~dispersal*disturbance,data=niche.shift.trait.table)
+par(mfrow=c(2,2))
+plot(contr.disp.mod)
+Anova(contr.disp.mod, type='3')
+summary(contr.disp.mod)
 
-#these don't work right now, wrong # of disturbances ##
-FslopevHslope <- c(0, 0, 0, 0, -1, 1, 0, 0)
-lht(contr.weight.mod.alt, FslopevHslope, rhs = c(0))
-FslopevIDslope <- c(0, 0, 0, 0, -1, 0, 1, 0)
-lht(contr.weight.mod.alt, FslopevIDslope, rhs = c(0))
-FslopevNslope <- c(0, 0, 0, 0, -1, 0, 0, 1)
-lht(contr.weight.mod.alt, FslopevNslope, rhs = c(0))
-HslopevIDslope <- c(0, 0, 0, 0, 0, -1, 1, 0)
-lht(contr.weight.mod.alt, HslopevIDslope, rhs = c(0))
-HslopevNslope <- c(0, 0, 0, 0, 0, -1, 0, 1)
-lht(contr.weight.mod.alt, HslopevNslope, rhs = c(0))
-IDslopevNslope <- c(0, 0, 0, 0, 0, 0, -1, 1)
-lht(contr.weight.mod.alt, IDslopevNslope, rhs = c(0))
+ggplot(data=niche.shift.trait.table,aes(x=dispersal,y=mean.contr.prop.adult))+
+  geom_boxplot()+
+  facet_wrap(~disturbance)
+```
 
-weight.contr.plot <- ggplot(data=niche.shift.trait.table %>% filter(! species %in% c(106,814,63)),aes(x=mean.weight.mg,y=log(mean.contr.prop.adult),color=disturbance))+
+```{r}
+#plots
+
+weight.contr.plot <- ggplot(data=niche.shift.trait.table %>% filter(!dispersal == "animal"),aes(x=mean.weight.mg,y=log(mean.contr.prop.adult),color=disturbance))+
   geom_point(size=1)+
   geom_smooth(method = "lm", se = FALSE, fullrange = T, size=.5)+
   theme_bw()+
   xlab("Mean Seed Weight (mg)")+ ylab("Log(Mean Contraction)")+
     scale_color_manual(values=disturbance.colors)+
-  ylim(c(-6.5, -1))+
-  theme(axis.text = element_text(size=10),axis.title = element_text(size=10),legend.text = element_text(size=10),legend.title = element_text(size=10))
-```
+  ylim(c(-10,0))+
+  theme(axis.text = element_text(size=14),axis.title = element_text(size=14),legend.text = element_text(size=14),legend.title = element_text(size=14))
 
-```{r}
-#other 3 plots for insignificant models
-weight.exp.plot <- ggplot(data=niche.shift.trait.table %>% filter(! species %in% c(106,814,63)),aes(x=mean.weight.mg,y=log(mean.exp.prop.adult),color=disturbance))+
+weight.exp.plot <- ggplot(data=niche.shift.trait.table %>% filter(!dispersal == "animal"),aes(x=mean.weight.mg,y=log(mean.exp.prop.adult),color=disturbance))+
   geom_point(size=1)+
   geom_smooth(method = "lm", se = FALSE, fullrange = T, size=.5)+
   theme_bw()+
   xlab("Mean Seed Weight (mg)")+ ylab("Log(Mean Expansion)")+
     scale_color_manual(values=disturbance.colors)+
-  ylim(c(-6.5, -1))+
-  theme(axis.text = element_text(size=10),axis.title = element_text(size=10),legend.text = element_text(size=10),legend.title = element_text(size=10))
+  ylim(c(-10,0))+
+  theme(axis.text = element_text(size=14),axis.title = element_text(size=14),legend.text = element_text(size=14),legend.title = element_text(size=14))
 
 shade.contr.plot <- ggplot(data=niche.shift.trait.table,aes(x=shade.tolerance,y=log(mean.contr.prop.adult),color=disturbance))+
   geom_point(size=1)+
@@ -2081,8 +2128,8 @@ shade.contr.plot <- ggplot(data=niche.shift.trait.table,aes(x=shade.tolerance,y=
   theme_bw()+
   xlab("Shade Tolerance")+ ylab("Log(Mean Contraction)")+
     scale_color_manual(values=disturbance.colors)+
-  ylim(c(-6.5, -1))+
-  theme(axis.text = element_text(size=10),axis.title = element_text(size=10),legend.text = element_text(size=10),legend.title = element_text(size=10))
+  ylim(c(-10,0))+
+  theme(axis.text = element_text(size=14),axis.title = element_text(size=14),legend.text = element_text(size=14),legend.title = element_text(size=14))
 
 shade.exp.plot <- ggplot(data=niche.shift.trait.table,aes(x=shade.tolerance,y=log(mean.exp.prop.adult),color=disturbance))+
   geom_point(size=1)+
@@ -2090,8 +2137,21 @@ shade.exp.plot <- ggplot(data=niche.shift.trait.table,aes(x=shade.tolerance,y=lo
   theme_bw()+
   xlab("Shade Tolerance")+ ylab("Log(Mean Expansion)")+
   scale_color_manual(values=disturbance.colors)+
-  ylim(c(-6.5, -1))+
-  theme(axis.text = element_text(size=10),axis.title = element_text(size=10),legend.text = element_text(size=10),legend.title = element_text(size=10))
+  ylim(c(-10,0))+
+  theme(axis.text = element_text(size=14),axis.title = element_text(size=14),legend.text = element_text(size=14),legend.title = element_text(size=14))
+
+
+disp.exp.plot <- ggplot(data=niche.shift.trait.table, aes(x=dispersal,y=log(mean.exp.prop.adult),fill=disturbance))+
+  geom_boxplot()+
+  xlab("Dispersal Mode")+ ylab("Log(Mean Expansion)")+
+  scale_fill_manual(values=disturbance.colors)+
+  theme(axis.text = element_text(size=14),axis.title = element_text(size=14),legend.text = element_text(size=14),legend.title = element_text(size=14))
+
+disp.contr.plot <- ggplot(data=niche.shift.trait.table, aes(x=dispersal,y=log(mean.contr.prop.adult),fill=disturbance))+
+  geom_boxplot()+
+  xlab("Dispersal Mode")+ ylab("Log(Mean Contraction)")+
+  scale_fill_manual(values=disturbance.colors)+
+  theme(axis.text = element_text(size=14),axis.title = element_text(size=14),legend.text = element_text(size=14),legend.title = element_text(size=14))
 
 
 ```
@@ -2129,10 +2189,14 @@ ggplot(pc1means.table,aes(x=factor(species.name),y=pc1speciesmean))+
   geom_boxplot()+
   coord_flip()
 
-#model with average PC1 score across all disturbances as predictor
 niche.shift.trait.table<-
   niche.shift.trait.table %>% 
   left_join(pc1means.table,by=c("species.name"))
+
+```
+
+```{r, echo=FALSE}
+#model with average PC1 score across all disturbances as predictor
 
 pc1.exp.mod <- lm(log(mean.exp.prop.adult)~ pc1speciesmean*disturbance, data=niche.shift.trait.table)
 plot(pc1.exp.mod)
@@ -2147,8 +2211,8 @@ pc1.exp.plot <- ggplot(data=niche.shift.trait.table,aes(x=pc1speciesmean,y=log(m
   theme_bw()+
   xlab("PC1 Mean Score")+ ylab("Log(Mean Expansion)")+
   scale_color_manual(values=disturbance.colors)+
-  ylim(c(-6.5, -1))+
-  theme(axis.text = element_text(size=10),axis.title = element_text(size=10),legend.text = element_text(size=10),legend.title = element_text(size=10))
+  ylim(c(-10,0))+
+  theme(axis.text = element_text(size=14),axis.title = element_text(size=14),legend.text = element_text(size=14),legend.title = element_text(size=14))
 
 pc1.contr.mod <- lm(log(mean.contr.prop.adult)~ pc1speciesmean*disturbance, data=niche.shift.trait.table)
 plot(pc1.contr.mod)
@@ -2163,11 +2227,194 @@ pc1.contr.plot<- ggplot(data=niche.shift.trait.table,aes(x=pc1speciesmean,y=log(
   theme_bw()+
   xlab("PC1 Mean Score")+ ylab("Log(Mean Contraction)")+
   scale_color_manual(values=disturbance.colors)+
-  ylim(c(-6.5, -1))+
-  theme(axis.text = element_text(size=10),axis.title = element_text(size=10),legend.text = element_text(size=10),legend.title = element_text(size=10))
+  ylim(c(-10,0))+
+  theme(axis.text = element_text(size=14),axis.title = element_text(size=14),legend.text = element_text(size=14),legend.title = element_text(size=14))
 
 
-ggarrange(shade.contr.plot, shade.exp.plot, weight.contr.plot, weight.exp.plot,pc1.contr.plot,pc1.exp.plot,  nrow=3, ncol=2, common.legend = TRUE)
+ggarrange(shade.contr.plot, shade.exp.plot, weight.contr.plot, weight.exp.plot,pc1.contr.plot,pc1.exp.plot,  nrow=4, ncol=2,disp.contr.plot, disp.exp.plot, common.legend = TRUE)
+```
+
+Now I will do the trait analysis on the data set with all 14 species, including the 6 that only have data for undisturbed and insect/disease plots. 
+
+```{r}
+##partial set analysis 
+#expansion
+
+niche.shift.trait.table.partial <- overlap.table.partialset %>% 
+  left_join(trait.data,by="species.name")
+
+#models for expansion
+#shade tolerance
+exp.shade.mod.partial<- lm(log(mean.exp.prop.adult)~shade.tolerance*disturbance,data=niche.shift.trait.table.partial)
+par(mfrow=c(2,2))
+plot(exp.shade.mod.partial)
+Anova(exp.shade.mod.partial, type='3')
+summary(exp.shade.mod.partial)
+
+ggplot(niche.shift.trait.table.partial,aes(x=shade.tolerance,y=mean.exp.prop.adult))+
+  geom_point()+
+  geom_smooth(method = "lm", se = FALSE, fullrange = T, size=1)+
+  facet_wrap(~disturbance)
+
+#seed weight
+#take out animal dispersed trees
+#ponderosa is still a bit of an outlier here
+exp.weight.mod.partial<- lm(log(mean.exp.prop.adult)~mean.weight.mg*disturbance,data=niche.shift.trait.table.partial %>% filter(!dispersal == "animal"))
+par(mfrow=c(2,2))
+plot(exp.weight.mod.partial)
+Anova(exp.weight.mod.partial, type='3')
+summary(exp.weight.mod.partial)
+
+ggplot(data=niche.shift.trait.table.partial %>% filter(!dispersal == "animal"),aes(x=mean.weight.mg,y=mean.exp.prop.adult))+
+  geom_point()+
+  geom_smooth(method = "lm", se = FALSE, fullrange = T, size=1)+
+  facet_wrap(~disturbance)
+
+#dispersal mode
+exp.disp.mod.partial<- lm(log(mean.exp.prop.adult)~dispersal*disturbance,data=niche.shift.trait.table.partial)
+par(mfrow=c(2,2))
+plot(exp.disp.mod.partial)
+Anova(exp.disp.mod.partial, type='3')
+summary(exp.disp.mod.partial)
+
+ggplot(data=niche.shift.trait.table.partial,aes(x=dispersal,y=mean.exp.prop.adult))+
+  geom_boxplot()+
+  facet_wrap(~disturbance)
+```
+
+```{r}
+#models for contraction
+
+#shade tolerance
+contr.shade.mod.partial<- lm(log(mean.contr.prop.adult)~shade.tolerance*disturbance,data=niche.shift.trait.table.partial)
+par(mfrow=c(2,2))
+plot(contr.shade.mod.partial)
+Anova(contr.shade.mod.partial, type='3')
+summary(contr.shade.mod.partial)
+
+ggplot(niche.shift.trait.table.partial, aes(x=shade.tolerance,y=mean.contr.prop.adult))+
+  geom_point()+
+  geom_smooth(method = "lm", se = FALSE, fullrange = T, size=1)+
+  facet_wrap(~disturbance)
+
+#seed weight
+#take out animal dispersed trees
+#ponderosa is still a bit of an outlier here - this is what's driving significant results
+contr.weight.mod.partial<- lm(log(mean.contr.prop.adult)~mean.weight.mg*factor(disturbance),data=niche.shift.trait.table.partial %>% filter(!dispersal == "animal"))
+par(mfrow=c(2,2))
+plot(contr.weight.mod.partial)
+Anova(contr.weight.mod.partial, type='3')
+summary(contr.weight.mod.partial)
+emtrends(contr.weight.mod.partial, pairwise ~ disturbance, var = "mean.weight.mg")
+
+#dispersal mode
+contr.disp.mod.partial<- lm(log(mean.contr.prop.adult)~dispersal*disturbance,data=niche.shift.trait.table.partial)
+par(mfrow=c(2,2))
+plot(contr.disp.mod.partial)
+Anova(contr.disp.mod.partial, type='3')
+summary(contr.disp.mod.partial)
+
+ggplot(data=niche.shift.trait.table.partial,aes(x=dispersal,y=mean.contr.prop.adult))+
+  geom_boxplot()+
+  facet_wrap(~disturbance)
+```
+
+```{r}
+#plots
+
+weight.contr.plot.partial <- ggplot(data=niche.shift.trait.table.partial %>% filter(!dispersal == "animal"),aes(x=mean.weight.mg,y=log(mean.contr.prop.adult),color=disturbance))+
+  geom_point(size=1)+
+  geom_smooth(method = "lm", se = FALSE, fullrange = T, size=.5)+
+  theme_bw()+
+  xlab("Mean Seed Weight (mg)")+ ylab("Log(Mean Contraction)")+
+    scale_color_manual(values=disturbance.colors)+
+  ylim(c(-10,0))+
+  theme(axis.text = element_text(size=14),axis.title = element_text(size=14),legend.text = element_text(size=14),legend.title = element_text(size=14),plot.margin=unit(c(1,0,0,0), "cm"))
+
+weight.exp.plot.partial <- ggplot(data=niche.shift.trait.table.partial %>% filter(!dispersal == "animal"),aes(x=mean.weight.mg,y=log(mean.exp.prop.adult),color=disturbance))+
+  geom_point(size=1)+
+  geom_smooth(method = "lm", se = FALSE, fullrange = T, size=.5)+
+  theme_bw()+
+  xlab("Mean Seed Weight (mg)")+ ylab("Log(Mean Expansion)")+
+    scale_color_manual(values=disturbance.colors)+
+  ylim(c(-10,0))+
+  theme(axis.text = element_text(size=14),axis.title = element_text(size=14),legend.text = element_text(size=14),legend.title = element_text(size=14),plot.margin=unit(c(1,0,0,0), "cm"))
+
+shade.contr.plot.partial  <- ggplot(data=niche.shift.trait.table.partial,aes(x=shade.tolerance,y=log(mean.contr.prop.adult),color=disturbance))+
+  geom_point(size=1)+
+  geom_smooth(method = "lm", se = FALSE, fullrange = T, size=0.5)+
+  theme_bw()+
+  xlab("Shade Tolerance")+ ylab("Log(Mean Contraction)")+
+    scale_color_manual(values=disturbance.colors)+
+  ylim(c(-10,0))+
+  theme(axis.text = element_text(size=14),axis.title = element_text(size=14),legend.text = element_text(size=14),legend.title = element_text(size=14),plot.margin=unit(c(1,0,0,0), "cm"))
+
+shade.exp.plot.partial  <- ggplot(data=niche.shift.trait.table.partial,aes(x=shade.tolerance,y=log(mean.exp.prop.adult),color=disturbance))+
+  geom_point(size=1)+
+  geom_smooth(method = "lm", se = FALSE, fullrange = T, size=0.5)+
+  theme_bw()+
+  xlab("Shade Tolerance")+ ylab("Log(Mean Expansion)")+
+  scale_color_manual(values=disturbance.colors)+
+  ylim(c(-10,0))+
+  theme(axis.text = element_text(size=14),axis.title = element_text(size=14),legend.text = element_text(size=14),legend.title = element_text(size=14),plot.margin=unit(c(1,0,0,0), "cm"))
+
+disp.exp.plot.partial <- ggplot(data=niche.shift.trait.table.partial, aes(x=dispersal,y=log(mean.exp.prop.adult),fill=disturbance))+
+  geom_boxplot()+
+  xlab("Dispersal Mode")+ ylab("Log(Mean Expansion)")+
+  scale_fill_manual(values=disturbance.colors)+
+  theme(axis.text = element_text(size=14),axis.title = element_text(size=14),legend.text = element_text(size=14),legend.title = element_text(size=14),plot.margin=unit(c(1,0,0,0), "cm"))
+
+disp.contr.plot.partial <- ggplot(data=niche.shift.trait.table.partial, aes(x=dispersal,y=log(mean.contr.prop.adult),fill=disturbance))+
+  geom_boxplot()+
+  xlab("Dispersal Mode")+ ylab("Log(Mean Contraction)")+
+  scale_fill_manual(values=disturbance.colors)+
+  theme(axis.text = element_text(size=14),axis.title = element_text(size=14),legend.text = element_text(size=14),legend.title = element_text(size=14),plot.margin=unit(c(1,0,0,0), "cm"))
+
+
+```
+
+
+```{r}
+
+#model with average PC1 score across all disturbances as predictor
+niche.shift.trait.table.partial<-
+  niche.shift.trait.table.partial %>% 
+  left_join(pc1means.table,by=c("species.name"))
+
+pc1.exp.mod.partial <- lm(log(mean.exp.prop.adult)~ pc1speciesmean*disturbance, data=niche.shift.trait.table.partial)
+plot(pc1.exp.mod.partial)
+Anova(pc1.exp.mod.partial, type='3')
+summary(pc1.exp.mod.partial)
+emtrends(pc1.exp.mod.partial, pairwise ~ disturbance, var = "pc1speciesmean")
+
+
+pc1.exp.plot.partial <- ggplot(data=niche.shift.trait.table.partial,aes(x=pc1speciesmean,y=log(mean.exp.prop.adult),color=disturbance))+
+  geom_point(size=1)+
+  geom_smooth(method = "lm", se = FALSE, fullrange = T, size=.5)+
+  theme_bw()+
+  xlab("PC1 Mean Score")+ ylab("Log(Mean Expansion)")+
+  scale_color_manual(values=disturbance.colors)+
+  ylim(c(-10,0))+
+  theme(axis.text = element_text(size=14),axis.title = element_text(size=14),legend.text = element_text(size=14),legend.title = element_text(size=14),plot.margin=unit(c(1,0,0,0), "cm"))
+
+pc1.contr.mod.partial <- lm(log(mean.contr.prop.adult)~ pc1speciesmean*disturbance, data=niche.shift.trait.table.partial)
+plot(pc1.contr.mod.partial)
+Anova(pc1.contr.mod.partial, type='3')
+summary(pc1.contr.mod.partial)
+emtrends(pc1.contr.mod.partial, pairwise ~ disturbance, var = "pc1speciesmean")
+
+
+pc1.contr.plot.partial<- ggplot(data=niche.shift.trait.table.partial,aes(x=pc1speciesmean,y=log(mean.contr.prop.adult),color=disturbance))+
+  geom_point(size=1)+
+  geom_smooth(method = "lm", se = FALSE, fullrange = T, size=.5)+
+  theme_bw()+
+  xlab("PC1 Mean Score")+ ylab("Log(Mean Contraction)")+
+  scale_color_manual(values=disturbance.colors)+
+  ylim(c(-10,0))+
+  theme(axis.text = element_text(size=14),axis.title = element_text(size=14),legend.text = element_text(size=14),legend.title = element_text(size=14),plot.margin=unit(c(1,0,0,0), "cm"))
+
+
+ggarrange(shade.contr.plot.partial, shade.exp.plot.partial, weight.contr.plot.partial, weight.exp.plot.partial, pc1.contr.plot.partial, pc1.exp.plot.partial,disp.contr.plot.partial, disp.exp.plot.partial, nrow=4, ncol=2, common.legend = TRUE,labels = c("a","","b","","c","","d"))
 ```
 
 
