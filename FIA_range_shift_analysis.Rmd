@@ -78,6 +78,20 @@ undis<- read_csv("undisturbed.plots2020.csv")
 dist <- bind_rows(fire,ID,harvest,other,wind,undis)
 ```
 
+```{r,echo=FALSE,eval=FALSE}
+survey_data<- dist %>% 
+  left_join(plot, by=c("PLT_CN" = "CN"))
+
+survey_data %>% 
+  group_by(DESIGNCD) %>% 
+  dplyr::summarise(n=n()) #all plots are design code = 1 = standard plot design 
+
+##disturbance types sample size
+dist %>% 
+  group_by(Agent) %>% 
+  dplyr::summarise(n=n())
+```
+
 Join disturbance data with adult and seedling dataframes. There are NA's in the data because the adults and seeds dataframes have all plots, where as the disturbance dataframe only has plots that met my criteria. So this is ok.
 
 ```{r,echo=FALSE}
@@ -188,7 +202,7 @@ sample_seeds <- dist_seeds_joined %>%
 datatable(sample_seeds, caption = "Seedling Sample Size")
 ```
 
-Let's set the minimum number of plots at 100. Since there are always less seedling plots than adult plots, we will look at the seedlings first. We will also only look at fire, insect/disease, and undisturbed categories since the other disturbance categories have very low sample sizes. 
+Let's set the minimum number of plots at 60 Since there are always less seedling plots than adult plots, we will look at the seedlings first. We will also only look at fire, insect/disease, and undisturbed categories since the other disturbance categories have very low sample sizes. 
 
 ```{r, echo=FALSE}
 #seedling sample 
@@ -209,7 +223,7 @@ sample_seeds_over60 %>%
   datatable()
 ```
 
-There are 11 species in the FIA database that have 100 or more plots in at least 2 of the 3 disturbance types with seedlings present. 
+There are 14 species in the FIA database that have 60 or more plots in at least 2 of the 3 disturbance types with seedlings present. 
 
 This is a sample size table for each species, age and disturbance
 
@@ -259,7 +273,7 @@ spp_hist_data <- species.sum.long %>%
   left_join(plot, by=c("PREV_PLT_CN" = "CN")) %>% 
   dplyr::select(c(PREV_PLT_CN:SPCD,MEASYEAR.y)) %>% 
   dplyr::rename("Prev.MEASYEAR" = "MEASYEAR.y","MEASYEAR"="MEASYEAR.x") 
-par(mfrow=c(4,3))
+par(mfrow=c(5,3))
 for(i in 1:length(species.names$species.code)){
 hist(spp_hist_data[spp_hist_data$SPCD==species.names$species.code[i],]$MEASYEAR, col=rgb(0,0,1,0.5), breaks=(max(spp_hist_data[which(spp_hist_data$SPCD==species.names$species.code[i] & !is.na(spp_hist_data$MEASYEAR)),]$MEASYEAR) - min(spp_hist_data[which(spp_hist_data$SPCD==species.names$species.code[i] & !is.na(spp_hist_data$MEASYEAR)),]$MEASYEAR))+1, main=paste("Histogram for",species.names$species.name[i],"adults",sep=" "),xlab="Measurement Year")
 hist(spp_hist_data[spp_hist_data$SPCD==species.names$species.code[i],]$Prev.MEASYEAR, col=rgb(0,1,0,0.3), breaks=(max(spp_hist_data[which(spp_hist_data$SPCD==species.names$species.code[i] & !is.na(spp_hist_data$Prev.MEASYEAR)),]$Prev.MEASYEAR) - min(spp_hist_data[which(spp_hist_data$SPCD==species.names$species.code[i] & !is.na(spp_hist_data$Prev.MEASYEAR)),]$Prev.MEASYEAR))+1, add=TRUE)
@@ -269,7 +283,7 @@ hist(spp_hist_data[spp_hist_data$SPCD==species.names$species.code[i],]$Prev.MEAS
 
 ```{r, echo=FALSE}
 #seedling histograms
-par(mfrow=c(4,3))
+par(mfrow=c(5,3))
 for(i in 1:length(species.names$species.code)){
 hist(dist_seeds_joined[dist_seeds_joined$SPCD == species.names$species.code[i],]$MEASYEAR, col=rgb(0,0,1,0.5), breaks=(max(dist_seeds_joined[which(dist_seeds_joined$SPCD==species.names$species.code[i] & !is.na(dist_seeds_joined$MEASYEAR)),]$MEASYEAR) - min(dist_seeds_joined[which(dist_seeds_joined$SPCD==species.names$species.code[i] & !is.na(dist_seeds_joined$MEASYEAR)),]$MEASYEAR))+1,  main=paste("Histogram for",species.names$species.name[i],"seedlings",sep=" "),xlab="Measurement Year")
 }
@@ -591,7 +605,8 @@ pc1.diffs.sep <- pc1.diffs.table %>%
   separate(uid, c("species","agent"),sep="_",remove=FALSE, extra="drop") %>% 
   mutate(species = as.numeric(species)) %>% 
   left_join(species.names,by=c("species" = "species.code")) %>% 
-  filter(!(agent == "fire" & species.name %in% insectonlyspp)) 
+  filter(!(agent == "fire" & species.name %in% insectonlyspp)) %>% 
+  filter(!species.name=="singleleaf pinyon")
 ```
 
 ```{r, eval=FALSE, echo=FALSE, results='hide'}
@@ -646,7 +661,7 @@ shapiro.test(id.diffs.pc1$quant_50)
 ggqqplot(id.diffs.pc1$quant_95)
 shapiro.test(id.diffs.pc1$quant_95)
 
-#none 5th quantile 
+#none 5th quantile -- NOT NORMAL
 ggqqplot(none.diffs.pc1$quant_5)
 shapiro.test(none.diffs.pc1$quant_5)
 
@@ -707,7 +722,7 @@ shapiro.test(none.diffs.pc1.quant90$quant_90)
 
 ```
 
-All difference data is normal, so we can use t-tests for all quantiles and disturbances on PC1. 
+All difference data is normal except 5th qunatile of undisturbed, so we will use a Wilcoxon test for this set and t-tests for the rest.
 
 
 ```{r,echo=FALSE, results="hide"}
@@ -755,17 +770,17 @@ pvalues.pc1<- pvalues.pc1 %>%
   mutate(wilcoxon = "n")
 
 #need to do Wilcoxon Signed Rank Test for 5th percentile of none because data is not normal 
-# none5.test <- pc1.diffs.sep %>% 
-#   filter(agent == "none") %>% 
-#   pull("quant_5") %>% 
-#   wilcox.test(y = NULL, alternative = "two.sided", mu = 0, conf.int = TRUE, conf.level = 0.95)
-# 
-# none5.p.df <- data.frame(agent = "none", quant = "quant_5", p.value = none5.test$p.value, estimate = none5.test$estimate, lowerci = none5.test$conf.int[1], upperci = none5.test$conf.int[2], t=none5.test$statistic, df=NA, wilcoxon="y")
-# 
-# ##replace 5th percentile of harvest with wilcoxon test values
-# pvalues.pc1<- pvalues.pc1 %>% 
-#                 rows_update(none5.p.df,by=c("agent","quant"))
-# pvalues.pc1
+none5.test <- pc1.diffs.sep %>%
+  filter(agent == "none") %>%
+  pull("quant_5") %>%
+  wilcox.test(y = NULL, alternative = "two.sided", mu = 0, conf.int = TRUE, conf.level = 0.95)
+
+none5.p.df <- data.frame(agent = "none", quant = "quant_5", p.value = none5.test$p.value, estimate = none5.test$estimate, lowerci = none5.test$conf.int[1], upperci = none5.test$conf.int[2], t=none5.test$statistic, df=NA, wilcoxon="y")
+
+##replace 5th percentile of harvest with wilcoxon test values
+pvalues.pc1<- pvalues.pc1 %>%
+                rows_update(none5.p.df,by=c("agent","quant"))
+pvalues.pc1
 ```
 
 
@@ -905,8 +920,6 @@ Here I test for significant differences among disturbance agents in adult vs. se
 pc1.diffs.fullset<- pc1.diffs.sep %>% 
   filter(!species.name %in% insectonlyspp)
 
-par(mfrow=c(1,1))
-
 #check for significant differences in 5th percentile by disturbance type
 pc1.mod5 <- lm(quant_5 ~ factor(agent), data=pc1.diffs.fullset)
 par(mfrow=c(2,2))
@@ -948,7 +961,9 @@ pc2.diffs.sep <- pc2.diffs.table %>%
   separate(uid, c("species","agent"),sep="_",remove=FALSE, extra="drop") %>% 
   mutate(species = as.numeric(species)) %>% 
   left_join(species.names,by=c("species" = "species.code")) %>% 
-  filter(!(agent == "fire" & species.name %in% insectonlyspp)) 
+  filter(!(agent == "fire" & species.name %in% insectonlyspp)) %>% 
+  filter(!species.name=="singleleaf pinyon")
+
 ```
 
 ```{r, eval=FALSE, echo=FALSE, results='hide'}
@@ -1000,7 +1015,7 @@ shapiro.test(id.diffs.pc2$quant_5)
 ggqqplot(id.diffs.pc2$quant_50)
 shapiro.test(id.diffs.pc2$quant_50)
 
-#id 95th quantile -- NOT NORMAL
+#id 95th quantile 
 ggqqplot(id.diffs.pc2$quant_95)
 shapiro.test(id.diffs.pc2$quant_95)
 
@@ -1012,12 +1027,12 @@ shapiro.test(none.diffs.pc2$quant_5)
 ggqqplot(none.diffs.pc2$quant_50)
 shapiro.test(none.diffs.pc2$quant_50)
 
-#none 95th quantile -- NOT NORMAL
+#none 95th quantile 
 ggqqplot(none.diffs.pc2$quant_95)
 shapiro.test(none.diffs.pc2$quant_95)
 ```
 
-5th and 95th quantile shifts in undisturbed plots and 95th quantile shifts in insect/disease plots are non-normal
+5th quantile shifts in undisturbed plots are non-normal
 
 ```{r,echo=FALSE,eval=FALSE, results='hide'}
 ##checking for normality
@@ -1081,28 +1096,26 @@ pc2.none5.test <- pc2.diffs.sep %>%
 
 pc2.none5.p.df <- data.frame(agent = "none", quant = "quant_5", p.value = pc2.none5.test$p.value, estimate = pc2.none5.test$estimate, lowerci = pc2.none5.test$conf.int[1], upperci = pc2.none5.test$conf.int[2],t=pc2.none5.test$statistic,df=NA,wilcoxon="y")
 
-#95th none
-pc2.none95.test <- pc2.diffs.sep %>% 
-  filter(agent == "none") %>% 
-  pull("quant_95") %>% 
-  wilcox.test(y = NULL, alternative = "two.sided", mu = 0, conf.int = TRUE, conf.level = 0.95)
-
-pc2.none95.p.df <- data.frame(agent = "none", quant = "quant_95", p.value = pc2.none95.test$p.value, estimate = pc2.none95.test$estimate, lowerci = pc2.none95.test$conf.int[1], upperci = pc2.none95.test$conf.int[2],t=pc2.none95.test$statistic,df=NA,wilcoxon="y")
-
-#95th ID
-pc2.ID95.test <- pc2.diffs.sep %>% 
-  filter(agent == "insect.disease") %>% 
-  pull("quant_95") %>% 
-  wilcox.test(y = NULL, alternative = "two.sided", mu = 0, conf.int = TRUE, conf.level = 0.95)
-
-pc2.ID95.p.df <- data.frame(agent = "insect.disease", quant = "quant_95", p.value = pc2.ID95.test$p.value, estimate = pc2.ID95.test$estimate, lowerci = pc2.ID95.test$conf.int[1], upperci = pc2.ID95.test$conf.int[2],t=pc2.ID95.test$statistic,df=NA,wilcoxon="y")
+# #95th none
+# pc2.none95.test <- pc2.diffs.sep %>% 
+#   filter(agent == "none") %>% 
+#   pull("quant_95") %>% 
+#   wilcox.test(y = NULL, alternative = "two.sided", mu = 0, conf.int = TRUE, conf.level = 0.95)
+# 
+# pc2.none95.p.df <- data.frame(agent = "none", quant = "quant_95", p.value = pc2.none95.test$p.value, estimate = pc2.none95.test$estimate, lowerci = pc2.none95.test$conf.int[1], upperci = pc2.none95.test$conf.int[2],t=pc2.none95.test$statistic,df=NA,wilcoxon="y")
+# 
+# #95th ID
+# pc2.ID95.test <- pc2.diffs.sep %>% 
+#   filter(agent == "insect.disease") %>% 
+#   pull("quant_95") %>% 
+#   wilcox.test(y = NULL, alternative = "two.sided", mu = 0, conf.int = TRUE, conf.level = 0.95)
+# 
+# pc2.ID95.p.df <- data.frame(agent = "insect.disease", quant = "quant_95", p.value = pc2.ID95.test$p.value, estimate = pc2.ID95.test$estimate, lowerci = pc2.ID95.test$conf.int[1], upperci = pc2.ID95.test$conf.int[2],t=pc2.ID95.test$statistic,df=NA,wilcoxon="y")
 
 
 ##replace t-test with wilcoxon test values
 pvalues.pc2<- pvalues.pc2 %>% 
-                rows_update(pc2.none5.p.df, by=c("agent","quant")) %>% 
-                rows_update(pc2.none95.p.df, by=c("agent","quant")) %>% 
-                rows_update(pc2.ID95.p.df, by=c("agent","quant"))
+                rows_update(pc2.none5.p.df, by=c("agent","quant")) 
 
 
 pvalues.pc2
@@ -1396,7 +1409,8 @@ pc1.ttest.pvalues.sep <- pc1.ttest.pvalues %>%
   separate(uid, c("species","agent"),sep="_",extra="drop",remove = FALSE) %>% 
   mutate(species = as.numeric(species)) %>% 
   left_join(species.names, by = c("species" = "species.code")) %>%   mutate(sym.pos = ifelse(p.value<0.05, 0.35, NA)) %>% 
-  filter(!(agent == "fire" & species.name %in% insectonlyspp))
+  filter(!(agent == "fire" & species.name %in% insectonlyspp)) %>% 
+  filter(!species.name == "singleleaf pinyon")
 ```
 
 This plot shows the difference in seedling vs. adult positions on PC1 (seedling mean - adult mean), separated by species and disturbance type. Differences in means greater than zero indicate that seedlings occupy higher values on PC1 (cooler climates) than adults whereas negative differences in means indicate that seedlings occupy lower values on PC1 (warmer climates) than adults. Asterisks indicate that seedling and adult positions on PC1 are significantly different (p\<0.05), as evaluated with a T-test.
@@ -1415,7 +1429,7 @@ ggplot(pc1.ttest.pvalues.sep, aes(x = agent, y = diff.means, fill = agent))+
   ylab("Difference in Means")+
   labs(fill = "Disturbance Agent")+
   theme_bw()+
-  theme(axis.text.x = element_blank(), axis.text=element_text(color="black", size=12), legend.text = element_text(color="black", size=12), text=element_text(color="black", size=12), strip.text = element_text(color="black", size=11), legend.position = c(1, 0),legend.justification = c(1, -0.3))
+  theme(axis.text.x = element_blank(), axis.text=element_text(color="black", size=14), legend.text = element_text(color="black", size=14), text=element_text(color="black", size=14), strip.text = element_text(color="black", size=11), legend.position = c(0.9, 0),legend.justification = c(1, -0.3))
 ```
 
 ###PC2
@@ -1582,7 +1596,8 @@ pc2.ttest.pvalues.sep <- pc2.ttest.pvalues %>%
   separate(uid, c("species","agent"),sep="_",extra="drop",remove = FALSE) %>% 
   mutate(species = as.numeric(species)) %>% 
   left_join(species.names, by = c("species" = "species.code")) %>%   mutate(sym.pos = ifelse(p.value<0.05, 0.3, NA)) %>% 
-  filter(!(agent=="fire" & species.name %in% insectonlyspp))
+  filter(!(agent=="fire" & species.name %in% insectonlyspp)) %>% 
+  filter(!species.name=="singleleaf pinyon")
 ```
 
 ```{r, echo=FALSE}
@@ -1598,7 +1613,7 @@ ggplot(pc2.ttest.pvalues.sep, aes(x = agent, y = diff.means, fill = agent))+
   ylab("Difference in Means")+
   labs(fill = "Disturbance Agent")+
   theme_bw()+
-  theme(axis.text.x = element_blank(), axis.text=element_text(color="black",size=12), text=element_text(color="black",size=12), legend.text = element_text(color="black",size=12), strip.text = element_text(color="black",size=11),legend.position = c(1,0), legend.justification = c(1,-0.3))
+  theme(axis.text.x = element_blank(), axis.text=element_text(color="black",size=14), text=element_text(color="black",size=14), legend.text = element_text(color="black",size=14), strip.text = element_text(color="black",size=11),legend.position = c(0.9,0), legend.justification = c(1,-0.3))
 ```
 
 ##Niche models
@@ -1687,25 +1702,25 @@ ellipses.posterior.list<- readRDS("ellipses.posterior.list.14spp.nov.rds")
 SEA.B.list <- readRDS("SEA.B.list.14spp.nov.rds")
 ```
 
-```{r}
+```{r,echo=FALSE, eval=FALSE}
 #look at trace plots for bayesian models
 
-pdf("trace.plots_nov2021.pdf")
-
-par(mfrow=c(3,2))
-for(i in 1:length(ellipses.posterior.list)){
-  for (j in 1:2){
-    for(k in 1:6){
-      plot(ellipses.posterior.list[[i]][[j]][,k],type="l")
-    }
-  }
-}
-
-dev.off()
-
-head(ellipses.posterior.list[[1]])
-nrow(ellipses.posterior.list[[1]][[1]])
-head(ellipses.posterior.list[[1]][[1]])
+# pdf("trace.plots_nov2021.pdf")
+# 
+# par(mfrow=c(3,2))
+# for(i in 1:length(ellipses.posterior.list)){
+#   for (j in 1:2){
+#     for(k in 1:6){
+#       plot(ellipses.posterior.list[[i]][[j]][,k],type="l")
+#     }
+#   }
+# }
+# 
+# dev.off()
+# 
+# head(ellipses.posterior.list[[1]])
+# nrow(ellipses.posterior.list[[1]][[1]])
+# head(ellipses.posterior.list[[1]][[1]])
 ```
 
 ```{r}
@@ -1721,35 +1736,35 @@ plot.names <-
 disturbance.colors
 color.list = c(disturbance.colors[2:3],disturbance.colors[2:3],rep(disturbance.colors,3),disturbance.colors[2:3],disturbance.colors,disturbance.colors[2:3],disturbance.colors,disturbance.colors[2:3],disturbance.colors,disturbance.colors[2:3],rep(disturbance.colors,2))
 
-par(mfrow=c(1,1))
-for(i in 1:length(siber.objs)){
-  png(filename = paste("C:/Users/Katie/Google Drive/FIA project/FIA_rproject/siberplots/",names(siber.objs)[i],".jpeg",sep=""))
-plot(x=unlist(c(siber.objs[[i]]$original.data %>% filter(group==1) %>% dplyr::select(iso1))),
-     y=unlist(c(siber.objs[[i]]$original.data %>% filter(group==1)%>% dplyr::select(iso2))),col="black", xlim=c(-6,6),ylim=c(-3,4),pch=16, xlab="PC1",ylab="PC2",main=paste(plot.names$name[i]),cex=1.2)+
-points(x=unlist(c(siber.objs[[i]]$original.data %>% filter(group==2) %>% dplyr::select(iso1))),
-     y=unlist(c(siber.objs[[i]]$original.data %>% filter(group==2)%>% dplyr::select(iso2))),col=alpha(color.list[i],0.6),pch=16)
-addEllipse(siber.objs[[i]]$ML.mu[[1]][ , , 1],
-                     siber.objs[[i]]$ML.cov[[1]][ , , 1],
-                     m = NULL,
-                     n = 100,
-                     p.interval = 0.95,
-                     ci.mean = FALSE,
-                     col = "black",
-                     lty = 1,
-                     lwd = 2)
-addEllipse(siber.objs[[i]]$ML.mu[[1]][ , , 2],
-                     siber.objs[[i]]$ML.cov[[1]][ , , 2],
-                     m = NULL,
-                     n = 100,
-                     p.interval = 0.95,
-                     ci.mean = FALSE,
-                     col = color.list[i],
-                     lty = 1,
-                     lwd = 2)
-legend(-6,-1.5,legend=c("Adult","Seedling"),col=c("black",alpha(color.list[i],0.6)), pch=16, lty=1, lwd=2,cex=1.2)
-
-dev.off()
-}
+# par(mfrow=c(1,1))
+# for(i in 1:length(siber.objs)){
+#   png(filename = paste("C:/Users/Katie/Google Drive/FIA project/FIA_rproject/siberplots/",names(siber.objs)[i],".jpeg",sep=""))
+# plot(x=unlist(c(siber.objs[[i]]$original.data %>% filter(group==1) %>% dplyr::select(iso1))),
+#      y=unlist(c(siber.objs[[i]]$original.data %>% filter(group==1)%>% dplyr::select(iso2))),col="black", xlim=c(-6,6),ylim=c(-3,4),pch=16, xlab="PC1",ylab="PC2",main=paste(plot.names$name[i]),cex=1.2)+
+# points(x=unlist(c(siber.objs[[i]]$original.data %>% filter(group==2) %>% dplyr::select(iso1))),
+#      y=unlist(c(siber.objs[[i]]$original.data %>% filter(group==2)%>% dplyr::select(iso2))),col=alpha(color.list[i],0.6),pch=16)
+# addEllipse(siber.objs[[i]]$ML.mu[[1]][ , , 1],
+#                      siber.objs[[i]]$ML.cov[[1]][ , , 1],
+#                      m = NULL,
+#                      n = 100,
+#                      p.interval = 0.95,
+#                      ci.mean = FALSE,
+#                      col = "black",
+#                      lty = 1,
+#                      lwd = 2)
+# addEllipse(siber.objs[[i]]$ML.mu[[1]][ , , 2],
+#                      siber.objs[[i]]$ML.cov[[1]][ , , 2],
+#                      m = NULL,
+#                      n = 100,
+#                      p.interval = 0.95,
+#                      ci.mean = FALSE,
+#                      col = color.list[i],
+#                      lty = 1,
+#                      lwd = 2)
+# legend(-6,-1.5,legend=c("Adult","Seedling"),col=c("black",alpha(color.list[i],0.6)), pch=16, lty=1, lwd=2,cex=1.2)
+# 
+# dev.off()
+# }
 ```
 
 ```{r}
@@ -1833,7 +1848,8 @@ overlap.table<- overlap.table %>%
   mutate(names = names(overlap.list)) %>% 
   separate(names,into=c("species","disturbance","extra"),sep="_") %>% 
   mutate(species = as.numeric(species)) %>% 
-  left_join(species.names,by=c("species"="species.code"))
+  left_join(species.names,by=c("species"="species.code")) %>% 
+  filter(!species.name=="singleleaf pinyon")
 ```
 
 Lets look at some plots of expansion and contraction across species and disturbances. 
@@ -1893,14 +1909,14 @@ ggplot(overlap.table %>%
   theme(axis.text.x = element_text(angle=45,vjust=0.9,hjust=0.8),axis.text=element_text(size=16,color="black"),legend.text = element_text(size=16),axis.title = element_text(size=16),legend.title = element_text(size=16))
 ```
 
-Now I will look at differences between disturbances in the amount of contraction/expansion. There are no significant differences between disturbance types and amount of contraction or expansion, however there is significantly more contraction across the board than expansion. This is true for both the set of species with all disturbances (n=8) and all species (n=14).
+Now I will look at differences between disturbances in the amount of contraction/expansion. There are no significant differences between disturbance types and amount of contraction or expansion, however there is significantly more contraction across the board than expansion. This is true for both the set of species with all disturbances (n=8) and all species (n=13).
 
 Full set results:
 
 ```{r, echo=FALSE}
-overlap.table.partialset <- overlap.table 
+overlap.table.partialset <- overlap.table
 overlap.table.fullset <- overlap.table %>% 
-  filter(!species.name %in% c("white fir","grand fir","limber pine","two needle pinyon","singleleaf pinyon","western redcedar"))
+  filter(!species.name %in% insectonlyspp)
 
 dist.exp.anova <- aov(log(mean.exp.prop.adult)~factor(disturbance),data=overlap.table.fullset)
 par(mfrow=c(2,2))
@@ -1988,11 +2004,14 @@ seed.weight.summary <- seed.weight.filter %>%
 
 seed.weight.filter %>% 
   group_by(species.name) %>% 
-  dplyr::summarise(n=n())
+  dplyr::summarise(n=n()) %>% 
+  arrange(desc(n))
+
 
 #combine
 trait.data<- trait.data %>% 
-  left_join(seed.weight.summary, by="species.name")
+  left_join(seed.weight.summary, by="species.name") %>% 
+  filter(!species.name == "singleleaf pinyon")
 
 ##add trait data to diffs dataframe
 pc1.diffs.traits <- pc1.diffs.sep %>% 
@@ -2005,7 +2024,7 @@ Let's look at the correlations between trait data.
 
 ```{r, echo=FALSE,}
 #look at correlations between traits
-cor(trait.data[,2:4])
+cor(trait.data[,c(2,4)])
 ggplot(trait.data,aes(x=shade.tolerance,y=mean.weight.mg))+
   geom_point()+
   geom_smooth(method="lm")
@@ -2082,7 +2101,7 @@ ggplot(niche.shift.trait.table, aes(x=shade.tolerance,y=mean.contr.prop.adult))+
 #seed weight
 #take out animal dispersed trees
 #ponderosa is still a bit of an outlier here - this is what's driving significant results
-contr.weight.mod<- lm(log(mean.contr.prop.adult)~mean.weight.mg*factor(disturbance),data=niche.shift.trait.table %>% filter(!dispersal == "animal"))
+contr.weight.mod<- lm(log(mean.contr.prop.adult)~mean.weight.mg*factor(disturbance),data=niche.shift.trait.table %>% filter(!dispersal == "animal") %>% filter(!species.name == "ponderosa pine"))
 par(mfrow=c(2,2))
 plot(contr.weight.mod)
 Anova(contr.weight.mod, type='3')
@@ -2111,7 +2130,7 @@ weight.contr.plot <- ggplot(data=niche.shift.trait.table %>% filter(!dispersal =
   xlab("Mean Seed Weight (mg)")+ ylab("Log(Mean Contraction)")+
     scale_color_manual(values=disturbance.colors)+
   ylim(c(-10,0))+
-  theme(axis.text = element_text(size=14),axis.title = element_text(size=14),legend.text = element_text(size=14),legend.title = element_text(size=14))
+  theme(axis.text = element_text(size=24),axis.title = element_text(size=24),legend.text = element_text(size=24),legend.title = element_text(size=24))
 
 weight.exp.plot <- ggplot(data=niche.shift.trait.table %>% filter(!dispersal == "animal"),aes(x=mean.weight.mg,y=log(mean.exp.prop.adult),color=disturbance))+
   geom_point(size=1)+
@@ -2120,7 +2139,7 @@ weight.exp.plot <- ggplot(data=niche.shift.trait.table %>% filter(!dispersal == 
   xlab("Mean Seed Weight (mg)")+ ylab("Log(Mean Expansion)")+
     scale_color_manual(values=disturbance.colors)+
   ylim(c(-10,0))+
-  theme(axis.text = element_text(size=14),axis.title = element_text(size=14),legend.text = element_text(size=14),legend.title = element_text(size=14))
+  theme(axis.text = element_text(size=24),axis.title = element_text(size=24),legend.text = element_text(size=24),legend.title = element_text(size=24))
 
 shade.contr.plot <- ggplot(data=niche.shift.trait.table,aes(x=shade.tolerance,y=log(mean.contr.prop.adult),color=disturbance))+
   geom_point(size=1)+
@@ -2129,7 +2148,7 @@ shade.contr.plot <- ggplot(data=niche.shift.trait.table,aes(x=shade.tolerance,y=
   xlab("Shade Tolerance")+ ylab("Log(Mean Contraction)")+
     scale_color_manual(values=disturbance.colors)+
   ylim(c(-10,0))+
-  theme(axis.text = element_text(size=14),axis.title = element_text(size=14),legend.text = element_text(size=14),legend.title = element_text(size=14))
+  theme(axis.text = element_text(size=24),axis.title = element_text(size=24),legend.text = element_text(size=24),legend.title = element_text(size=24))
 
 shade.exp.plot <- ggplot(data=niche.shift.trait.table,aes(x=shade.tolerance,y=log(mean.exp.prop.adult),color=disturbance))+
   geom_point(size=1)+
@@ -2138,20 +2157,20 @@ shade.exp.plot <- ggplot(data=niche.shift.trait.table,aes(x=shade.tolerance,y=lo
   xlab("Shade Tolerance")+ ylab("Log(Mean Expansion)")+
   scale_color_manual(values=disturbance.colors)+
   ylim(c(-10,0))+
-  theme(axis.text = element_text(size=14),axis.title = element_text(size=14),legend.text = element_text(size=14),legend.title = element_text(size=14))
+  theme(axis.text = element_text(size=24),axis.title = element_text(size=24),legend.text = element_text(size=24),legend.title = element_text(size=24))
 
 
 disp.exp.plot <- ggplot(data=niche.shift.trait.table, aes(x=dispersal,y=log(mean.exp.prop.adult),fill=disturbance))+
   geom_boxplot()+
   xlab("Dispersal Mode")+ ylab("Log(Mean Expansion)")+
   scale_fill_manual(values=disturbance.colors)+
-  theme(axis.text = element_text(size=14),axis.title = element_text(size=14),legend.text = element_text(size=14),legend.title = element_text(size=14))
+  theme(axis.text = element_text(size=24),axis.title = element_text(size=24),legend.text = element_text(size=24),legend.title = element_text(size=24))
 
 disp.contr.plot <- ggplot(data=niche.shift.trait.table, aes(x=dispersal,y=log(mean.contr.prop.adult),fill=disturbance))+
   geom_boxplot()+
   xlab("Dispersal Mode")+ ylab("Log(Mean Contraction)")+
   scale_fill_manual(values=disturbance.colors)+
-  theme(axis.text = element_text(size=14),axis.title = element_text(size=14),legend.text = element_text(size=14),legend.title = element_text(size=14))
+  theme(axis.text = element_text(size=24),axis.title = element_text(size=24),legend.text = element_text(size=24),legend.title = element_text(size=24))
 
 
 ```
@@ -2212,7 +2231,7 @@ pc1.exp.plot <- ggplot(data=niche.shift.trait.table,aes(x=pc1speciesmean,y=log(m
   xlab("PC1 Mean Score")+ ylab("Log(Mean Expansion)")+
   scale_color_manual(values=disturbance.colors)+
   ylim(c(-10,0))+
-  theme(axis.text = element_text(size=14),axis.title = element_text(size=14),legend.text = element_text(size=14),legend.title = element_text(size=14))
+  theme(axis.text = element_text(size=24),axis.title = element_text(size=24),legend.text = element_text(size=24),legend.title = element_text(size=24))
 
 pc1.contr.mod <- lm(log(mean.contr.prop.adult)~ pc1speciesmean*disturbance, data=niche.shift.trait.table)
 plot(pc1.contr.mod)
@@ -2228,13 +2247,19 @@ pc1.contr.plot<- ggplot(data=niche.shift.trait.table,aes(x=pc1speciesmean,y=log(
   xlab("PC1 Mean Score")+ ylab("Log(Mean Contraction)")+
   scale_color_manual(values=disturbance.colors)+
   ylim(c(-10,0))+
-  theme(axis.text = element_text(size=14),axis.title = element_text(size=14),legend.text = element_text(size=14),legend.title = element_text(size=14))
+  theme(axis.text = element_text(size=24),axis.title = element_text(size=24),legend.text = element_text(size=24),legend.title = element_text(size=24))
 
 
 ggarrange(shade.contr.plot, shade.exp.plot, weight.contr.plot, weight.exp.plot,pc1.contr.plot,pc1.exp.plot,  nrow=4, ncol=2,disp.contr.plot, disp.exp.plot, common.legend = TRUE)
+
+png("traitplot.png", width = 800, height = 1200)
+
+ggarrange(shade.contr.plot, shade.exp.plot, weight.contr.plot, weight.exp.plot,pc1.contr.plot,pc1.exp.plot,  nrow=4, ncol=2,disp.contr.plot, disp.exp.plot, common.legend = TRUE)
+
+dev.off()
 ```
 
-Now I will do the trait analysis on the data set with all 14 species, including the 6 that only have data for undisturbed and insect/disease plots. 
+Now I will do the trait analysis on the data set with all 13 species, including the 5 that only have data for undisturbed and insect/disease plots. 
 
 ```{r}
 ##partial set analysis 
