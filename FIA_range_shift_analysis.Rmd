@@ -265,6 +265,25 @@ ggarrange(adult.sample,seedling.sample, common.legend = TRUE)
 
 Looking at the seedling and adult sample sizes, we will exclude white fir, grand fir, limber pine, two needle pinyon, singleleaf pinyon, and western redcedar in fire plots from the analysis, because these groups have very low numbers of plots with seedlings. 
 
+```{r}
+#look at sample size of seedling only plots
+
+seedlingonly.sample = data.frame()
+
+for(i in 1:nrow(species.names)){
+n.seedonly <- dist_seeds_joined %>% 
+  filter(SPCD == species.names$species.code[i]) %>% 
+  filter(! PLT_CN %in% c(species.sum.long %>% filter(SPCD == species.names$species.code[i]) %>% pull(PLT_CN))) %>%
+  dplyr::group_by(Agent,SPCD) %>% 
+  dplyr::summarise(n.seedonly=n())
+seedlingonly.sample = rbind(seedlingonly.sample, n.seedonly)
+}
+
+View(sample_size %>% 
+  left_join(seedlingonly.sample))
+
+```
+
 ##Measurement years distribution
 
 The histograms below show the distribution of recent (blue) and previous (green) measurement years for the plots where adults and seedlings of each species were found.  
