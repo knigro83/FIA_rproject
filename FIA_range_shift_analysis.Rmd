@@ -1635,6 +1635,13 @@ ggplot(pc2.ttest.pvalues.sep, aes(x = agent, y = diff.means, fill = agent))+
   theme(axis.text.x = element_blank(), axis.text=element_text(color="black",size=14), text=element_text(color="black",size=14), legend.text = element_text(color="black",size=14), strip.text = element_text(color="black",size=11),legend.position = c(0.9,0), legend.justification = c(1,-0.3))
 ```
 
+##Vector Analysis
+
+```{r}
+pca_pts_by_dist
+
+```
+
 ##Niche models
 
 ```{r, echo=FALSE}
@@ -2028,6 +2035,140 @@ plot(overlap.table.fullset$mean.exp.prop.adult,overlap.table.fullset$mean.contr.
 cor.test(overlap.table.partialset$mean.exp.prop.adult,overlap.table.partialset$mean.contr.prop.adult)
 par(mfrow=c(1,1))
 plot(overlap.table.partialset$mean.exp.prop.adult,overlap.table.partialset$mean.contr.prop.adult)
+
+```
+
+###Vector Analysis
+```{r}
+centroids.list<- list()
+for(i in 1:length(ellipses.posterior.list)){
+temp.centroids <- siberCentroids(ellipses.posterior.list[[i]])
+centroids.list[[i]]<- temp.centroids
+}
+names(centroids.list) <- names(ellipses.posterior.list)
+
+angles_distances.list <- list()
+for(i in 1:length(ellipses.posterior.list)){
+  temp.angles<- allCentroidVectors(centroids.list[[i]], do.plot=FALSE)
+  angles_distances.list[[i]] <- temp.angles
+}
+names(angles_distances.list) <- names(ellipses.posterior.list)
+
+```
+
+```{r}
+#make plots
+median_vectors.list<- list()
+for(i in 1:length(angles_distances.list)){
+median_vectors <- dplyr::summarise(group_by(angles_distances.list[[i]], comparison),
+          medAngle = median(angles), medDist = median(distances))
+median_vectors.list[[i]]<- median_vectors
+}
+names(median_vectors.list) <- names(ellipses.posterior.list)
+
+origins.list<- list()
+for(i in 1:length(median_vectors.list)){
+origins <- data.frame(comparison = median_vectors.list[[i]]$comparison, 
+                      x = 0, y = 0)
+origins.list[[i]]<- origins
+}
+names(origins.list) <- names(ellipses.posterior.list)
+
+ends.list <- list()
+for(i in 1:length(median_vectors.list)){
+ends    <- with(median_vectors.list[[i]], data.frame(comparison = comparison,
+                                           x = medDist * cos(medAngle),
+                                           y = medDist * sin(medAngle)))
+ends.list[[i]]<- ends
+}
+names(ends.list) <- names(ellipses.posterior.list)
+
+# = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
+# generate the start and end points of the medians for the arrows
+for_arrows.list <- list()
+for(i in 1:length(origins.list)){
+for_arrows <- dplyr::bind_rows(origins.list[[i]], ends.list[[i]])
+for_arrows.list[[i]]<- for_arrows
+}
+names(for_arrows.list)<- names(ends.list)
+
+# rename the comparison label for nice plot labels below
+# aa <- unlist(strsplit(as.character(for_arrows$comparison), "[.]"))
+# aa <- aa[seq(3,length(aa),5)]
+# for_arrows$comparison2 <- factor(aa)
+
+
+# = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = 
+# create the cartesian points for the estimated tips of the arrows
+cart_positions.list<- list()
+for(i in 1:length(angles_distances.list)){
+cart_positions <- with(angles_distances.list[[i]], data.frame(x = distances * cos(angles),
+                             y = distances * sin(angles),
+                             comparison = comparison ))
+cart_positions.list[[i]]<- cart_positions
+}
+names(cart_positions.list)<- names(angles_distances.list)
+
+#rename
+for(i in 1:length(cart_positions.list)){
+cart_positions.list[[i]]$comparison <- names(cart_positions.list)[i]
+}
+
+for(i in 1:length(for_arrows.list)){
+for_arrows.list[[i]]$comparison <- names(for_arrows.list)[i]
+}
+
+for_arrows.all <- do.call("rbind",for_arrows.list)
+cart_positions.all <- do.call("rbind",cart_positions.list)
+# rename as above
+# bb <- unlist(strsplit(as.character(angles_distances$comparison), "[.]"))
+# bb <- bb[seq(3,length(bb),5)]
+# cart_positions$comparison2 <- factor(bb)
+
+
+
+# = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = 
+# plot it
+ggplot(cart_positions.all, aes(x,y) ) + 
+  geom_bin2d(bins = 20) +
+  scale_fill_gradient(low = "white", high = "black") +
+  #coord_cartesian(xlim = c(-20, +20), ylim = c(-20, +20)) +
+  facet_wrap( ~ comparison, scales = "fixed") + 
+  theme_classic() +
+  geom_path(data = for_arrows.all, 
+            arrow = arrow(type = "open", length = unit(0.2, "cm")),
+            col = "red", alpha = 0.6) +
+  ylab("PC2") +
+  xlab("PC1") + 
+  theme(text = element_text(size=15))
+
+#lump by disturbance
+species.names$species.code<- as.character(species.names$species.code)
+
+cart_positions.all<- cart_positions.all %>%
+  separate(comparison,into=c("species","disturbance","extra"),sep="_") %>% 
+  left_join(species.names,by=c('species'="species.code")) %>% 
+  filter(!(disturbance=="fire" & species.name %in% insectonlyspp)) %>% 
+  filter(!species.name=="singleleaf pinyon")
+for_arrows.all <- for_arrows.all %>% 
+  separate(comparison,into=c("species","disturbance","extra"),sep="_") %>% 
+  left_join(species.names,by=c('species'="species.code")) %>% 
+  filter(!(disturbance=="fire" & species.name %in% insectonlyspp)) %>% 
+  filter(!species.name=="singleleaf pinyon")
+
+ggplot(cart_positions.all, aes(x,y,fill=disturbance)) + 
+  geom_bin2d(bins = 20) +
+  #scale_fill_gradient(list(c(low = "white", high = "orange"),c(low="white",high="blue"),c(low="white",high="red"))) +
+  coord_cartesian(xlim = c(-.2, +.4), ylim = c(-.3, +.2)) +
+  facet_wrap( ~ factor(species.name), scales = "fixed") + 
+  theme_classic() +
+  geom_path(data = for_arrows.all, 
+            arrow = arrow(type = "open", length = unit(0.2, "cm")),
+            alpha = 1, size=1.5,aes(col=disturbance)) +
+  scale_color_manual(values=c(disturbance.colors[1:2],"black"))+
+  ylab("PC2") +
+  xlab("PC1") + 
+  theme(text = element_text(size=15))
 
 ```
 
