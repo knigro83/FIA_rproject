@@ -1913,6 +1913,20 @@ ggplot(overlap.table %>% filter(!(disturbance == 'fire' & species.name %in% c("l
   scale_fill_manual(values=disturbance.colors)+
   theme(axis.text.x = element_text(angle=45,vjust=0.9,hjust=0.8))
 
+#look at expansion - contraction
+overlap.table$diff = overlap.table$mean.exp.prop.adult - overlap.table$mean.contr.prop.adult
+
+diff.plot<- ggplot(overlap.table %>% filter(!(disturbance == 'fire' & species.name %in% c("limber pine","grand fir","two needle pinyon"))),aes(x=species.name,y=diff,fill=disturbance))+
+  geom_bar(stat='identity',position='dodge')+
+  scale_fill_manual(values=disturbance.colors)+
+  theme(axis.text.x = element_text(angle=45,vjust=0.9,hjust=0.8),axis.text = element_text(size=24),legend.text = element_text(size=24),legend.title = element_text(size=24),axis.title = element_text(size=24))
+
+png("diffplot.png", width = 1000, height = 800)
+
+diff.plot
+
+dev.off()
+
 
 expansion.plot <- ggplot(overlap.table %>% filter(!(disturbance == "fire" & species.name %in% c("limber pine", "grand fir","two needle pinyon"))),aes(x=disturbance,y=mean.exp.prop.adult))+
   geom_boxplot(fill="gray")+
