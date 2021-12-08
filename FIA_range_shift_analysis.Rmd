@@ -1635,13 +1635,6 @@ ggplot(pc2.ttest.pvalues.sep, aes(x = agent, y = diff.means, fill = agent))+
   theme(axis.text.x = element_blank(), axis.text=element_text(color="black",size=14), text=element_text(color="black",size=14), legend.text = element_text(color="black",size=14), strip.text = element_text(color="black",size=11),legend.position = c(0.9,0), legend.justification = c(1,-0.3))
 ```
 
-##Vector Analysis
-
-```{r}
-pca_pts_by_dist
-
-```
-
 ##Niche models
 
 ```{r, echo=FALSE}
@@ -2156,11 +2149,11 @@ for_arrows.all <- for_arrows.all %>%
   filter(!(disturbance=="fire" & species.name %in% insectonlyspp)) %>% 
   filter(!species.name=="singleleaf pinyon")
 
-ggplot(cart_positions.all, aes(x,y,fill=disturbance)) + 
-  geom_bin2d(bins = 20) +
-  #scale_fill_gradient(list(c(low = "white", high = "orange"),c(low="white",high="blue"),c(low="white",high="red"))) +
-  coord_cartesian(xlim = c(-.2, +.4), ylim = c(-.3, +.2)) +
-  facet_wrap( ~ factor(species.name), scales = "fixed") + 
+ggplot(cart_positions.all, aes(x,y)) + 
+  geom_bin2d(bins = 50) +
+  scale_fill_gradient(low = "white", high = "black") +
+  coord_cartesian(xlim = c(-.2, +.5), ylim = c(-.4, +.2)) +
+  facet_wrap( ~ factor(species.name), scales = "fixed", ncol=5) + 
   theme_classic() +
   geom_path(data = for_arrows.all, 
             arrow = arrow(type = "open", length = unit(0.2, "cm")),
@@ -2169,6 +2162,82 @@ ggplot(cart_positions.all, aes(x,y,fill=disturbance)) +
   ylab("PC2") +
   xlab("PC1") + 
   theme(text = element_text(size=15))
+
+```
+
+```{r}
+#stats on median vectors
+for(i in 1:length(median_vectors.list)){
+median_vectors.list[[i]]$comparison <- names(median_vectors.list)[i]
+}
+
+median_vectors_all <- do.call("rbind", median_vectors.list) %>% 
+  separate(comparison,into=c("species","disturbance","extra"),sep="_") %>% 
+  left_join(species.names,by=c('species'="species.code")) %>% 
+  filter(!(disturbance=="fire" & species.name %in% insectonlyspp)) %>% 
+  filter(!species.name=="singleleaf pinyon")
+
+#distance model 
+distmodmed <- aov(log(medDist) ~ factor(disturbance), data=median_vectors_all)
+par(mfrow=c(2,2))
+plot(distmodmed)
+summary(distmodmed)
+TukeyHSD(distmodmed)
+
+ggplot(median_vectors_all, aes(x=disturbance, y=medDist))+
+  geom_boxplot()
+
+#angle model 
+angmodmed <- aov(medAngle ~ factor(disturbance), data=median_vectors_all)
+par(mfrow=c(2,2))
+plot(angmodmed)
+summary(angmodmed)
+TukeyHSD(angmodmed)
+
+ggplot(median_vectors_all, aes(x=disturbance, y=medAngle))+
+  geom_boxplot()
+
+##group raw results by disturbance
+
+
+```
+
+```{r}
+##looking at averages
+for(i in 1:length(angles_distances.list)){
+angles_distances.list[[i]]$comparison <- names(angles_distances.list)[i]
+}
+
+angles_distances_all <- do.call("rbind",angles_distances.list) %>% 
+  separate(comparison,into=c("species","disturbance","extra"),sep="_") %>% 
+  left_join(species.names,by=c('species'="species.code")) %>% 
+  filter(!(disturbance=="fire" & species.name %in% insectonlyspp)) %>% 
+  filter(!species.name=="singleleaf pinyon")
+
+angles_distances_ave <- angles_distances_all %>% 
+  dplyr::group_by(species, disturbance) %>% 
+  dplyr::summarise(ave.dist = mean(distances), ave.angles = mean(angles))
+  
+#distance model 
+distmod <- aov(log(ave.dist) ~ factor(disturbance), data=angles_distances_ave)
+par(mfrow=c(2,2))
+plot(distmod)
+summary(distmod)
+TukeyHSD(distmod)
+
+ggplot(angles_distances_ave, aes(x=disturbance, y=ave.dist))+
+  geom_boxplot()
+
+  
+#angle model 
+angmod <- aov(ave.angles ~ factor(disturbance), data=angles_distances_ave)
+par(mfrow=c(2,2))
+plot(angmod)
+summary(angmod)
+TukeyHSD(angmod)
+
+ggplot(angles_distances_ave, aes(x=disturbance, y=ave.angles))+
+  geom_boxplot()
 
 ```
 
