@@ -485,13 +485,23 @@ as.data.frame(clim_pca$rotation[,1:2]) %>%
 
 ```{r, echo=FALSE}
 #plot pca and climate variable loadings
-autoplot(clim_pca,x=1,y=2,colour="grey",loadings.colour="black", loadings=T, loadings.label=T, loadings.label.colour="black", scale=0, loadings.label.vjust=-1.5, loadings.label.size=8, alpha=0.5)+
+rownames(clim_pca$rotation) <- c("Mean temp coldest month","# frost free days","climate moisture deficit","summer precip","summer temp/precip","winter precip","precip as snow","days below freezing")
+
+autoplot(clim_pca,x=1,y=2,colour="grey",loadings.colour="black", loadings=T, loadings.label=T, loadings.label.colour="black", scale=0, loadings.label.vjust=-.5, loadings.label.size=8, alpha=0.5)+
   theme_bw()+
   theme(axis.text = element_text(color="black",size=18),text = element_text(size=18),legend.text = element_text(size=18))
 
 # autoplot(alt_clim_pca,x=1,y=2,colour="grey",loadings.colour="black", loadings=T, loadings.label=T, loadings.label.colour="black", scale=0, loadings.label.vjust=-1.5, loadings.label.size=8, alpha=0.5)+
 #   theme_bw()+
 #   theme(axis.text = element_text(color="black",size=18),text = element_text(size=18),legend.text = element_text(size=18))
+
+# pdf("C:/Users/Katie/Google Drive/FIA project/FIA_rproject/figures/FIA_pca.pdf", width = 10, height = 10)
+# 
+# autoplot(clim_pca,x=1,y=2,colour="grey",loadings.colour="black", loadings=T, loadings.label=T, loadings.label.colour="black", scale=0, loadings.label.vjust=-.5, loadings.label.size=8, alpha=0.5)+
+#   theme_bw()+
+#   theme(axis.text = element_text(color="black",size=18),text = element_text(size=18),legend.text = element_text(size=18))
+# 
+# dev.off()
 ```
 
 ```{r, echo = FALSE}
@@ -881,14 +891,17 @@ pvalues.pc1<- pvalues.pc1 %>%
 quant.labs = c("5th quantile","50th quantile","95th quantile") 
 names(quant.labs)= c("quant_5","quant_50","quant_95")
 
-ggplot(pvalues.pc1, aes(x=agent, y=estimate, color = quant, fill=quant))+
+pc1.shift.plot <- ggplot(pvalues.pc1, aes(x=agent, y=estimate, color = agent, fill=agent))+
   geom_point(shape = 23, size = 3.5)+
   geom_errorbar(aes(ymin=lowerci, ymax=upperci),width=0.3, size=1)+
-  scale_color_manual(values = c("#d7191c", "#fdae61","#2b83ba"))+
-  scale_fill_manual(values = c("#d7191c", "#fdae61","#2b83ba"))+
+  #scale_color_manual(values = c("#d7191c", "#fdae61","#2b83ba"))+
+  #scale_fill_manual(values = c("#d7191c", "#fdae61","#2b83ba"))+
+  scale_color_manual(values = disturbance.colors)+
+  scale_fill_manual(values = disturbance.colors)+
   geom_text(data = subset(pvalues.pc1, !is.na(sym.pos)), aes(x=agent, y=sym.pos), label="*", color="black",size=8)+
   geom_hline(yintercept=0, color="black", lty=2, size=1)+
   ylim(c(-0.08,0.16))+
+  coord_flip()+
 facet_wrap(~ quant, labeller = labeller(quant=quant.labs))+
   ggtitle("Shifts on PC1")+
   ylab("Difference on PC1")+
@@ -1183,11 +1196,13 @@ pvalues.pc2<- pvalues.pc2 %>%
 quant.labs = c("5th quantile","50th quantile","95th quantile") 
 names(quant.labs)= c("quant_5","quant_50","quant_95")
 
-ggplot(pvalues.pc2, aes(x=agent, y=estimate, color = quant, fill=quant))+
+pc2.shift.plot<- ggplot(pvalues.pc2, aes(x=agent, y=estimate, color = agent, fill=agent))+
   geom_point(shape = 23, size = 3.5)+
   geom_errorbar(aes(ymin=lowerci, ymax=upperci),width=0.3, size=1)+
-  scale_color_manual(values = c("tan4", "#fdae61","turquoise"))+
-  scale_fill_manual(values = c("tan4", "#fdae61","turquoise"))+
+  #scale_color_manual(values = c("tan4", "#fdae61","turquoise"))+
+  #scale_fill_manual(values = c("tan4", "#fdae61","turquoise"))+
+  scale_color_manual(values = disturbance.colors)+
+  scale_fill_manual(values = disturbance.colors)+
   geom_text(data = subset(pvalues.pc2, !is.na(sym.pos)), aes(x=agent, y=sym.pos), label="*", color="black",size=8)+
   geom_hline(yintercept=0, color="black", size=1, lty=2)+
   ylim(c(-0.15,0.16))+
@@ -1197,6 +1212,13 @@ ggplot(pvalues.pc2, aes(x=agent, y=estimate, color = quant, fill=quant))+
   ylab("Difference on PC2")+
   theme_bw()+
   theme(axis.text.x = element_text(angle=45, hjust = 1), axis.text = element_text(color="black",size=12), text = element_text(color="black",size=12), strip.text = element_text(color="black",size=12), legend.position = "none")
+```
+
+```{r}
+#combine pc1 and pc2 plots
+
+ggarrange(pc1.shift.plot, pc2.shift.plot, ncol=1)
+
 ```
 
 ```{r, echo=FALSE}
@@ -2163,6 +2185,57 @@ ggplot(cart_positions.all, aes(x,y)) +
   xlab("PC1") + 
   theme(text = element_text(size=15))
 
+ggplot(cart_positions.all, aes(x,y)) + 
+  geom_bin2d(bins = 50) +
+  scale_fill_gradient(low = "white", high = "black") +
+  coord_cartesian(xlim = c(-.2, +.5), ylim = c(-.4, +.2)) +
+  facet_wrap( ~ factor(disturbance), scales = "fixed", ncol=3) + 
+  theme_classic() +
+  geom_path(data = for_arrows.all, 
+            arrow = arrow(type = "open", length = unit(0.2, "cm")),
+            alpha = 1, size=1.5,aes(col=species.name)) +
+  scale_color_manual(values=c("#d55f90","#5aa554","#ad74d6","#9ab13f","#6070d5","#cd9337","#563686","#45c097","#8b2965","#9b8a40","#ca71c0","#b95336","#628ed6","#ba4758"))+
+  ylab("PC2") +
+  xlab("PC1") + 
+  theme(text = element_text(size=15))
+
+```
+
+```{r}
+#circle plot
+
+arrow_extremes <- for_arrows.all %>% 
+  filter(!x==0) %>% 
+  group_by(disturbance) %>% 
+  dplyr::summarise(min.x = min(x), min.y=min(y), max.y=max(y))
+
+top_points<- for_arrows.all %>% 
+  filter(!x==0) %>% 
+  filter(disturbance=="insect.disease" & species.name %in% c("limber pine")|
+           disturbance == "fire" & species.name %in% c("lodgepole pine")|
+           disturbance == "none" & species.name %in% c("whitebark pine")) %>% 
+  dplyr::rename(c("xtop" = "x", "ytop" = "y"))
+
+bottom_points<- for_arrows.all %>% 
+  filter(!x==0) %>% 
+  filter(disturbance=="insect.disease" & species.name %in% c("whitebark pine")|
+           disturbance == "fire" & species.name %in% c("whitebark pine")|
+           disturbance == "none" & species.name %in% c("white fir")) %>% 
+  dplyr::rename(c("xbot" = "x", "ybot" = "y"))
+
+extreme_points <- top_points %>% 
+  left_join(bottom_points, by="disturbance")
+
+
+ggplot(extreme_points)+
+  geom_curve(aes(x=xtop, y=ytop,xend=xbot,yend=ybot,color=disturbance), curvature = -0.5)+
+  scale_color_manual(values=disturbance.colors)+
+  geom_hline(yintercept = 0, lty = 2)+
+  geom_vline(xintercept = 0, lty = 2)+
+  geom_abline(intercept = 0, slope=1, lty = 2)+
+  geom_abline(intercept = 0, slope= -1, lty = 2)
+
+
 ```
 
 ```{r}
@@ -2184,8 +2257,33 @@ plot(distmodmed)
 summary(distmodmed)
 TukeyHSD(distmodmed)
 
-ggplot(median_vectors_all, aes(x=disturbance, y=medDist))+
-  geom_boxplot()
+anova.stats.meddist <- data.frame(disturbance=c("fire","insect.disease","none"), y=c(0.37,0.37,0.37),letter=c("AB","A","B"))
+
+ggplot(median_vectors_all, aes(x=disturbance, y=medDist, fill=disturbance))+
+  geom_boxplot()+
+  ylab("Median distance")+
+  xlab("")+
+  scale_fill_manual(values=disturbance.colors)+
+  geom_text(data= anova.stats.meddist, aes(x=disturbance,y=y,label=letter),size=8)+
+  theme_bw()+
+  theme(text=element_text(size=26, color="black"),axis.text = element_text(color="black"),legend.position = "none")
+
+#distance model 8 spp
+distmodmed.8spp <- aov(log(medDist) ~ factor(disturbance), data=median_vectors_all %>% filter(!species.name %in% c(insectonlyspp)))
+par(mfrow=c(2,2))
+plot(distmodmed.8spp)
+summary(distmodmed.8spp)
+TukeyHSD(distmodmed.8spp)
+
+
+ggplot(median_vectors_all %>% filter(!species.name %in% c(insectonlyspp)), aes(x=disturbance, y=medDist, fill=disturbance))+
+  geom_boxplot()+
+  scale_fill_manual(values=disturbance.colors)+
+  ylab("Median distance")+
+  xlab("")+
+  theme_bw()+
+  theme(text=element_text(size=26, color="black"),axis.text = element_text(color="black"),legend.position = "none")
+
 
 #angle model 
 angmodmed <- aov(medAngle ~ factor(disturbance), data=median_vectors_all)
@@ -2194,8 +2292,17 @@ plot(angmodmed)
 summary(angmodmed)
 TukeyHSD(angmodmed)
 
-ggplot(median_vectors_all, aes(x=disturbance, y=medAngle))+
-  geom_boxplot()
+anova.stats.medang <- data.frame(disturbance=c("fire","insect.disease","none"), y=c(1.4,1.4,1.4),letter=c("A","B","AB"))
+
+ggplot(median_vectors_all, aes(x=disturbance, y=medAngle, fill=disturbance))+
+  geom_boxplot()+
+  ylab("Median angle (radians)")+
+  xlab("")+
+  scale_fill_manual(values=disturbance.colors)+
+  geom_text(data= anova.stats.medang, aes(x=disturbance,y=y,label=letter),size=8)+
+  theme_bw()+
+  theme(text=element_text(size=26, color="black"),axis.text = element_text(color="black"),legend.position = "none")
+
 
 ##group raw results by disturbance
 
