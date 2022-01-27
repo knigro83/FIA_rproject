@@ -263,7 +263,7 @@ seedling.sample <- ggplot(sample_size,aes(x=Agent, y=n.seed, fill=factor(species
 ggarrange(adult.sample,seedling.sample, common.legend = TRUE)
 ```
 
-Looking at the seedling and adult sample sizes, we will exclude white fir, grand fir, limber pine, two needle pinyon, singleleaf pinyon, and western redcedar in fire plots from the analysis, because these groups have very low numbers of plots with seedlings. 
+Looking at the seedling and adult sample sizes, we will exclude white fir, grand fir, limber pine, two needle pinyon,  and western redcedar in fire plots from the analysis, because these groups have very low numbers of plots with seedlings. We also exclude singleleaf pinyon from the analysis because the plots in this analysis do not seem to capture the full range of this species (it's niche is weirdly cut off in climate space).  
 
 ```{r}
 #look at sample size of seedling only plots
@@ -331,7 +331,7 @@ merge_sp_dist_env <- function(joined_df, sp_code, agent_name, env_vars) {  sp_di
   return(sp_dist_env)
 }
    
-#FIA codes for all desired species (n=8) and disturbances (n=3)
+#FIA codes for all desired species (n=14) and disturbances (n=3)
 sp_codes <- as.character(unique(sample_seeds_over60$SPCD))
 dist_names <- c("fire","insect.disease","none")
 
@@ -477,6 +477,9 @@ as.data.frame(clim_pca$rotation[,1:2]) %>%
 as.data.frame(clim_pca$rotation[,1:2]) %>% 
   tibble::rownames_to_column() %>% 
   arrange(desc(abs(PC2)))
+as.data.frame(clim_pca$rotation[,1:3]) %>% 
+  tibble::rownames_to_column() %>% 
+  arrange(desc(abs(PC3))) #PC3 separates monsoonal areas from dry summer/wet winter areas
 
 # as.data.frame(alt_clim_pca$rotation[,1:2]) %>% 
 #   tibble::rownames_to_column() %>% 
@@ -487,7 +490,7 @@ as.data.frame(clim_pca$rotation[,1:2]) %>%
 #plot pca and climate variable loadings
 rownames(clim_pca$rotation) <- c("Mean temp coldest month","# frost free days","climate moisture deficit","summer precip","summer temp/precip","winter precip","precip as snow","days below freezing")
 
-autoplot(clim_pca,x=1,y=2,colour="grey",loadings.colour="black", loadings=T, loadings.label=T, loadings.label.colour="black", scale=0, loadings.label.vjust=-.5, loadings.label.size=8, alpha=0.5)+
+autoplot(clim_pca,x=1,y=3,colour="grey",loadings.colour="black", loadings=T, loadings.label=T, loadings.label.colour="black", scale=0, loadings.label.vjust=-.5, loadings.label.size=8, alpha=0.5)+
   theme_bw()+
   theme(axis.text = element_text(color="black",size=18),text = element_text(size=18),legend.text = element_text(size=18))
 
@@ -636,6 +639,34 @@ pc1.diffs.sep <- pc1.diffs.table %>%
   left_join(species.names,by=c("species" = "species.code")) %>% 
   filter(!(agent == "fire" & species.name %in% insectonlyspp)) %>% 
   filter(!species.name=="singleleaf pinyon")
+```
+
+```{r}
+#spot check diffs
+i = 10
+adult.q<- adult_data_pcapts %>% 
+    pluck(names(adult_data)[i]) %>% 
+    ungroup() %>% 
+    dplyr::select(PC1) %>% 
+    dplyr::summarise(quantile = quantile(PC1,probs = .95))
+  seed.q<- seedling_data_pcapts %>% 
+    pluck(names(adult_data)[i]) %>% 
+    ungroup() %>% 
+    dplyr::select(PC1) %>% 
+    dplyr::summarise(quantile = quantile(PC1,probs = .95))
+  adult.95<- adult_data_pcapts %>% 
+    pluck(names(adult_data)[i]) %>% 
+    ungroup() %>% 
+    dplyr::select(PC1) %>% 
+    dplyr::summarise(quantile = quantile(PC1,probs = 0.95))
+  adult.05 <- adult_data_pcapts %>% 
+    pluck(names(adult_data)[i]) %>% 
+    ungroup() %>% 
+    dplyr::select(PC1) %>% 
+    dplyr::summarise(quantile = quantile(PC1,probs = 0.05))
+  adult.tolerance <- adult.95 - adult.05
+  q_diff = (seed.q - adult.q)/adult.tolerance
+
 ```
 
 ```{r, eval=FALSE, echo=FALSE, results='hide'}
@@ -1946,11 +1977,11 @@ diff.plot<- ggplot(overlap.table %>% filter(!(disturbance == 'fire' & species.na
   scale_fill_manual(values=disturbance.colors)+
   theme(axis.text.x = element_text(angle=45,vjust=0.9,hjust=0.8),axis.text = element_text(size=24),legend.text = element_text(size=24),legend.title = element_text(size=24),axis.title = element_text(size=24))
 
-png("diffplot.png", width = 1000, height = 800)
-
-diff.plot
-
-dev.off()
+# png("diffplot.png", width = 1000, height = 800)
+# 
+# diff.plot
+# 
+# dev.off()
 
 
 expansion.plot <- ggplot(overlap.table %>% filter(!(disturbance == "fire" & species.name %in% c("limber pine", "grand fir","two needle pinyon"))),aes(x=disturbance,y=mean.exp.prop.adult))+
@@ -2207,14 +2238,13 @@ library("ochRe")
 names(ochre_palettes)
 #viz_palette(ochre_palettes[["parliament"]])
 
-install.packages("pals")
+#install.packages("pals")
 library(pals)
-tol()
 
 rect.colors = brewer.pal(n=4, name='BrBG')
-rect.colors = ochre_palettes[["parliament"]][c(1,4,6,5)]
-rect.colors = ochre_palettes[["olsen_seq"]][c(1,13,10,12)]
-rect.colors = tol()[c(8,5,3,2)]
+# rect.colors = ochre_palettes[["parliament"]][c(1,4,6,5)]
+# rect.colors = ochre_palettes[["olsen_seq"]][c(1,13,10,12)]
+# rect.colors = tol()[c(8,5,3,2)]
 #another option: c(#888C24,#004D60,#C9F0E8,#C63B0B,#C63B0B)
 #####
 
@@ -2227,7 +2257,7 @@ ggplot()+
     geom_polygon(data=df.triangle,aes(y=y,x=x,group))
 
 
-ggplot(cart_positions.all, aes(x,y)) +
+arrowsplot1<- ggplot(cart_positions.all, aes(x,y)) +
   geom_polygon(data=df.top.triangle, aes(x,y),fill=rect.colors[2],alpha=0.8)+
   geom_polygon(data=df.right.triangle, aes(x,y),fill=rect.colors[4],alpha=0.8)+
   geom_polygon(data=df.bottom.triangle, aes(x,y),fill=rect.colors[3],alpha=0.8)+
@@ -2252,7 +2282,7 @@ ggplot(cart_positions.all, aes(x,y)) +
   annotate(geom="text",x=-0.4,y= 0,label="hot/dry",size=5,angle=90)+
   ylab("PC2") +
   xlab("PC1") + 
-  theme(text = element_text(size=15))
+  theme(text = element_text(size=20,color="black"),legend.position = "none")
 
 #option2
 ggplot(cart_positions.all, aes(x,y)) +
@@ -2353,14 +2383,16 @@ plot(distmodmed.8spp)
 summary(distmodmed.8spp)
 TukeyHSD(distmodmed.8spp)
 
+anova.stats.meddist <- data.frame(disturbance=c("fire","insect.disease","none"), y=c(.38,.38,.38),letter=c("A","A","A"))
 
-ggplot(median_vectors_all %>% filter(!species.name %in% c(insectonlyspp)), aes(x=disturbance, y=medDist, fill=disturbance))+
+distance.boxplot<- ggplot(median_vectors_all %>% filter(!species.name %in% c(insectonlyspp)), aes(x=disturbance, y=medDist, fill=disturbance))+
   geom_boxplot()+
-  scale_fill_manual(values=disturbance.colors)+
+  scale_fill_manual(values=c("lightgray","darkgray","white"))+
   ylab("Median distance")+
   xlab("")+
+  geom_text(data= anova.stats.meddist, aes(x=disturbance,y=y,label=letter),size=5)+
   theme_bw()+
-  theme(text=element_text(size=26, color="black"),axis.text = element_text(color="black"),legend.position = "none")
+  theme(text=element_text(size=20, color="black"),axis.text = element_text(color="black"),legend.position = "none")
 
 
 #angle model 
@@ -2373,31 +2405,39 @@ TukeyHSD(angmodmed)
 anova.stats.medang <- data.frame(disturbance=c("fire","insect.disease","none"), y=c(1.5,1.5,1.5),letter=c("A","B","AB"))
 
 
-ggplot(median_vectors_all, aes(x=disturbance, y=medAngle, fill=disturbance))+
+angle.boxplot<- ggplot(median_vectors_all, aes(x=disturbance, y=medAngle, fill=disturbance))+
   annotate("rect",xmin = -Inf, xmax = Inf, ymin=0.79, ymax = 2.35, fill=rect.colors[2], alpha = 0.7)+
   annotate("rect",xmin = -Inf, xmax = Inf, ymin=-0.79, ymax = 0.79, fill=rect.colors[4], alpha = 0.7)+
   annotate("rect",xmin = -Inf, xmax = Inf, ymin=-2.35, ymax = -0.79, fill=rect.colors[3], alpha = 0.7)+
   annotate("rect",xmin = -Inf, xmax = Inf, ymin=-3.14, ymax = -2.35, fill=rect.colors[1], alpha = 0.7)+
   annotate("rect",xmin = -Inf, xmax = Inf, ymin=2.35, ymax = 3.14, fill=rect.colors[1], alpha = 0.7)+
-  geom_text(aes(x="none",y=2.745),nudge_x=0.45,label="hot/dry",size=5)+
-  geom_text(aes(x="none",y=1.57),nudge_x=0.45,label="hot/wet",size=5)+
-  geom_text(aes(x="none",y=0),nudge_x=0.45,label="cold/wet",size=5)+
-  geom_text(aes(x="none",y=-1.57),nudge_x=0.45,label="cold/dry",size=5)+
-  geom_text(aes(x="none",y=-2.745),nudge_x=0.45,label="hot/dry",size=5)+
+  geom_text(aes(x="none",y=2.745),nudge_x=0.4,label="hot/dry",size=3.5)+
+  geom_text(aes(x="none",y=1.57),nudge_x=0.4,label="hot/wet",size=3.5)+
+  geom_text(aes(x="none",y=0),nudge_x=0.4,label="cold/wet",size=3.5)+
+  geom_text(aes(x="none",y=-1.57),nudge_x=0.4,label="cold/dry",size=3.5)+
+  geom_text(aes(x="none",y=-2.745),nudge_x=0.4,label="hot/dry",size=3.5)+
   geom_boxplot()+
   geom_jitter(data=median_vectors_all,aes(x=disturbance, y=medAngle),width=0.1,height=0.1)+
   ylab("Median angle (radians)")+
   xlab("")+
   ylim(c(-3.14,3.14))+
   scale_fill_manual(values=c("lightgray","darkgray","white"))+
-  geom_text(data= anova.stats.medang, aes(x=disturbance,y=y,label=letter),size=8)+
+  geom_text(data= anova.stats.medang, aes(x=disturbance,y=y,label=letter),size=5)+
   theme_bw()+
-  theme(text=element_text(size=26, color="black"),axis.text = element_text(color="black"),legend.position = "none")
+  theme(text=element_text(size=20, color="black"),axis.text = element_text(color="black"),legend.position = "none")
 
+```
 
-##group raw results by disturbance
+```{r}
+#combine plots
+boxplots<- ggarrange(distance.boxplot,angle.boxplot,nrow=2,ncol=1)
+arrowcentroidplot<- ggarrange(arrowsplot1,boxplots, nrow=1,ncol=2, widths=c(2,1))
 
+pdf(file="C:/Users/Katie/Google Drive/FIA project/FIA_rproject/figures/arrowsplot.pdf",width=17,height=8)
 
+arrowcentroidplot
+
+dev.off()
 ```
 
 ```{r}
@@ -2443,7 +2483,7 @@ ggplot(angles_distances_ave, aes(x=disturbance, y=ave.angles))+
 
 ```{r}
 #shifts in median
-x<- t.test(for_arrows.all %>% filter(!y == 0 & disturbance == "insect.disease") %>% pull(y))
+t.test(for_arrows.all %>% filter(!y == 0 & disturbance == "insect.disease") %>% pull(y))
 t.test(for_arrows.all %>% filter(!y == 0 & disturbance == "insect.disease") %>% pull(x))
 
 t.test(for_arrows.all %>% filter(!y == 0 & disturbance == "fire") %>% pull(y))
@@ -2489,18 +2529,37 @@ for(i in 1:length(ellipses.posterior.list)){
   for(j in 1:4000){
 set.seed(100)
 
-adult_pc1_quantiles<- quantile(mvrnorm(n=1000,mu=c(ellipses.posterior.list[[i]]$`1.1`[j,5:6]), Sigma = matrix(c(ellipses.posterior.list[[i]]$`1.1`[j,1:4]),nrow=2,ncol=2, byrow = FALSE))[1,],c(0.025,0.975))
+adult_pc1_quantiles<- quantile(mvrnorm(n=1000,mu=c(ellipses.posterior.list[[i]]$`1.1`[j,5:6]), Sigma = matrix(c(ellipses.posterior.list[[i]]$`1.1`[j,1:4]),nrow=2,ncol=2, byrow = FALSE))[,1],c(0.025,0.975))
 
-adult_pc2_quantiles<- quantile(mvrnorm(n=1000,mu=c(ellipses.posterior.list[[i]]$`1.1`[j,5:6]), Sigma = matrix(c(ellipses.posterior.list[[i]]$`1.1`[j,1:4]),nrow=2,ncol=2, byrow = FALSE))[2,],c(0.025,0.975))
+adult_pc2_quantiles<- quantile(mvrnorm(n=1000,mu=c(ellipses.posterior.list[[i]]$`1.1`[j,5:6]), Sigma = matrix(c(ellipses.posterior.list[[i]]$`1.1`[j,1:4]),nrow=2,ncol=2, byrow = FALSE))[,2],c(0.025,0.975))
 
-seedling_pc1_quantiles<- quantile(mvrnorm(n=1000,mu=c(ellipses.posterior.list[[i]]$`1.2`[j,5:6]), Sigma = matrix(c(ellipses.posterior.list[[i]]$`1.2`[j,1:4]),nrow=2,ncol=2, byrow = FALSE))[1,],c(0.025,0.975))
+seedling_pc1_quantiles<- quantile(mvrnorm(n=1000,mu=c(ellipses.posterior.list[[i]]$`1.2`[j,5:6]), Sigma = matrix(c(ellipses.posterior.list[[i]]$`1.2`[j,1:4]),nrow=2,ncol=2, byrow = FALSE))[,1],c(0.025,0.975))
 
-seedling_pc2_quantiles<- quantile(mvrnorm(n=1000,mu=c(ellipses.posterior.list[[i]]$`1.2`[j,5:6]), Sigma = matrix(c(ellipses.posterior.list[[i]]$`1.2`[j,1:4]),nrow=2,ncol=2, byrow = FALSE))[2,],c(0.025,0.975))
+seedling_pc2_quantiles<- quantile(mvrnorm(n=1000,mu=c(ellipses.posterior.list[[i]]$`1.2`[j,5:6]), Sigma = matrix(c(ellipses.posterior.list[[i]]$`1.2`[j,1:4]),nrow=2,ncol=2, byrow = FALSE))[,2],c(0.025,0.975))
 
 temp.table[j,]<-c(adult_pc1_quantiles,adult_pc2_quantiles,seedling_pc1_quantiles,seedling_pc2_quantiles)
 }
 quantile.table[i,]<- colMeans(temp.table)
-  }
+}
+
+##try taking means first
+# quantile.table2 <- matrix(ncol=8,nrow=length(ellipses.posterior.list))
+# colnames(quantile.table)<- c("adultpc1_2.5","adultpc1_97.5","adultpc2_2.5","adultpc2_97.5","seedlingpc1_2.5","seedlingpc1_97.5","seedlingpc2_2.5","seedlingpc2_97.5")
+# 
+# for(i in 1:length(ellipses.posterior.list)){
+# set.seed(100)
+# 
+# adult_pc1_quantiles<- quantile(mvrnorm(n=1000,mu=c(mean(ellipses.posterior.list[[i]]$`1.1`[,5]),mean(ellipses.posterior.list[[i]]$`1.1`[,6])), Sigma = matrix(c(mean(ellipses.posterior.list[[i]]$`1.1`[,1]),mean(ellipses.posterior.list[[i]]$`1.1`[,2]),mean(ellipses.posterior.list[[i]]$`1.1`[,3]),mean(ellipses.posterior.list[[i]]$`1.1`[,4])),nrow=2,ncol=2, byrow = FALSE))[,1],c(0.025,0.975))
+# 
+# adult_pc2_quantiles<- quantile(mvrnorm(n=1000,mu=c(ellipses.posterior.list[[i]]$`1.1`[j,5:6]), Sigma = matrix(c(ellipses.posterior.list[[i]]$`1.1`[j,1:4]),nrow=2,ncol=2, byrow = FALSE))[2,],c(0.025,0.975))
+# 
+# seedling_pc1_quantiles<- quantile(mvrnorm(n=1000,mu=c(ellipses.posterior.list[[i]]$`1.2`[j,5:6]), Sigma = matrix(c(ellipses.posterior.list[[i]]$`1.2`[j,1:4]),nrow=2,ncol=2, byrow = FALSE))[1,],c(0.025,0.975))
+# 
+# seedling_pc2_quantiles<- quantile(mvrnorm(n=1000,mu=c(ellipses.posterior.list[[i]]$`1.2`[j,5:6]), Sigma = matrix(c(ellipses.posterior.list[[i]]$`1.2`[j,1:4]),nrow=2,ncol=2, byrow = FALSE))[2,],c(0.025,0.975))
+# 
+# quantile.table[i,]<- colMeans(temp.table)
+#   }
+
 
   
 quantile.df <- data.frame(quantile.table) %>% 
@@ -2585,7 +2644,7 @@ shapiro.test(quantile.diffs.df %>% filter(disturbance == "insect.disease") %>% p
 ggqqplot(quantile.diffs.df %>% filter(disturbance == "none") %>% pull(pc1_2.5_diff))
 shapiro.test(quantile.diffs.df %>% filter(disturbance == "none") %>% pull(pc1_2.5_diff))
 
-#pc1 97.5 fire
+#pc1 97.5 fire -- NOT NORMAL
 ggqqplot(quantile.diffs.df %>% filter(disturbance == "fire") %>% pull(pc1_97.5_diff))
 shapiro.test(quantile.diffs.df %>% filter(disturbance == "fire") %>% pull(pc1_97.5_diff))
 
@@ -2640,33 +2699,30 @@ test.temp<- quantile.diffs.df %>% filter(disturbance == disturbance.list[i]) %>%
 ttest.results<- rbind(ttest.results,c(agent =  disturbance.list[i], quant = quant.list[j], p.value = test.temp$p.value, estimate = test.temp$estimate, lowerci = test.temp$conf.int[1], upperci = test.temp$conf.int[2], t=test.temp$statistic, df=test.temp$parameter, wilcoxon="n"))
   }}
 
-# #pc2 2.5 none
-# #pc1 97.5 ID 
-# #pc1 2.5 ID 
-# normal.dist.list<- c("none","insect.disease","insect.disease")
-# normal.quant.list<- c("pc2_2.5_diff","pc1_2.5_diff","pc1_97.5_diff")
-# 
-# normal.results <- list(
-# quantile.diffs.df %>% filter(disturbance == "none") %>% 
-#   pull("pc2_2.5_diff") %>% 
-#   t.test(y = NULL, alternative = "two.sided", mu = 0, paired = FALSE, var.equal = FALSE, conf.level = 0.95),
-# quantile.diffs.df %>% filter(disturbance == "insect.disease") %>% 
-#   pull("pc1_2.5_diff") %>% 
-#   t.test(y = NULL, alternative = "two.sided", mu = 0, paired = FALSE, var.equal = FALSE, conf.level = 0.95),
-#  quantile.diffs.df %>% filter(disturbance == "insect.disease") %>% 
-#   pull("pc1_97.5_diff") %>% 
-#   t.test(y = NULL, alternative = "two.sided", mu = 0, paired = FALSE, var.equal = FALSE, conf.level = 0.95)
-# )
-# 
-# normal.results.table<-data.frame(agent = NA, quant = NA, p.value = NA, estimate = NA, lowerci = NA, upperci = NA, t=NA, df=NA, wilcoxon=NA) 
-# for(i in 1:3){
-# normal.results.table<- rbind(normal.results.table,c(agent =  normal.dist.list[i], quant = normal.quant.list[i], p.value = normal.results[[i]]$p.value, estimate = normal.results[[i]]$estimate, lowerci = normal.results[[i]]$conf.int[1], upperci = normal.results[[i]]$conf.int[2], t=normal.results[[i]]$statistic, df=normal.results[[i]]$parameter, wilcoxon="n"))
-# }
+#pc1 97.5 fire
+nonnormal.dist.list<- c("fire")
+nonnormal.quant.list<- c("pc1_97.5_diff")
 
-#  rows_update(normal.results.table,by=c("agent","quant")) %>% 
+nonnormal.results <- list(
+# quantile.diffs.df %>% filter(disturbance == "none") %>%
+#   pull("pc2_2.5_diff") %>%
+#   t.test(y = NULL, alternative = "two.sided", mu = 0, paired = FALSE, var.equal = FALSE, conf.level = 0.95),
+# quantile.diffs.df %>% filter(disturbance == "insect.disease") %>%
+#   pull("pc1_2.5_diff") %>%
+#   t.test(y = NULL, alternative = "two.sided", mu = 0, paired = FALSE, var.equal = FALSE, conf.level = 0.95),
+ quantile.diffs.df %>% filter(disturbance == "fire") %>%
+  pull("pc1_97.5_diff") %>%
+  wilcox.test(y = NULL, alternative = "two.sided", mu = 0, conf.int = TRUE, conf.level = 0.95)
+)
+
+nonnormal.results.table<-data.frame(agent = NA, quant = NA, p.value = NA, estimate = NA, lowerci = NA, upperci = NA, t=NA, df=NA, wilcoxon=NA)
+for(i in 1){
+nonnormal.results.table<- rbind(nonnormal.results.table,c(agent =  nonnormal.dist.list[i], quant = nonnormal.quant.list[i], p.value = nonnormal.results[[i]]$p.value, estimate = nonnormal.results[[i]]$estimate, lowerci = nonnormal.results[[i]]$conf.int[1], upperci = nonnormal.results[[i]]$conf.int[2], t=nonnormal.results[[i]]$statistic, df=NA, wilcoxon="y"))
+}
 
 
 percentile.results<- ttest.results %>% 
+  rows_update(nonnormal.results.table,by=c("agent","quant")) %>%  #put in wilcoxen results
   separate(quant,into=c("pc","quant","extra"),sep="_") %>% 
   filter(!is.na(agent)) %>% 
   mutate(estimate=as.numeric(estimate),
