@@ -2258,10 +2258,10 @@ ggplot()+
 
 
 arrowsplot1<- ggplot(cart_positions.all, aes(x,y)) +
-  geom_polygon(data=df.top.triangle, aes(x,y),fill=rect.colors[2],alpha=0.8)+
-  geom_polygon(data=df.right.triangle, aes(x,y),fill=rect.colors[4],alpha=0.8)+
-  geom_polygon(data=df.bottom.triangle, aes(x,y),fill=rect.colors[3],alpha=0.8)+
-  geom_polygon(data=df.left.triangle, aes(x,y),fill=rect.colors[1],alpha=0.8)+
+  geom_polygon(data=df.top.triangle, aes(x,y),fill=rect.colors[2],alpha=0.5)+
+  geom_polygon(data=df.right.triangle, aes(x,y),fill=rect.colors[4],alpha=0.5)+
+  geom_polygon(data=df.bottom.triangle, aes(x,y),fill=rect.colors[3],alpha=0.5)+
+  geom_polygon(data=df.left.triangle, aes(x,y),fill=rect.colors[1],alpha=0.5)+
   geom_bin2d(bins = 50, fill="white", aes(alpha= ..density..)) +
   scale_alpha(range=c(0.1,1)) +
   coord_cartesian(xlim = c(-.4, +.4), ylim = c(-.4, +.4)) +
@@ -3065,7 +3065,7 @@ pc1.contr.plot<- ggplot(data=niche.shift.trait.table,aes(x=pc1speciesmean,y=log(
   theme(axis.text = element_text(size=24),axis.title = element_text(size=24),legend.text = element_text(size=24),legend.title = element_text(size=24),plot.margin = unit(c(0.5, 0.5, 0, 0.5), "cm"))
 
 
-ggarrange(shade.exp.plot,shade.contr.plot ,weight.exp.plot,  weight.contr.plot, pc1.exp.plot, pc1.contr.plot, nrow=4, ncol=2,disp.exp.plot,disp.contr.plot,  common.legend = TRUE, labels= c("a","","b","","c","","d"), font.label = list(size=24))
+ggarrange(shade.exp.plot,shade.contr.plot ,weight.exp.plot,  weight.contr.plot, pc1.exp.plot, pc1.contr.plot, nrow=5, ncol=2, disp.exp.plot,disp.contr.plot,  common.legend = TRUE, labels= c("a","","b","","c","","d"), font.label = list(size=24))
 
 png("traitplot.png", width = 800, height = 1200)
 
@@ -3268,6 +3268,55 @@ ggarrange(shade.contr.plot.partial, shade.exp.plot.partial, weight.contr.plot.pa
 
 
 #Other
+
+## >1 Condition Plots
+
+I'm going to look at where the plots were that I excluded based on being in more than one condition. 
+
+```{r}
+#FIA data for WA, OR, CA, AZ, CO, NM, NV, ID, UT, WY, NE, SD, ND, MT, KS, OK, TX
+
+## updated 1/23/2020 for new FIA data. Restricted to only Interior West plots since that's all we have coordinates for. 
+##read in FIA tree & regen data 
+cond<- read_csv("C:/Users/Katie/Google Drive/FIA project/compiled_data_annual2020/COND.csv")
+survey<- read_csv("C:/Users/Katie/Google Drive/FIA project/compiled_data_annual2020/SURVEY.csv")
+
+##subset to public plots in more than one condition, forested and unforested
+cond %>% 
+  filter(OWNCD < 40) %>% 
+  filter(COND_STATUS_CD == 2) %>% 
+  dplyr::select(CONDPROP_UNADJ) %>% 
+  ggplot(aes(x=CONDPROP_UNADJ))+
+  geom_histogram()
+
+cond %>% 
+  filter(OWNCD < 40) %>% 
+  filter(COND_STATUS_CD == 2) %>% 
+  left_join(plot,by=c("PLT_CN" = "CN")) %>% 
+  dplyr::select(ELEV) %>% 
+  ggplot(aes(x=ELEV))+
+  geom_histogram()+
+  ggtitle("Elevation of public non-forested plots")
+
+nonforest.plots <- cond %>% 
+  filter(OWNCD < 40) %>% 
+  filter(COND_STATUS_CD == 2) %>% 
+  left_join(plot,by=c("PLT_CN" = "CN"))
+
+forest.plots.multconds <- cond %>% 
+  filter(OWNCD < 40) %>% 
+  filter(COND_STATUS_CD == 1) %>% 
+  filter(CONDPROP_UNADJ < 1) %>% 
+  left_join(plot,by=c("PLT_CN" = "CN"))
+
+usa<- map_data("state")
+
+ggplot()+
+  geom_polygon(data=usa,aes(x=long, y=lat, group=group),
+                color="black", fill="lightblue")+
+  geom_point(data=forest.plots.multconds, aes(x=LON, y=LAT))+
+  coord_quickmap()
+```
 
 ##Tree status exploration
 This plot shows the number of trees with STATUS codes of 0-3 across all plots used in the analysis, separated by disturbance category. Status codes are as follows:
