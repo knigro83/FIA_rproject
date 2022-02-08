@@ -488,9 +488,20 @@ as.data.frame(clim_pca$rotation[,1:3]) %>%
 
 ```{r, echo=FALSE}
 #plot pca and climate variable loadings
-rownames(clim_pca$rotation) <- c("Mean temp coldest month","# frost free days","climate moisture deficit","summer precip","summer temp/precip","winter precip","precip as snow","days below freezing")
+#rownames(clim_pca$rotation) <- c("Mean temp coldest month","# frost free days","climate moisture deficit","summer precip","summer temp/precip","winter precip","precip as snow","days below freezing")
 
-autoplot(clim_pca,x=1,y=3,colour="grey",loadings.colour="black", loadings=T, loadings.label=T, loadings.label.colour="black", scale=0, loadings.label.vjust=-.5, loadings.label.size=8, alpha=0.5)+
+autoplot(clim_pca,x=1,y=2,colour="grey",loadings.colour="red", loadings=T, loadings.label=T, loadings.label.colour="black", scale=0, loadings.label.vjust=c(-.5,-.3,-.5,-.3,-.4,1.1,1.4,0), loadings.label.hjust=c(0,1,0,-.1,1.1,-.1,0,-.1), loadings.label.size=7, alpha=0.5)+
+  geom_hline(yintercept=0,linetype="dashed")+geom_vline(xintercept=0,linetype="dashed")+
+  geom_abline(intercept=0, slope = 1, linetype="dashed")+
+  geom_abline(intercept=0, slope = -1, linetype="dashed")+
+  annotate("text",x=-0.2,y=3.6,label="hot/wet",size=6,angle=90)+
+  annotate(geom="text",x=5.5,y=0.2,label="cold/wet",size=6)+
+  annotate(geom="text",x=-0.2,y=-2.5,label="cold/dry",size=6,angle=90)+
+  annotate(geom="text",x=-6.7,y= 0.2,label="hot/dry",size=6)+
+  annotate(geom="text",x=3.4,y= 3.8,label="wet",size=6, angle=45)+
+  annotate(geom="text",x=3,y= -2.7,label="cold",size=6, angle=313)+
+  annotate(geom="text",x=-3.2,y= -2.8,label="dry",size=6, angle=45)+
+  annotate(geom="text",x=-3.4,y= 3.7,label="hot",size=6, angle=312)+
   theme_bw()+
   theme(axis.text = element_text(color="black",size=18),text = element_text(size=18),legend.text = element_text(size=18))
 
@@ -498,13 +509,25 @@ autoplot(clim_pca,x=1,y=3,colour="grey",loadings.colour="black", loadings=T, loa
 #   theme_bw()+
 #   theme(axis.text = element_text(color="black",size=18),text = element_text(size=18),legend.text = element_text(size=18))
 
-# pdf("C:/Users/Katie/Google Drive/FIA project/FIA_rproject/figures/FIA_pca.pdf", width = 10, height = 10)
-# 
-# autoplot(clim_pca,x=1,y=2,colour="grey",loadings.colour="black", loadings=T, loadings.label=T, loadings.label.colour="black", scale=0, loadings.label.vjust=-.5, loadings.label.size=8, alpha=0.5)+
-#   theme_bw()+
-#   theme(axis.text = element_text(color="black",size=18),text = element_text(size=18),legend.text = element_text(size=18))
-# 
-# dev.off()
+ pdf("C:/Users/Katie/Google Drive/FIA project/FIA_rproject/figures/FIA_pca.pdf", width = 13, height = 7)
+
+ autoplot(clim_pca,x=1,y=2,colour="grey",loadings.colour="red", loadings=T, loadings.label=T, loadings.label.colour="black", scale=0, loadings.label.vjust=c(-.5,-.3,-.5,-.3,-.4,1.1,1.4,0), loadings.label.hjust=c(0,1,0,-.1,1.1,-.1,0,-.1), loadings.label.size=7, alpha=0.5)+
+  geom_hline(yintercept=0,linetype="dashed")+geom_vline(xintercept=0,linetype="dashed")+
+  geom_abline(intercept=0, slope = 1, linetype="dashed")+
+  geom_abline(intercept=0, slope = -1, linetype="dashed")+
+  annotate("text",x=-0.2,y=3.6,label="hot/wet",size=6,angle=90)+
+  annotate(geom="text",x=5.5,y=0.2,label="cold/wet",size=6)+
+  annotate(geom="text",x=-0.2,y=-2.5,label="cold/dry",size=6,angle=90)+
+  annotate(geom="text",x=-6.7,y= 0.2,label="hot/dry",size=6)+
+  annotate(geom="text",x=3.4,y= 3.8,label="wet",size=6, angle=45)+
+  annotate(geom="text",x=3,y= -2.7,label="cold",size=6, angle=315)+
+  annotate(geom="text",x=-3.2,y= -2.8,label="dry",size=6, angle=45)+
+  annotate(geom="text",x=-3.4,y= 3.7,label="hot",size=6, angle=315)+
+  #xlim(c(-7,7))+ylim(c(-4,4))+
+  theme_bw()+
+  theme(axis.text = element_text(color="black",size=18),text = element_text(size=18),legend.text = element_text(size=18))
+
+ dev.off()
 ```
 
 ```{r, echo = FALSE}
@@ -1972,10 +1995,14 @@ ggplot(overlap.table %>% filter(!(disturbance == 'fire' & species.name %in% c("l
 #look at expansion - contraction
 overlap.table$diff = overlap.table$mean.exp.prop.adult - overlap.table$mean.contr.prop.adult
 
-diff.plot<- ggplot(overlap.table %>% filter(!(disturbance == 'fire' & species.name %in% c("limber pine","grand fir","two needle pinyon"))),aes(x=species.name,y=diff,fill=disturbance))+
+#for 8 species
+diff.plot<- ggplot(overlap.table %>% filter(!(species.name %in% insectonlyspp)),aes(x=species.name,y=diff,fill=disturbance))+
   geom_bar(stat='identity',position='dodge')+
   scale_fill_manual(values=disturbance.colors)+
-  theme(axis.text.x = element_text(angle=45,vjust=0.9,hjust=0.8),axis.text = element_text(size=24),legend.text = element_text(size=24),legend.title = element_text(size=24),axis.title = element_text(size=24))
+  scale_x_discrete(position='top',name="")+
+  ylab("Expansion - Contraction")+
+  theme_bw()+
+  theme(axis.text.x = element_text(angle=25,vjust=0,hjust=0),axis.text = element_text(size=24),legend.text = element_text(size=24),legend.title = element_text(size=24),legend.position = 'none',axis.title = element_text(size=24),plot.margin=margin(0,3.8,.1,.1,"cm"))
 
 # png("diffplot.png", width = 1000, height = 800)
 # 
@@ -2262,8 +2289,8 @@ arrowsplot1<- ggplot(cart_positions.all, aes(x,y)) +
   geom_polygon(data=df.right.triangle, aes(x,y),fill=rect.colors[4],alpha=0.5)+
   geom_polygon(data=df.bottom.triangle, aes(x,y),fill=rect.colors[3],alpha=0.5)+
   geom_polygon(data=df.left.triangle, aes(x,y),fill=rect.colors[1],alpha=0.5)+
-  geom_bin2d(bins = 50, fill="white", aes(alpha= ..density..)) +
-  scale_alpha(range=c(0.1,1)) +
+  #geom_bin2d(bins = 50, fill="white", aes(alpha= ..density..)) +
+  #scale_alpha(range=c(0.1,1)) +
   coord_cartesian(xlim = c(-.4, +.4), ylim = c(-.4, +.4)) +
   facet_wrap( ~ factor(disturbance), scales = "fixed", ncol=3) + 
   theme_classic() +
@@ -2406,11 +2433,11 @@ anova.stats.medang <- data.frame(disturbance=c("fire","insect.disease","none"), 
 
 
 angle.boxplot<- ggplot(median_vectors_all, aes(x=disturbance, y=medAngle, fill=disturbance))+
-  annotate("rect",xmin = -Inf, xmax = Inf, ymin=0.79, ymax = 2.35, fill=rect.colors[2], alpha = 0.7)+
-  annotate("rect",xmin = -Inf, xmax = Inf, ymin=-0.79, ymax = 0.79, fill=rect.colors[4], alpha = 0.7)+
-  annotate("rect",xmin = -Inf, xmax = Inf, ymin=-2.35, ymax = -0.79, fill=rect.colors[3], alpha = 0.7)+
-  annotate("rect",xmin = -Inf, xmax = Inf, ymin=-3.14, ymax = -2.35, fill=rect.colors[1], alpha = 0.7)+
-  annotate("rect",xmin = -Inf, xmax = Inf, ymin=2.35, ymax = 3.14, fill=rect.colors[1], alpha = 0.7)+
+  annotate("rect",xmin = -Inf, xmax = Inf, ymin=0.79, ymax = 2.35, fill=rect.colors[2], alpha = 0.5)+
+  annotate("rect",xmin = -Inf, xmax = Inf, ymin=-0.79, ymax = 0.79, fill=rect.colors[4], alpha = 0.5)+
+  annotate("rect",xmin = -Inf, xmax = Inf, ymin=-2.35, ymax = -0.79, fill=rect.colors[3], alpha = 0.5)+
+  annotate("rect",xmin = -Inf, xmax = Inf, ymin=-3.14, ymax = -2.35, fill=rect.colors[1], alpha = 0.5)+
+  annotate("rect",xmin = -Inf, xmax = Inf, ymin=2.35, ymax = 3.14, fill=rect.colors[1], alpha = 0.5)+
   geom_text(aes(x="none",y=2.745),nudge_x=0.4,label="hot/dry",size=3.5)+
   geom_text(aes(x="none",y=1.57),nudge_x=0.4,label="hot/wet",size=3.5)+
   geom_text(aes(x="none",y=0),nudge_x=0.4,label="cold/wet",size=3.5)+
@@ -3065,11 +3092,15 @@ pc1.contr.plot<- ggplot(data=niche.shift.trait.table,aes(x=pc1speciesmean,y=log(
   theme(axis.text = element_text(size=24),axis.title = element_text(size=24),legend.text = element_text(size=24),legend.title = element_text(size=24),plot.margin = unit(c(0.5, 0.5, 0, 0.5), "cm"))
 
 
-ggarrange(shade.exp.plot,shade.contr.plot ,weight.exp.plot,  weight.contr.plot, pc1.exp.plot, pc1.contr.plot, nrow=5, ncol=2, disp.exp.plot,disp.contr.plot,  common.legend = TRUE, labels= c("a","","b","","c","","d"), font.label = list(size=24))
+traits.plot8 <- ggarrange(shade.exp.plot,shade.contr.plot ,weight.exp.plot,  weight.contr.plot, pc1.exp.plot, pc1.contr.plot, nrow=5, ncol=2, disp.exp.plot,disp.contr.plot,  common.legend = TRUE, labels= c("a","","b","","c","","d"), font.label = list(size=24))
 
-png("traitplot.png", width = 800, height = 1200)
+ggarrange(diff.plot,traits.plot8,ncol=1,nrow=2,heights=c(1.5,4))
 
-ggarrange(shade.exp.plot,shade.contr.plot ,weight.exp.plot,  weight.contr.plot, pc1.exp.plot, pc1.contr.plot, nrow=4, ncol=2,disp.exp.plot,disp.contr.plot,  common.legend = TRUE, labels= c("a","","b","","c","","d"), font.label = list(size=24))
+
+png("traitplot.png", width = 800, height = 1600)
+
+ggarrange(diff.plot,traits.plot8,ncol=1,nrow=2,heights=c(1.5,4))
+
 
 dev.off()
 ```
@@ -3268,6 +3299,42 @@ ggarrange(shade.contr.plot.partial, shade.exp.plot.partial, weight.contr.plot.pa
 
 
 #Other
+
+## Checking inventory type
+
+```{r}
+plot.data <- dist %>% 
+  left_join(plot, by=c("PLT_CN" = "CN"))
+
+plot.data %>% 
+  group_by(PLOT_STATUS_CD) %>% 
+  dplyr::summarise(n=n())
+plot.data %>% 
+  group_by(PLOT_NONSAMPLE_REASN_CD) %>% 
+  dplyr::summarise(n=n())
+plot.data %>% 
+  group_by(KINDCD) %>% 
+  dplyr::summarise(n=n())
+plot.data %>% 
+  group_by(DESIGNCD) %>% 
+  dplyr::summarise(n=n())
+plot.data %>% 
+  group_by(MEASYEAR.y) %>% 
+  dplyr::summarise(n=n())
+View(plot.data %>% 
+  group_by(MANUAL) %>% 
+  dplyr::summarise(n=n(), years = list(paste(unique(MEASYEAR.y)))))
+
+View(plot.data %>% 
+  filter(MANUAL < 1) %>% 
+  group_by(STATECD) %>% 
+  dplyr::summarise(list(paste(unique(MEASYEAR.y)))))
+
+View(plot.data %>% 
+  filter(MANUAL >= 1) %>% 
+  group_by(MEASYEAR.y) %>% 
+  dplyr::summarise(list(paste(unique(STATECD)))))
+```
 
 ## >1 Condition Plots
 
