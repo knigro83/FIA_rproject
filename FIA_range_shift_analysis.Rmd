@@ -33,6 +33,7 @@ library(fitdistrplus)
 library(logspline)
 library(SIBER)
 library(emmeans)
+library(MASS)
 ```
 
 Let's first read in the data.
@@ -2543,7 +2544,209 @@ mutate(estimate=as.numeric(estimate),
 ```
 
 ```{r}
-library(MASS)
+#shifts in range margins using mean posterior estimates
+adultmeans <- data.frame()
+for(i in 1:length(ellipses.posterior.list)){
+ adultmean <- as.data.frame(ellipses.posterior.list[[i]][[1]]) %>% 
+  colMeans() %>% 
+   as.data.frame.list()
+ 
+ adultmeans <- rbind(adultmeans,adultmean)
+ }
+adultmeans$name = names(ellipses.posterior.list)
+adultmeans$age = "adult"
+
+seedmeans <- data.frame()
+for(i in 1:length(ellipses.posterior.list)){
+ seedmean <- as.data.frame(ellipses.posterior.list[[i]][[2]]) %>% 
+  colMeans() %>% 
+   as.data.frame.list()
+ 
+ seedmeans <- rbind(seedmeans,seedmean)
+ }
+seedmeans$name = names(ellipses.posterior.list)
+seedmeans$age = "seedling"
+
+posteriormeans <- adultmeans %>% 
+  bind_rows(seedmeans)
+
+pc1quants <- data.frame()
+pc2quants <- data.frame()
+
+for(i in 1:nrow(posteriormeans)){
+quants1<- quantile(mvrnorm(n=5000,mu=as.vector(c(posteriormeans[i,]$mu.1.,posteriormeans[i,]$mu.2.)), Sigma = matrix(as.vector(unlist(posteriormeans[i,1:4])),nrow=2,ncol=2, byrow = FALSE))[,1],c(0.025,0.05,0.95,0.975))
+
+pc1quants <- rbind(pc1quants, quants1)
+
+quants2<- quantile(mvrnorm(n=5000,mu=as.vector(c(posteriormeans[i,]$mu.1.,posteriormeans[i,]$mu.2.)), Sigma = matrix(as.vector(unlist(posteriormeans[i,1:4])),nrow=2,ncol=2, byrow = FALSE))[,2],c(0.025,0.05,0.95,0.975))
+
+pc2quants <- rbind(pc2quants, quants2)
+}
+
+posteriorquants<- posteriormeans %>% 
+ mutate(pc1_2.5 = pc1quants[,1], pc1_5 = pc1quants[,2], pc1_95 = pc1quants[,3], pc1_97.5 = pc1quants[,4],
+        pc2_2.5 = pc2quants[,1], pc2_5 = pc2quants[,2], pc2_95 = pc2quants[,3], pc2_97.5 = pc2quants[,4]) 
+
+quants_wide <- posteriorquants %>% 
+  filter(age=="adult") %>% 
+  rename_all(paste0, "adult") %>% 
+  left_join(posteriorquants %>% filter(age=="seedling") %>% rename_all(paste0, "seed"),
+            by=c("nameadult" = "nameseed")) %>% 
+  mutate(pc1diff_97.5 = (pc1_97.5seed - pc1_97.5adult)/(pc1_97.5adult - pc1_2.5adult),
+         pc1diff_2.5 = (pc1_2.5seed - pc1_2.5adult)/(pc1_97.5adult - pc1_2.5adult),
+         pc1diff_5 = (pc1_5seed - pc1_5adult)/(pc1_95adult - pc1_5adult),
+         pc1diff_95 = (pc1_95seed - pc1_95adult)/(pc1_95adult - pc1_5adult),
+         pc2diff_97.5 = (pc2_97.5seed - pc2_97.5adult)/(pc2_97.5adult - pc2_2.5adult),
+         pc2diff_2.5 = (pc2_2.5seed - pc2_2.5adult)/(pc2_97.5adult - pc2_2.5adult),
+         pc2diff_5 = (pc2_5seed - pc2_5adult)/(pc2_95adult - pc2_5adult),
+         pc2diff_95 = (pc2_95seed - pc2_95adult)/(pc2_95adult - pc2_5adult)) %>% 
+  separate(nameadult,into=c("species","disturbance","extra"), sep="_") 
+```
+
+
+```{r}
+
+#check for normality
+
+#pc1 2.5 fire 
+ggqqplot(quants_wide %>% filter(disturbance == "fire") %>% pull(pc1diff_2.5))
+shapiro.test(quants_wide %>% filter(disturbance == "fire") %>% pull(pc1diff_2.5))
+
+#pc1 2.5 ID 
+ggqqplot(quants_wide %>% filter(disturbance == "insect.disease") %>% pull(pc1diff_2.5))
+shapiro.test(quants_wide %>% filter(disturbance == "insect.disease") %>% pull(pc1diff_2.5))
+
+#pc1 2.5 none 
+ggqqplot(quants_wide %>% filter(disturbance == "none") %>% pull(pc1diff_2.5))
+shapiro.test(quants_wide %>% filter(disturbance == "none") %>% pull(pc1diff_2.5))
+
+#pc1 97.5 fire 
+ggqqplot(quants_wide %>% filter(disturbance == "fire") %>% pull(pc1diff_97.5))
+shapiro.test(quants_wide %>% filter(disturbance == "fire") %>% pull(pc1diff_97.5))
+
+#pc1 97.5 ID 
+ggqqplot(quants_wide %>% filter(disturbance == "insect.disease") %>% pull(pc1diff_97.5))
+shapiro.test(quants_wide %>% filter(disturbance == "insect.disease") %>% pull(pc1diff_97.5))
+
+#pc1 97.5 none
+ggqqplot(quants_wide %>% filter(disturbance == "none") %>% pull(pc1diff_97.5))
+shapiro.test(quants_wide %>% filter(disturbance == "none") %>% pull(pc1diff_97.5))
+
+
+##pc2
+#pc2 2.5 fire 
+ggqqplot(quants_wide %>% filter(disturbance == "fire") %>% pull(pc2diff_2.5))
+shapiro.test(quants_wide %>% filter(disturbance == "fire") %>% pull(pc2diff_2.5))
+
+#pc2 2.5 ID 
+ggqqplot(quants_wide %>% filter(disturbance == "insect.disease") %>% pull(pc2diff_2.5))
+shapiro.test(quants_wide %>% filter(disturbance == "insect.disease") %>% pull(pc2diff_2.5))
+
+#pc2 2.5 none
+ggqqplot(quants_wide %>% filter(disturbance == "none") %>% pull(pc2diff_2.5))
+shapiro.test(quants_wide %>% filter(disturbance == "none") %>% pull(pc2diff_2.5))
+
+#pc2 97.5 fire
+ggqqplot(quants_wide %>% filter(disturbance == "fire") %>% pull(pc2diff_97.5))
+shapiro.test(quants_wide %>% filter(disturbance == "fire") %>% pull(pc2diff_97.5))
+
+#pc2 97.5 ID
+ggqqplot(quants_wide %>% filter(disturbance == "insect.disease") %>% pull(pc2diff_97.5))
+shapiro.test(quants_wide %>% filter(disturbance == "insect.disease") %>% pull(pc2diff_97.5))
+
+#pc2 97.5 none 
+ggqqplot(quants_wide %>% filter(disturbance == "none") %>% pull(pc2diff_97.5))
+shapiro.test(quants_wide %>% filter(disturbance == "none") %>% pull(pc2diff_97.5))
+
+quants<- colnames(quants_wide)[34:41]
+pvalues<- data.frame()
+for(i in 1:length(disturbance.list)){
+  for(j in 1:length(quants)){
+test<- shapiro.test(quants_wide %>% filter(disturbance == disturbance.list[i]) %>% pull(quants[j]))
+pvalues <- rbind(pvalues,c(test$p, paste(quants[j]),paste(disturbance.list[i])))
+  }}
+colnames(pvalues)= c("pvalue","quant","dist")
+pvalues %>% 
+  filter(pvalue < 0.05)
+
+```
+
+
+```{r}
+#t-tests/Wilcoxen test of quantile differences
+
+ttest.results <- data.frame(agent = NA, quant = NA, p.value = NA, estimate = NA, lowerci = NA, upperci = NA, t=NA, df=NA, wilcoxon=NA)
+disturbance.list = c("fire","insect.disease","none")
+quant.list = quants
+  
+for(i in 1:length(disturbance.list)){
+  for(j in 1:length(quant.list)){
+test.temp<- quants_wide %>% filter(disturbance == disturbance.list[i]) %>% 
+  pull(quant.list[j]) %>% 
+  t.test(y = NULL, alternative = "two.sided", mu = 0, paired = FALSE, var.equal = FALSE, conf.level = 0.95)
+  
+ttest.results<- rbind(ttest.results,c(agent =  disturbance.list[i], quant = quant.list[j], p.value = test.temp$p.value, estimate = test.temp$estimate, lowerci = test.temp$conf.int[1], upperci = test.temp$conf.int[2], t=test.temp$statistic, df=test.temp$parameter, wilcoxon="n"))
+  }}
+
+percentile.results<- ttest.results %>% 
+  separate(quant,into=c("pc","quant"),sep="_") %>% 
+  mutate(pc = substr(pc,1,3)) %>% 
+  filter(!is.na(agent)) %>% 
+  mutate(estimate=as.numeric(estimate),
+         upperci = as.numeric(upperci),
+         lowerci = as.numeric(lowerci)) %>% 
+  bind_rows(centroid.results.pc1,centroid.results.pc2) %>%  #add in centroids
+  mutate(quant = factor(quant, levels=c("2.5","5","centroid","95","97.5")))
+```
+
+
+```{r}
+#plot new figure 2
+
+##dataframe for stars
+pvalues.percentileshifts<- percentile.results %>% 
+  mutate(sym.pos = ifelse(p.value<0.05,0.25,NA))
+##
+
+ggplot(percentile.results %>% filter(pc=="pc1"), aes(x=agent, y=estimate, color = agent, fill=agent))+
+  geom_point(shape = 23, size = 3.5)+
+  geom_errorbar(aes(ymin=lowerci, ymax=upperci),width=0.3, size=1)+
+  #scale_color_manual(values = c("#d7191c", "#fdae61","#2b83ba"))+
+  #scale_fill_manual(values = c("#d7191c", "#fdae61","#2b83ba"))+
+  scale_color_manual(values = disturbance.colors)+
+  scale_fill_manual(values = disturbance.colors)+
+  geom_text(data = subset(pvalues.percentileshifts %>% filter(pc=="pc1"), !is.na(sym.pos)), aes(x=agent, y=sym.pos), label="*", color="black",size=8)+
+  geom_hline(yintercept=0, color="black", lty=2, size=1)+
+  ylim(c(-.3,.3))+
+  coord_flip()+
+facet_wrap(~ factor(quant,levels=c("2.5","5","centroid","95","97.5")))+
+  ggtitle("Shifts on PC1")+
+  ylab("Difference on PC1")+
+  xlab("")+
+  theme_bw()+
+  theme(axis.text.x = element_text(angle=45, hjust = 1), axis.text = element_text(size=12, color="black"), text = element_text(size=12),legend.text = element_text(size=12),strip.text = element_text(color="black",size=12), legend.position = "none")
+
+ggplot(percentile.results %>% filter(pc=="pc2"), aes(x=agent, y=estimate, color = agent, fill=agent))+
+  geom_point(shape = 23, size = 3.5)+
+  geom_errorbar(aes(ymin=lowerci, ymax=upperci),width=0.3, size=1)+
+  #scale_color_manual(values = c("#d7191c", "#fdae61","#2b83ba"))+
+  #scale_fill_manual(values = c("#d7191c", "#fdae61","#2b83ba"))+
+  scale_color_manual(values = disturbance.colors)+
+  scale_fill_manual(values = disturbance.colors)+
+  geom_text(data = subset(pvalues.percentileshifts %>% filter(pc=="pc2"), !is.na(sym.pos)), aes(x=agent, y=sym.pos), label="*", color="black",size=8)+
+  geom_hline(yintercept=0, color="black", lty=2, size=1)+
+  ylim(c(-.3,.3))+
+  facet_wrap(~ factor(quant,levels=c("2.5","5","centroid","95","97.5")))+
+  ggtitle("Shifts on PC2")+
+  ylab("Difference on PC2")+
+  xlab("")+
+  theme_bw()+
+  theme(axis.text.x = element_text(angle=45, hjust = 1), axis.text = element_text(size=12, color="black"), text = element_text(size=12),legend.text = element_text(size=12),strip.text = element_text(color="black",size=12), legend.position = "none")
+
+```
+
+
+```{r}
 #shifts in range margins
 c(ellipses.posterior.list[[1]]$`1.1`[1,5:6])
 matrix(c(ellipses.posterior.list[[1]]$`1.1`[1,1:4]),nrow=2,ncol=2, byrow = FALSE)
@@ -3306,12 +3509,27 @@ ggarrange(shade.contr.plot.partial, shade.exp.plot.partial, weight.contr.plot.pa
 plot.data <- dist %>% 
   left_join(plot, by=c("PLT_CN" = "CN"))
 
+#forest vs. non-forest
 plot.data %>% 
   group_by(PLOT_STATUS_CD) %>% 
-  dplyr::summarise(n=n())
+  dplyr::summarise(n=n()) ##so i do have non-forest plots in here...is this a problem???
 plot.data %>% 
   group_by(PLOT_NONSAMPLE_REASN_CD) %>% 
   dplyr::summarise(n=n())
+plot.data %>% 
+  group_by(NF_SAMPLING_STATUS_CD) %>% 
+  dplyr::summarise(n=n())
+plot.data %>% 
+  group_by(INTENSITY) %>% 
+  dplyr::summarise(n=n())
+View(plot.data %>% 
+       filter(PLOT_STATUS_CD == 1 & NF_SAMPLING_STATUS_CD == 1))
+View(plot.data %>%
+       left_join(cond, by="PLT_CN") %>% 
+       filter(COND_STATUS_CD == 1 & NF_SAMPLING_STATUS_CD == 1))
+
+
+
 plot.data %>% 
   group_by(KINDCD) %>% 
   dplyr::summarise(n=n())
@@ -3324,6 +3542,48 @@ plot.data %>%
 View(plot.data %>% 
   group_by(MANUAL) %>% 
   dplyr::summarise(n=n(), years = list(paste(unique(MEASYEAR.y)))))
+
+seedling %>% 
+  filter(PLT_CN %in% plot.data$PLT_CN) %>% 
+  pull(PLT_CN) %>% 
+  unique() %>% 
+  length()
+
+plot.data %>% 
+  filter(PLT_CN %in% unique(seedling$PLT_CN)) %>% 
+  group_by(PLOT_STATUS_CD) %>% 
+  dplyr::summarise(n=n())
+ 
+tree %>% 
+  filter(PLT_CN %in% plot.data$PLT_CN) %>% 
+  pull(PLT_CN) %>% 
+  unique() %>% 
+  length()
+
+plot.data %>% 
+  left_join(cond, by="PLT_CN") %>% 
+  group_by(PRESNFCD) %>% 
+  dplyr::summarise(n())
+plot.data %>% 
+  left_join(cond, by="PLT_CN") %>% 
+  group_by(FLDTYPCD) %>% 
+  dplyr::summarise(n())
+plot.data %>% 
+  left_join(cond, by="PLT_CN") %>% 
+  group_by(FLDSZCD) %>% 
+  dplyr::summarise(n())
+View(plot.data %>% 
+  left_join(cond, by="PLT_CN") %>% 
+  filter(is.na(FLDSZCD)) 
+    )  
+plot.data %>% 
+  left_join(cond, by="PLT_CN") %>% 
+  group_by(CONDPROP_UNADJ) %>% 
+  dplyr::summarise(n()) 
+View(plot.data %>% 
+       left_join(cond, by="PLT_CN") %>% 
+       filter(CONDPROP_UNADJ == 1) %>% 
+       filter(COND_STATUS_CD == 1 & NF_SAMPLING_STATUS_CD == 1))  
 
 View(plot.data %>% 
   filter(MANUAL < 1) %>% 
