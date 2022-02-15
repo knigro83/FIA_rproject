@@ -2510,37 +2510,70 @@ ggplot(angles_distances_ave, aes(x=disturbance, y=ave.angles))+
 ###Niche-based Percentile Shifts
 
 ```{r}
-#shifts in median
-t.test(for_arrows.all %>% filter(!y == 0 & disturbance == "insect.disease") %>% pull(y))
-t.test(for_arrows.all %>% filter(!y == 0 & disturbance == "insect.disease") %>% pull(x))
+#look at marginal posterior means
+ellipses.posterior.list
 
-t.test(for_arrows.all %>% filter(!y == 0 & disturbance == "fire") %>% pull(y))
-t.test(for_arrows.all %>% filter(!y == 0 & disturbance == "fire") %>% pull(x))
+par(mfrow=c(4,3))
 
-t.test(for_arrows.all %>% filter(!y == 0 & disturbance == "none") %>% pull(y))
-t.test(for_arrows.all %>% filter(!y == 0 & disturbance == "none") %>% pull(x))
+for(i in 1:length(ellipses.posterior.list)){
+  for(j in 1:2){
+    for(k in 1:6){
 
-centroid.results.pc1<- data.frame(agent = NA,pc=NA, quant = NA, p.value = NA, estimate = NA, lowerci = NA, upperci = NA, t=NA, df=NA, wilcoxon=NA)
-centroid.results.pc2<- data.frame(agent = NA,pc=NA, quant = NA, p.value = NA, estimate = NA, lowerci = NA, upperci = NA, t=NA, df=NA, wilcoxon=NA)
-disturbance.list = c("fire","insect.disease","none")
+hist(ellipses.posterior.list[[i]][[j]][,k], breaks = 50, main=paste(names(ellipses.posterior.list)[i],j,sep="_"), xlab=colnames(ellipses.posterior.list[[i]][[j]])[k])
+abline(v=mean(ellipses.posterior.list[[i]][[j]][,k]), col="red", lwd=3)
+      
+    }
+  }
+}
 
-for(i in 1:length(disturbance.list)){
-test<- t.test(for_arrows.all %>% filter(!y == 0 & disturbance == disturbance.list[i]) %>% pull(x))
-  centroid.results.pc1[i,]<- c(agent = disturbance.list[i],pc="pc1", quant = "centroid", p.value = test$p.value, estimate = test$estimate, lowerci = test$conf.int[1], upperci = test$conf.int[2], t=test$statistic, df=test$parameter, wilcoxon="n")}
+par(mfrow=c(3,4))
+for(i in 1:length(ellipses.posterior.list)){
+    for(k in 5:6){
+hist(ellipses.posterior.list[[i]][[1]][,k], breaks = 50, main=paste(names(ellipses.posterior.list)[i]), xlab=colnames(ellipses.posterior.list[[i]][[1]])[k],col=rgb(1,0,0,0.5))
+hist(ellipses.posterior.list[[i]][[2]][,k], breaks = 50,  col=rgb(0,0,1,0.3), add=T)
+abline(v=mean(ellipses.posterior.list[[i]][[1]][,k]), col="red", lwd=3)
+abline(v=mean(ellipses.posterior.list[[i]][[2]][,k]), col="blue", lwd=3)
+    }
+}
 
-for(i in 1:length(disturbance.list)){
-test<- t.test(for_arrows.all %>% filter(!y == 0 & disturbance == disturbance.list[i]) %>% pull(y))
+posteriorlistcut<- ellipses.posterior.list[-c(24,25)]
 
-  centroid.results.pc2[i,]<- c(agent = disturbance.list[i],pc="pc2", quant = "centroid", p.value = test$p.value, estimate = test$estimate, lowerci = test$conf.int[1], upperci = test$conf.int[2], t=test$statistic, df=test$parameter, wilcoxon="n")}
+length(posteriorlistcut[grepl("fire", names(posteriorlistcut))])
 
-centroid.results.pc1<- centroid.results.pc1 %>% 
-mutate(estimate=as.numeric(estimate),
-         upperci = as.numeric(upperci),
-         lowerci = as.numeric(lowerci))
-centroid.results.pc2<- centroid.results.pc2 %>% 
-mutate(estimate=as.numeric(estimate),
-         upperci = as.numeric(upperci),
-         lowerci = as.numeric(lowerci))
+par(mfrow=c(4,2))
+for(i in 1:length(posteriorlistcut[grepl("fire", names(posteriorlistcut))])
+){
+    for(k in 5:6){
+hist(posteriorlistcut[grepl("fire", names(posteriorlistcut))][[i]][[1]][,k], breaks = 50, main=paste(names(posteriorlistcut[grepl("fire", names(posteriorlistcut))])[i]), xlab=colnames(posteriorlistcut[grepl("fire", names(posteriorlistcut))][[i]][[1]])[k],col=rgb(1,0,0,0.5),xlim=c(min(c(posteriorlistcut[grepl("fire", names(posteriorlistcut))][[i]][[1]][,k],posteriorlistcut[grepl("fire", names(posteriorlistcut))][[i]][[2]][,k])),max(c(posteriorlistcut[grepl("fire", names(posteriorlistcut))][[i]][[1]][,k],posteriorlistcut[grepl("fire", names(posteriorlistcut))][[i]][[2]][,k]))), freq=F)
+hist(posteriorlistcut[grepl("fire", names(posteriorlistcut))][[i]][[2]][,k], breaks = 50,  col=rgb(0,0,1,0.3), freq=F,add=T)
+abline(v=mean(posteriorlistcut[grepl("fire", names(posteriorlistcut))][[i]][[1]][,k]), col="red", lwd=3)
+abline(v=mean(posteriorlistcut[grepl("fire", names(posteriorlistcut))][[i]][[2]][,k]), col="blue", lwd=3)
+    }
+}
+
+
+par(mfrow=c(5,2))
+for(i in 1:length(posteriorlistcut[grepl("insect.disease", names(posteriorlistcut))])
+){
+    for(k in 5:6){
+hist(posteriorlistcut[grepl("insect.disease", names(posteriorlistcut))][[i]][[1]][,k], breaks = 50, main=paste(names(posteriorlistcut[grepl("insect.disease", names(posteriorlistcut))])[i]), xlab=colnames(posteriorlistcut[grepl("insect.disease", names(posteriorlistcut))][[i]][[1]])[k],col=rgb(1,0,0,0.5),xlim=c(min(c(posteriorlistcut[grepl("insect.disease", names(posteriorlistcut))][[i]][[1]][,k],posteriorlistcut[grepl("insect.disease", names(posteriorlistcut))][[i]][[2]][,k])),max(c(posteriorlistcut[grepl("insect.disease", names(posteriorlistcut))][[i]][[1]][,k],posteriorlistcut[grepl("insect.disease", names(posteriorlistcut))][[i]][[2]][,k]))), freq=F)
+hist(posteriorlistcut[grepl("insect.disease", names(posteriorlistcut))][[i]][[2]][,k], breaks = 50,  col=rgb(0,0,1,0.3), freq=F,add=T)
+abline(v=mean(posteriorlistcut[grepl("insect.disease", names(posteriorlistcut))][[i]][[1]][,k]), col="red", lwd=3)
+abline(v=mean(posteriorlistcut[grepl("insect.disease", names(posteriorlistcut))][[i]][[2]][,k]), col="blue", lwd=3)
+    }
+}
+
+par(mfrow=c(5,2))
+for(i in 1:length(posteriorlistcut[grepl("none", names(posteriorlistcut))])
+){
+    for(k in 5:6){
+hist(posteriorlistcut[grepl("none", names(posteriorlistcut))][[i]][[1]][,k], breaks = 50, main=paste(names(posteriorlistcut[grepl("none", names(posteriorlistcut))])[i]), xlab=colnames(posteriorlistcut[grepl("none", names(posteriorlistcut))][[i]][[1]])[k],col=rgb(1,0,0,0.5),xlim=c(min(c(posteriorlistcut[grepl("none", names(posteriorlistcut))][[i]][[1]][,k],posteriorlistcut[grepl("none", names(posteriorlistcut))][[i]][[2]][,k])),max(c(posteriorlistcut[grepl("none", names(posteriorlistcut))][[i]][[1]][,k],posteriorlistcut[grepl("none", names(posteriorlistcut))][[i]][[2]][,k]))), freq=F)
+hist(posteriorlistcut[grepl("none", names(posteriorlistcut))][[i]][[2]][,k], breaks = 50,  col=rgb(0,0,1,0.3), freq=F,add=T)
+abline(v=mean(posteriorlistcut[grepl("none", names(posteriorlistcut))][[i]][[1]][,k]), col="red", lwd=3)
+abline(v=mean(posteriorlistcut[grepl("none", names(posteriorlistcut))][[i]][[2]][,k]), col="blue", lwd=3)
+    }
+}
+
 ```
 
 ```{r}
@@ -2605,59 +2638,7 @@ quants_wide <- posteriorquants %>%
 
 
 ```{r}
-
 #check for normality
-
-#pc1 2.5 fire 
-ggqqplot(quants_wide %>% filter(disturbance == "fire") %>% pull(pc1diff_2.5))
-shapiro.test(quants_wide %>% filter(disturbance == "fire") %>% pull(pc1diff_2.5))
-
-#pc1 2.5 ID 
-ggqqplot(quants_wide %>% filter(disturbance == "insect.disease") %>% pull(pc1diff_2.5))
-shapiro.test(quants_wide %>% filter(disturbance == "insect.disease") %>% pull(pc1diff_2.5))
-
-#pc1 2.5 none 
-ggqqplot(quants_wide %>% filter(disturbance == "none") %>% pull(pc1diff_2.5))
-shapiro.test(quants_wide %>% filter(disturbance == "none") %>% pull(pc1diff_2.5))
-
-#pc1 97.5 fire 
-ggqqplot(quants_wide %>% filter(disturbance == "fire") %>% pull(pc1diff_97.5))
-shapiro.test(quants_wide %>% filter(disturbance == "fire") %>% pull(pc1diff_97.5))
-
-#pc1 97.5 ID 
-ggqqplot(quants_wide %>% filter(disturbance == "insect.disease") %>% pull(pc1diff_97.5))
-shapiro.test(quants_wide %>% filter(disturbance == "insect.disease") %>% pull(pc1diff_97.5))
-
-#pc1 97.5 none
-ggqqplot(quants_wide %>% filter(disturbance == "none") %>% pull(pc1diff_97.5))
-shapiro.test(quants_wide %>% filter(disturbance == "none") %>% pull(pc1diff_97.5))
-
-
-##pc2
-#pc2 2.5 fire 
-ggqqplot(quants_wide %>% filter(disturbance == "fire") %>% pull(pc2diff_2.5))
-shapiro.test(quants_wide %>% filter(disturbance == "fire") %>% pull(pc2diff_2.5))
-
-#pc2 2.5 ID 
-ggqqplot(quants_wide %>% filter(disturbance == "insect.disease") %>% pull(pc2diff_2.5))
-shapiro.test(quants_wide %>% filter(disturbance == "insect.disease") %>% pull(pc2diff_2.5))
-
-#pc2 2.5 none
-ggqqplot(quants_wide %>% filter(disturbance == "none") %>% pull(pc2diff_2.5))
-shapiro.test(quants_wide %>% filter(disturbance == "none") %>% pull(pc2diff_2.5))
-
-#pc2 97.5 fire
-ggqqplot(quants_wide %>% filter(disturbance == "fire") %>% pull(pc2diff_97.5))
-shapiro.test(quants_wide %>% filter(disturbance == "fire") %>% pull(pc2diff_97.5))
-
-#pc2 97.5 ID
-ggqqplot(quants_wide %>% filter(disturbance == "insect.disease") %>% pull(pc2diff_97.5))
-shapiro.test(quants_wide %>% filter(disturbance == "insect.disease") %>% pull(pc2diff_97.5))
-
-#pc2 97.5 none 
-ggqqplot(quants_wide %>% filter(disturbance == "none") %>% pull(pc2diff_97.5))
-shapiro.test(quants_wide %>% filter(disturbance == "none") %>% pull(pc2diff_97.5))
-
 quants<- colnames(quants_wide)[34:41]
 pvalues<- data.frame()
 for(i in 1:length(disturbance.list)){
@@ -2688,6 +2669,54 @@ test.temp<- quants_wide %>% filter(disturbance == disturbance.list[i]) %>%
 ttest.results<- rbind(ttest.results,c(agent =  disturbance.list[i], quant = quant.list[j], p.value = test.temp$p.value, estimate = test.temp$estimate, lowerci = test.temp$conf.int[1], upperci = test.temp$conf.int[2], t=test.temp$statistic, df=test.temp$parameter, wilcoxon="n"))
   }}
 
+```
+
+```{r}
+#shifts in median
+centroidshifts<- for_arrows.all %>% 
+  filter(!y==0) %>% 
+  left_join(quants_wide, by=c("species","disturbance")) %>% 
+  mutate(pc1centroiddiff = x/(pc1_97.5adult - pc1_2.5adult),
+         pc2centroiddiff = y/(pc2_97.5adult - pc2_2.5adult))
+
+#check for normality
+cenpvalues1<- data.frame()
+for(i in 1:length(disturbance.list)){
+test<- shapiro.test(centroidshifts %>% filter(disturbance == disturbance.list[i]) %>% pull(pc1centroiddiff))
+cenpvalues1 <- rbind(cenpvalues1,c(test$p,paste(disturbance.list[i])))
+}
+cenpvalues1
+cenpvalues2<- data.frame()
+for(i in 1:length(disturbance.list)){
+test<- shapiro.test(centroidshifts %>% filter(disturbance == disturbance.list[i]) %>% pull(pc2centroiddiff))
+cenpvalues2 <- rbind(cenpvalues2,c(test$p,paste(disturbance.list[i])))
+}
+cenpvalues2
+##ALL NORMAL!
+
+centroid.results.pc1<- data.frame(agent = NA,pc=NA, quant = NA, p.value = NA, estimate = NA, lowerci = NA, upperci = NA, t=NA, df=NA, wilcoxon=NA)
+centroid.results.pc2<- data.frame(agent = NA,pc=NA, quant = NA, p.value = NA, estimate = NA, lowerci = NA, upperci = NA, t=NA, df=NA, wilcoxon=NA)
+disturbance.list = c("fire","insect.disease","none")
+
+for(i in 1:length(disturbance.list)){
+test<- t.test(centroidshifts %>% filter(disturbance == disturbance.list[i]) %>% pull(pc1centroiddiff))
+  centroid.results.pc1[i,]<- c(agent = disturbance.list[i],pc="pc1", quant = "centroid", p.value = test$p.value, estimate = test$estimate, lowerci = test$conf.int[1], upperci = test$conf.int[2], t=test$statistic, df=test$parameter, wilcoxon="n")}
+
+for(i in 1:length(disturbance.list)){
+test<- t.test(centroidshifts %>% filter(disturbance == disturbance.list[i]) %>% pull(pc2centroiddiff))
+
+  centroid.results.pc2[i,]<- c(agent = disturbance.list[i],pc="pc2", quant = "centroid", p.value = test$p.value, estimate = test$estimate, lowerci = test$conf.int[1], upperci = test$conf.int[2], t=test$statistic, df=test$parameter, wilcoxon="n")}
+
+centroid.results.pc1<- centroid.results.pc1 %>% 
+mutate(estimate=as.numeric(estimate),
+         upperci = as.numeric(upperci),
+         lowerci = as.numeric(lowerci))
+centroid.results.pc2<- centroid.results.pc2 %>% 
+mutate(estimate=as.numeric(estimate),
+         upperci = as.numeric(upperci),
+         lowerci = as.numeric(lowerci))
+
+
 percentile.results<- ttest.results %>% 
   separate(quant,into=c("pc","quant"),sep="_") %>% 
   mutate(pc = substr(pc,1,3)) %>% 
@@ -2698,7 +2727,6 @@ percentile.results<- ttest.results %>%
   bind_rows(centroid.results.pc1,centroid.results.pc2) %>%  #add in centroids
   mutate(quant = factor(quant, levels=c("2.5","5","centroid","95","97.5")))
 ```
-
 
 ```{r}
 #plot new figure 2
@@ -2745,269 +2773,54 @@ ggplot(percentile.results %>% filter(pc=="pc2"), aes(x=agent, y=estimate, color 
 
 ```
 
-
 ```{r}
-#shifts in range margins
-c(ellipses.posterior.list[[1]]$`1.1`[1,5:6])
-matrix(c(ellipses.posterior.list[[1]]$`1.1`[1,1:4]),nrow=2,ncol=2, byrow = FALSE)
+#ANOVAs
+centroidshifts
+#check for significant differences in PC1 2.5th percentile by disturbance type
+pc1.mod2.5 <- lm(pc1diff_2.5 ~ factor(disturbance), data=centroidshifts %>% filter(!species.name %in% insectonlyspp))
+par(mfrow=c(2,2))
+plot(pc1.mod2.5)
+leveneTest(pc1diff_2.5 ~ factor(disturbance), data=centroidshifts %>% filter(!species.name %in% insectonlyspp))
+anova(pc1.mod2.5)
+#check for significant differences in PC2 2.5th percentile by disturbance type
+pc2.mod2.5 <- lm(log(pc2diff_2.5) ~ factor(disturbance), data=centroidshifts %>% filter(!species.name %in% insectonlyspp))
+par(mfrow=c(2,2))
+plot(pc2.mod2.5)
+leveneTest(log(pc2diff_2.5) ~ factor(disturbance), data=centroidshifts %>% filter(!species.name %in% insectonlyspp))
+anova(pc2.mod2.5)
+TukeyHSD(aov(log(pc2diff_2.5) ~ factor(disturbance), data=centroidshifts %>% filter(!species.name %in% insectonlyspp)))
 
-quantile.table<- matrix(ncol=8,nrow=length(ellipses.posterior.list))
-colnames(quantile.table)<- c("adultpc1_2.5","adultpc1_97.5","adultpc2_2.5","adultpc2_97.5","seedlingpc1_2.5","seedlingpc1_97.5","seedlingpc2_2.5","seedlingpc2_97.5")
-temp.table<-matrix(nrow=4000,ncol=8)
+#check for significant differences in PC1 centroid by disturbance type
+pc1.modcent <- lm(pc1centroiddiff ~ factor(disturbance), data=centroidshifts %>% filter(!species.name %in% insectonlyspp))
+par(mfrow=c(2,2))
+plot(pc1.modcent)
+leveneTest(pc1centroiddiff ~ factor(disturbance), data=centroidshifts %>% filter(!species.name %in% insectonlyspp))
+anova(pc1.modcent)
+TukeyHSD(aov(pc1centroiddiff ~ factor(disturbance), data=centroidshifts %>% filter(!species.name %in% insectonlyspp)))
+#check for significant differences in PC2 centroid by disturbance type
+pc2.modcent <- lm(pc2centroiddiff ~ factor(disturbance), data=centroidshifts %>% filter(!species.name %in% insectonlyspp))
+par(mfrow=c(2,2))
+plot(pc2.modcent)
+leveneTest(pc2centroiddiff ~ factor(disturbance), data=centroidshifts %>% filter(!species.name %in% insectonlyspp))
+anova(pc2.modcent)
+TukeyHSD(aov(pc2centroiddiff ~ factor(disturbance), data=centroidshifts %>% filter(!species.name %in% insectonlyspp)))
 
-for(i in 1:length(ellipses.posterior.list)){
-  for(j in 1:4000){
-set.seed(100)
-
-adult_pc1_quantiles<- quantile(mvrnorm(n=1000,mu=c(ellipses.posterior.list[[i]]$`1.1`[j,5:6]), Sigma = matrix(c(ellipses.posterior.list[[i]]$`1.1`[j,1:4]),nrow=2,ncol=2, byrow = FALSE))[,1],c(0.025,0.975))
-
-adult_pc2_quantiles<- quantile(mvrnorm(n=1000,mu=c(ellipses.posterior.list[[i]]$`1.1`[j,5:6]), Sigma = matrix(c(ellipses.posterior.list[[i]]$`1.1`[j,1:4]),nrow=2,ncol=2, byrow = FALSE))[,2],c(0.025,0.975))
-
-seedling_pc1_quantiles<- quantile(mvrnorm(n=1000,mu=c(ellipses.posterior.list[[i]]$`1.2`[j,5:6]), Sigma = matrix(c(ellipses.posterior.list[[i]]$`1.2`[j,1:4]),nrow=2,ncol=2, byrow = FALSE))[,1],c(0.025,0.975))
-
-seedling_pc2_quantiles<- quantile(mvrnorm(n=1000,mu=c(ellipses.posterior.list[[i]]$`1.2`[j,5:6]), Sigma = matrix(c(ellipses.posterior.list[[i]]$`1.2`[j,1:4]),nrow=2,ncol=2, byrow = FALSE))[,2],c(0.025,0.975))
-
-temp.table[j,]<-c(adult_pc1_quantiles,adult_pc2_quantiles,seedling_pc1_quantiles,seedling_pc2_quantiles)
-}
-quantile.table[i,]<- colMeans(temp.table)
-}
-
-##try taking means first
-# quantile.table2 <- matrix(ncol=8,nrow=length(ellipses.posterior.list))
-# colnames(quantile.table)<- c("adultpc1_2.5","adultpc1_97.5","adultpc2_2.5","adultpc2_97.5","seedlingpc1_2.5","seedlingpc1_97.5","seedlingpc2_2.5","seedlingpc2_97.5")
-# 
-# for(i in 1:length(ellipses.posterior.list)){
-# set.seed(100)
-# 
-# adult_pc1_quantiles<- quantile(mvrnorm(n=1000,mu=c(mean(ellipses.posterior.list[[i]]$`1.1`[,5]),mean(ellipses.posterior.list[[i]]$`1.1`[,6])), Sigma = matrix(c(mean(ellipses.posterior.list[[i]]$`1.1`[,1]),mean(ellipses.posterior.list[[i]]$`1.1`[,2]),mean(ellipses.posterior.list[[i]]$`1.1`[,3]),mean(ellipses.posterior.list[[i]]$`1.1`[,4])),nrow=2,ncol=2, byrow = FALSE))[,1],c(0.025,0.975))
-# 
-# adult_pc2_quantiles<- quantile(mvrnorm(n=1000,mu=c(ellipses.posterior.list[[i]]$`1.1`[j,5:6]), Sigma = matrix(c(ellipses.posterior.list[[i]]$`1.1`[j,1:4]),nrow=2,ncol=2, byrow = FALSE))[2,],c(0.025,0.975))
-# 
-# seedling_pc1_quantiles<- quantile(mvrnorm(n=1000,mu=c(ellipses.posterior.list[[i]]$`1.2`[j,5:6]), Sigma = matrix(c(ellipses.posterior.list[[i]]$`1.2`[j,1:4]),nrow=2,ncol=2, byrow = FALSE))[1,],c(0.025,0.975))
-# 
-# seedling_pc2_quantiles<- quantile(mvrnorm(n=1000,mu=c(ellipses.posterior.list[[i]]$`1.2`[j,5:6]), Sigma = matrix(c(ellipses.posterior.list[[i]]$`1.2`[j,1:4]),nrow=2,ncol=2, byrow = FALSE))[2,],c(0.025,0.975))
-# 
-# quantile.table[i,]<- colMeans(temp.table)
-#   }
-
-
-  
-quantile.df <- data.frame(quantile.table) %>% 
-  mutate(names = names(ellipses.posterior.list))
-
-quantile.diffs.df <- quantile.df %>% 
-  mutate(pc1_2.5_diff = (seedlingpc1_2.5 - adultpc1_2.5)/(adultpc1_97.5 - adultpc1_2.5),
-         pc1_97.5_diff = (seedlingpc1_97.5 - adultpc1_97.5)/(adultpc1_97.5 - adultpc1_2.5),
-         pc2_2.5_diff = (seedlingpc2_2.5 - adultpc2_2.5)/(adultpc2_97.5 - adultpc2_2.5),
-         pc2_97.5_diff = (seedlingpc2_97.5 - adultpc2_97.5)/(adultpc2_97.5 - adultpc2_2.5)) %>% 
-  dplyr::select(-c(1:8)) %>% 
-  separate(names,into=c("species","disturbance","extra"), sep="_") %>% 
-  dplyr::select(-extra) %>% 
-  left_join(species.names,by=c("species" = "species.code")) %>% 
-  filter(!species.name == "singleleaf pinyon")
-
-
-###example of generated points vs. actual points for first iteration of MCMC
-par(mfrow=c(1,1))
-plot(mvrnorm(n=1000,mu=c(ellipses.posterior.list[[1]]$`1.1`[1,5:6]), Sigma = matrix(c(ellipses.posterior.list[[1]]$`1.1`[1,1:4]),nrow=2,ncol=2, byrow = FALSE)))
-points(ellipses.posterior.list[[1]]$`1.1`[1,5],ellipses.posterior.list[[1]]$`1.1`[1,6],col="red")
-points(adult_data_pcapts[[1]]$PC1,adult_data_pcapts[[1]]$PC2,col="blue",)
-
-```
-
-```{r}
-#test
-names(ellipses.posterior.list)
-
-quantile(mvrnorm(n=1000,mu=c(ellipses.posterior.list[[i]]$`1.1`[j,5:6]), Sigma = matrix(c(ellipses.posterior.list[[i]]$`1.1`[j,1:4]),nrow=2,ncol=2, byrow = FALSE))[1,],c(0.025,0.975))
-
-test.table<-matrix(nrow=length(adult_data_pcapts),ncol=8)
-colnames(test.table)<- c("adultpc1_5","adultpc1_95","adultpc2_5","adultpc2_95","seedlingpc1_5","seedlingpc1_95","seedlingpc2_5","seedlingpc2_95")
-
-for(i in 1:length(adult_data_pcapts)){
-adult_pc1<- quantile(adult_data_pcapts[[i]]$PC1,c(0.05,0.95))
-adult_pc2<- quantile(adult_data_pcapts[[i]]$PC2,c(0.05,0.95))
-seedling_pc1<- quantile(seedling_data_pcapts[[i]]$PC1,c(0.05,0.95))
-seedling_pc2<- quantile(seedling_data_pcapts[[i]]$PC2,c(0.05,0.95))
-
-test.table[i,]<- c(adult_pc1,adult_pc2,seedling_pc1,seedling_pc2)
-}
-test.table<- as.data.frame(test.table) %>% 
-  mutate(name=names(adult_data_pcapts))
-
-test.per.table<- test.table %>%   
-  mutate(pc1_5_diff = (seedlingpc1_5 - adultpc1_5)/(adultpc1_95 - adultpc1_5),
-         pc1_95_diff = (seedlingpc1_95 - adultpc1_95)/(adultpc1_95 - adultpc1_5),
-         pc2_5_diff = (seedlingpc2_5 - adultpc2_5)/(adultpc2_95 - adultpc2_5),
-         pc2_95_diff = (seedlingpc2_95 - adultpc2_95)/(adultpc2_95 - adultpc2_5)) %>% 
-  dplyr::select(-c(1:8)) %>% 
-  separate(name,into=c("species","disturbance","extra"), sep="_") %>% 
-  dplyr::select(-extra) %>% 
-  left_join(species.names,by=c("species" = "species.code")) %>% 
-  filter(!(disturbance == "fire" & species.name %in% insectonlyspp)) %>% 
-  filter(!species.name=="singleleaf pinyon")
-
-ggplot(test.per.table,aes(x=disturbance,y=pc1_5_diff))+
-  geom_boxplot()+
-  coord_flip()
-ggplot(test.per.table,aes(x=disturbance,y=pc1_95_diff))+
-  geom_boxplot()+
-  coord_flip()
+#check for significant differences in PC1 97.5 by disturbance type
+pc1.mod97.5 <- lm(pc1diff_97.5 ~ factor(disturbance), data=centroidshifts %>% filter(!species.name %in% insectonlyspp))
+par(mfrow=c(2,2))
+plot(pc1.mod97.5)
+leveneTest(pc1diff_97.5 ~ factor(disturbance), data=centroidshifts %>% filter(!species.name %in% insectonlyspp))
+anova(pc1.mod97.5)
+#check for significant differences in PC2 97.5 by disturbance type
+pc2.mod97.5 <- lm(pc2diff_97.5 ~ factor(disturbance), data=centroidshifts %>% filter(!species.name %in% insectonlyspp))
+par(mfrow=c(2,2))
+plot(pc2.mod97.5)
+leveneTest(pc2diff_97.5 ~ factor(disturbance), data=centroidshifts %>% filter(!species.name %in% insectonlyspp))
+anova(pc2.mod97.5)
+TukeyHSD(aov(pc2diff_97.5 ~ factor(disturbance), data=centroidshifts %>% filter(!species.name %in% insectonlyspp)))
 
 
 ```
-
-
-```{r}
-
-#check for normality
-
-#pc1 2.5 fire 
-ggqqplot(quantile.diffs.df %>% filter(disturbance == "fire") %>% pull(pc1_2.5_diff))
-shapiro.test(quantile.diffs.df %>% filter(disturbance == "fire") %>% pull(pc1_2.5_diff))
-
-#pc1 2.5 ID 
-ggqqplot(quantile.diffs.df %>% filter(disturbance == "insect.disease") %>% pull(pc1_2.5_diff))
-shapiro.test(quantile.diffs.df %>% filter(disturbance == "insect.disease") %>% pull(pc1_2.5_diff))
-
-#pc1 2.5 none 
-ggqqplot(quantile.diffs.df %>% filter(disturbance == "none") %>% pull(pc1_2.5_diff))
-shapiro.test(quantile.diffs.df %>% filter(disturbance == "none") %>% pull(pc1_2.5_diff))
-
-#pc1 97.5 fire -- NOT NORMAL
-ggqqplot(quantile.diffs.df %>% filter(disturbance == "fire") %>% pull(pc1_97.5_diff))
-shapiro.test(quantile.diffs.df %>% filter(disturbance == "fire") %>% pull(pc1_97.5_diff))
-
-#pc1 97.5 ID 
-ggqqplot(quantile.diffs.df %>% filter(disturbance == "insect.disease") %>% pull(pc1_97.5_diff))
-shapiro.test(quantile.diffs.df %>% filter(disturbance == "insect.disease") %>% pull(pc1_97.5_diff))
-
-#pc1 97.5 none
-ggqqplot(quantile.diffs.df %>% filter(disturbance == "none") %>% pull(pc1_97.5_diff))
-shapiro.test(quantile.diffs.df %>% filter(disturbance == "none") %>% pull(pc1_97.5_diff))
-
-
-##pc2
-#pc2 2.5 fire 
-ggqqplot(quantile.diffs.df %>% filter(disturbance == "fire") %>% pull(pc2_2.5_diff))
-shapiro.test(quantile.diffs.df %>% filter(disturbance == "fire") %>% pull(pc2_2.5_diff))
-
-#pc2 2.5 ID 
-ggqqplot(quantile.diffs.df %>% filter(disturbance == "insect.disease") %>% pull(pc2_2.5_diff))
-shapiro.test(quantile.diffs.df %>% filter(disturbance == "insect.disease") %>% pull(pc2_2.5_diff))
-
-#pc2 2.5 none
-ggqqplot(quantile.diffs.df %>% filter(disturbance == "none") %>% pull(pc2_2.5_diff))
-shapiro.test(quantile.diffs.df %>% filter(disturbance == "none") %>% pull(pc2_2.5_diff))
-
-#pc2 97.5 fire
-ggqqplot(quantile.diffs.df %>% filter(disturbance == "fire") %>% pull(pc2_97.5_diff))
-shapiro.test(quantile.diffs.df %>% filter(disturbance == "fire") %>% pull(pc2_97.5_diff))
-
-#pc2 97.5 ID
-ggqqplot(quantile.diffs.df %>% filter(disturbance == "insect.disease") %>% pull(pc2_97.5_diff))
-shapiro.test(quantile.diffs.df %>% filter(disturbance == "insect.disease") %>% pull(pc2_97.5_diff))
-
-#pc2 97.5 none 
-ggqqplot(quantile.diffs.df %>% filter(disturbance == "none") %>% pull(pc2_97.5_diff))
-shapiro.test(quantile.diffs.df %>% filter(disturbance == "none") %>% pull(pc2_97.5_diff))
-```
-
-```{r}
-#t-tests/Wilcoxen test of quantile differences
-
-ttest.results <- data.frame(agent = NA, quant = NA, p.value = NA, estimate = NA, lowerci = NA, upperci = NA, t=NA, df=NA, wilcoxon=NA)
-disturbance.list = c("fire","insect.disease","none")
-quant.list = colnames(quantile.diffs.df)[3:6]
-  
-for(i in 1:length(disturbance.list)){
-  for(j in 1:length(quant.list)){
-test.temp<- quantile.diffs.df %>% filter(disturbance == disturbance.list[i]) %>% 
-  pull(quant.list[j]) %>% 
-  t.test(y = NULL, alternative = "two.sided", mu = 0, paired = FALSE, var.equal = FALSE, conf.level = 0.95)
-  
-ttest.results<- rbind(ttest.results,c(agent =  disturbance.list[i], quant = quant.list[j], p.value = test.temp$p.value, estimate = test.temp$estimate, lowerci = test.temp$conf.int[1], upperci = test.temp$conf.int[2], t=test.temp$statistic, df=test.temp$parameter, wilcoxon="n"))
-  }}
-
-#pc1 97.5 fire
-nonnormal.dist.list<- c("fire")
-nonnormal.quant.list<- c("pc1_97.5_diff")
-
-nonnormal.results <- list(
-# quantile.diffs.df %>% filter(disturbance == "none") %>%
-#   pull("pc2_2.5_diff") %>%
-#   t.test(y = NULL, alternative = "two.sided", mu = 0, paired = FALSE, var.equal = FALSE, conf.level = 0.95),
-# quantile.diffs.df %>% filter(disturbance == "insect.disease") %>%
-#   pull("pc1_2.5_diff") %>%
-#   t.test(y = NULL, alternative = "two.sided", mu = 0, paired = FALSE, var.equal = FALSE, conf.level = 0.95),
- quantile.diffs.df %>% filter(disturbance == "fire") %>%
-  pull("pc1_97.5_diff") %>%
-  wilcox.test(y = NULL, alternative = "two.sided", mu = 0, conf.int = TRUE, conf.level = 0.95)
-)
-
-nonnormal.results.table<-data.frame(agent = NA, quant = NA, p.value = NA, estimate = NA, lowerci = NA, upperci = NA, t=NA, df=NA, wilcoxon=NA)
-for(i in 1){
-nonnormal.results.table<- rbind(nonnormal.results.table,c(agent =  nonnormal.dist.list[i], quant = nonnormal.quant.list[i], p.value = nonnormal.results[[i]]$p.value, estimate = nonnormal.results[[i]]$estimate, lowerci = nonnormal.results[[i]]$conf.int[1], upperci = nonnormal.results[[i]]$conf.int[2], t=nonnormal.results[[i]]$statistic, df=NA, wilcoxon="y"))
-}
-
-
-percentile.results<- ttest.results %>% 
-  rows_update(nonnormal.results.table,by=c("agent","quant")) %>%  #put in wilcoxen results
-  separate(quant,into=c("pc","quant","extra"),sep="_") %>% 
-  filter(!is.na(agent)) %>% 
-  mutate(estimate=as.numeric(estimate),
-         upperci = as.numeric(upperci),
-         lowerci = as.numeric(lowerci)) %>% 
-  dplyr::select(-extra) %>% 
-  bind_rows(centroid.results.pc1,centroid.results.pc2) %>%  #add in centroids
-  mutate(quant = factor(quant, levels=c("2.5","centroid","97.5")))
-```
-
-```{r}
-#plot new figure 2
-
-##dataframe for stars
-pvalues.percentileshifts<- percentile.results %>% 
-  mutate(sym.pos = ifelse(p.value<0.05,0.25,NA))
-##
-
-ggplot(percentile.results %>% filter(pc=="pc1"), aes(x=agent, y=estimate, color = agent, fill=agent))+
-  geom_point(shape = 23, size = 3.5)+
-  geom_errorbar(aes(ymin=lowerci, ymax=upperci),width=0.3, size=1)+
-  #scale_color_manual(values = c("#d7191c", "#fdae61","#2b83ba"))+
-  #scale_fill_manual(values = c("#d7191c", "#fdae61","#2b83ba"))+
-  scale_color_manual(values = disturbance.colors)+
-  scale_fill_manual(values = disturbance.colors)+
-  geom_text(data = subset(pvalues.percentileshifts %>% filter(pc=="pc1"), !is.na(sym.pos)), aes(x=agent, y=sym.pos), label="*", color="black",size=8)+
-  geom_hline(yintercept=0, color="black", lty=2, size=1)+
-  ylim(c(-.3,.3))+
-  coord_flip()+
-facet_wrap(~ factor(quant,levels=c("2.5","centroid","97.5")))+
-  ggtitle("Shifts on PC1")+
-  ylab("Difference on PC1")+
-  xlab("")+
-  theme_bw()+
-  theme(axis.text.x = element_text(angle=45, hjust = 1), axis.text = element_text(size=12, color="black"), text = element_text(size=12),legend.text = element_text(size=12),strip.text = element_text(color="black",size=12), legend.position = "none")
-
-ggplot(percentile.results %>% filter(pc=="pc2"), aes(x=agent, y=estimate, color = agent, fill=agent))+
-  geom_point(shape = 23, size = 3.5)+
-  geom_errorbar(aes(ymin=lowerci, ymax=upperci),width=0.3, size=1)+
-  #scale_color_manual(values = c("#d7191c", "#fdae61","#2b83ba"))+
-  #scale_fill_manual(values = c("#d7191c", "#fdae61","#2b83ba"))+
-  scale_color_manual(values = disturbance.colors)+
-  scale_fill_manual(values = disturbance.colors)+
-  geom_text(data = subset(pvalues.percentileshifts %>% filter(pc=="pc2"), !is.na(sym.pos)), aes(x=agent, y=sym.pos), label="*", color="black",size=8)+
-  geom_hline(yintercept=0, color="black", lty=2, size=1)+
-  ylim(c(-.3,.3))+
-  facet_wrap(~ factor(quant,levels=c("2.5","centroid","97.5")))+
-  ggtitle("Shifts on PC2")+
-  ylab("Difference on PC2")+
-  xlab("")+
-  theme_bw()+
-  theme(axis.text.x = element_text(angle=45, hjust = 1), axis.text = element_text(size=12, color="black"), text = element_text(size=12),legend.text = element_text(size=12),strip.text = element_text(color="black",size=12), legend.position = "none")
-
-```
-
 
 ###Traits
 
@@ -3502,6 +3315,274 @@ ggarrange(shade.contr.plot.partial, shade.exp.plot.partial, weight.contr.plot.pa
 
 
 #Other
+
+## Old percentile calculations
+
+
+
+```{r}
+#shifts in range margins
+c(ellipses.posterior.list[[1]]$`1.1`[1,5:6])
+matrix(c(ellipses.posterior.list[[1]]$`1.1`[1,1:4]),nrow=2,ncol=2, byrow = FALSE)
+
+quantile.table<- matrix(ncol=8,nrow=length(ellipses.posterior.list))
+colnames(quantile.table)<- c("adultpc1_2.5","adultpc1_97.5","adultpc2_2.5","adultpc2_97.5","seedlingpc1_2.5","seedlingpc1_97.5","seedlingpc2_2.5","seedlingpc2_97.5")
+temp.table<-matrix(nrow=4000,ncol=8)
+
+for(i in 1:length(ellipses.posterior.list)){
+  for(j in 1:4000){
+set.seed(100)
+
+adult_pc1_quantiles<- quantile(mvrnorm(n=1000,mu=c(ellipses.posterior.list[[i]]$`1.1`[j,5:6]), Sigma = matrix(c(ellipses.posterior.list[[i]]$`1.1`[j,1:4]),nrow=2,ncol=2, byrow = FALSE))[,1],c(0.025,0.975))
+
+adult_pc2_quantiles<- quantile(mvrnorm(n=1000,mu=c(ellipses.posterior.list[[i]]$`1.1`[j,5:6]), Sigma = matrix(c(ellipses.posterior.list[[i]]$`1.1`[j,1:4]),nrow=2,ncol=2, byrow = FALSE))[,2],c(0.025,0.975))
+
+seedling_pc1_quantiles<- quantile(mvrnorm(n=1000,mu=c(ellipses.posterior.list[[i]]$`1.2`[j,5:6]), Sigma = matrix(c(ellipses.posterior.list[[i]]$`1.2`[j,1:4]),nrow=2,ncol=2, byrow = FALSE))[,1],c(0.025,0.975))
+
+seedling_pc2_quantiles<- quantile(mvrnorm(n=1000,mu=c(ellipses.posterior.list[[i]]$`1.2`[j,5:6]), Sigma = matrix(c(ellipses.posterior.list[[i]]$`1.2`[j,1:4]),nrow=2,ncol=2, byrow = FALSE))[,2],c(0.025,0.975))
+
+temp.table[j,]<-c(adult_pc1_quantiles,adult_pc2_quantiles,seedling_pc1_quantiles,seedling_pc2_quantiles)
+}
+quantile.table[i,]<- colMeans(temp.table)
+}
+
+##try taking means first
+# quantile.table2 <- matrix(ncol=8,nrow=length(ellipses.posterior.list))
+# colnames(quantile.table)<- c("adultpc1_2.5","adultpc1_97.5","adultpc2_2.5","adultpc2_97.5","seedlingpc1_2.5","seedlingpc1_97.5","seedlingpc2_2.5","seedlingpc2_97.5")
+# 
+# for(i in 1:length(ellipses.posterior.list)){
+# set.seed(100)
+# 
+# adult_pc1_quantiles<- quantile(mvrnorm(n=1000,mu=c(mean(ellipses.posterior.list[[i]]$`1.1`[,5]),mean(ellipses.posterior.list[[i]]$`1.1`[,6])), Sigma = matrix(c(mean(ellipses.posterior.list[[i]]$`1.1`[,1]),mean(ellipses.posterior.list[[i]]$`1.1`[,2]),mean(ellipses.posterior.list[[i]]$`1.1`[,3]),mean(ellipses.posterior.list[[i]]$`1.1`[,4])),nrow=2,ncol=2, byrow = FALSE))[,1],c(0.025,0.975))
+# 
+# adult_pc2_quantiles<- quantile(mvrnorm(n=1000,mu=c(ellipses.posterior.list[[i]]$`1.1`[j,5:6]), Sigma = matrix(c(ellipses.posterior.list[[i]]$`1.1`[j,1:4]),nrow=2,ncol=2, byrow = FALSE))[2,],c(0.025,0.975))
+# 
+# seedling_pc1_quantiles<- quantile(mvrnorm(n=1000,mu=c(ellipses.posterior.list[[i]]$`1.2`[j,5:6]), Sigma = matrix(c(ellipses.posterior.list[[i]]$`1.2`[j,1:4]),nrow=2,ncol=2, byrow = FALSE))[1,],c(0.025,0.975))
+# 
+# seedling_pc2_quantiles<- quantile(mvrnorm(n=1000,mu=c(ellipses.posterior.list[[i]]$`1.2`[j,5:6]), Sigma = matrix(c(ellipses.posterior.list[[i]]$`1.2`[j,1:4]),nrow=2,ncol=2, byrow = FALSE))[2,],c(0.025,0.975))
+# 
+# quantile.table[i,]<- colMeans(temp.table)
+#   }
+
+
+  
+quantile.df <- data.frame(quantile.table) %>% 
+  mutate(names = names(ellipses.posterior.list))
+
+quantile.diffs.df <- quantile.df %>% 
+  mutate(pc1_2.5_diff = (seedlingpc1_2.5 - adultpc1_2.5)/(adultpc1_97.5 - adultpc1_2.5),
+         pc1_97.5_diff = (seedlingpc1_97.5 - adultpc1_97.5)/(adultpc1_97.5 - adultpc1_2.5),
+         pc2_2.5_diff = (seedlingpc2_2.5 - adultpc2_2.5)/(adultpc2_97.5 - adultpc2_2.5),
+         pc2_97.5_diff = (seedlingpc2_97.5 - adultpc2_97.5)/(adultpc2_97.5 - adultpc2_2.5)) %>% 
+  dplyr::select(-c(1:8)) %>% 
+  separate(names,into=c("species","disturbance","extra"), sep="_") %>% 
+  dplyr::select(-extra) %>% 
+  left_join(species.names,by=c("species" = "species.code")) %>% 
+  filter(!species.name == "singleleaf pinyon")
+
+
+###example of generated points vs. actual points for first iteration of MCMC
+par(mfrow=c(1,1))
+plot(mvrnorm(n=1000,mu=c(ellipses.posterior.list[[1]]$`1.1`[1,5:6]), Sigma = matrix(c(ellipses.posterior.list[[1]]$`1.1`[1,1:4]),nrow=2,ncol=2, byrow = FALSE)))
+points(ellipses.posterior.list[[1]]$`1.1`[1,5],ellipses.posterior.list[[1]]$`1.1`[1,6],col="red")
+points(adult_data_pcapts[[1]]$PC1,adult_data_pcapts[[1]]$PC2,col="blue",)
+
+```
+
+```{r}
+#test
+names(ellipses.posterior.list)
+
+quantile(mvrnorm(n=1000,mu=c(ellipses.posterior.list[[i]]$`1.1`[j,5:6]), Sigma = matrix(c(ellipses.posterior.list[[i]]$`1.1`[j,1:4]),nrow=2,ncol=2, byrow = FALSE))[1,],c(0.025,0.975))
+
+test.table<-matrix(nrow=length(adult_data_pcapts),ncol=8)
+colnames(test.table)<- c("adultpc1_5","adultpc1_95","adultpc2_5","adultpc2_95","seedlingpc1_5","seedlingpc1_95","seedlingpc2_5","seedlingpc2_95")
+
+for(i in 1:length(adult_data_pcapts)){
+adult_pc1<- quantile(adult_data_pcapts[[i]]$PC1,c(0.05,0.95))
+adult_pc2<- quantile(adult_data_pcapts[[i]]$PC2,c(0.05,0.95))
+seedling_pc1<- quantile(seedling_data_pcapts[[i]]$PC1,c(0.05,0.95))
+seedling_pc2<- quantile(seedling_data_pcapts[[i]]$PC2,c(0.05,0.95))
+
+test.table[i,]<- c(adult_pc1,adult_pc2,seedling_pc1,seedling_pc2)
+}
+test.table<- as.data.frame(test.table) %>% 
+  mutate(name=names(adult_data_pcapts))
+
+test.per.table<- test.table %>%   
+  mutate(pc1_5_diff = (seedlingpc1_5 - adultpc1_5)/(adultpc1_95 - adultpc1_5),
+         pc1_95_diff = (seedlingpc1_95 - adultpc1_95)/(adultpc1_95 - adultpc1_5),
+         pc2_5_diff = (seedlingpc2_5 - adultpc2_5)/(adultpc2_95 - adultpc2_5),
+         pc2_95_diff = (seedlingpc2_95 - adultpc2_95)/(adultpc2_95 - adultpc2_5)) %>% 
+  dplyr::select(-c(1:8)) %>% 
+  separate(name,into=c("species","disturbance","extra"), sep="_") %>% 
+  dplyr::select(-extra) %>% 
+  left_join(species.names,by=c("species" = "species.code")) %>% 
+  filter(!(disturbance == "fire" & species.name %in% insectonlyspp)) %>% 
+  filter(!species.name=="singleleaf pinyon")
+
+ggplot(test.per.table,aes(x=disturbance,y=pc1_5_diff))+
+  geom_boxplot()+
+  coord_flip()
+ggplot(test.per.table,aes(x=disturbance,y=pc1_95_diff))+
+  geom_boxplot()+
+  coord_flip()
+
+
+```
+
+
+```{r}
+
+#check for normality
+
+#pc1 2.5 fire 
+ggqqplot(quantile.diffs.df %>% filter(disturbance == "fire") %>% pull(pc1_2.5_diff))
+shapiro.test(quantile.diffs.df %>% filter(disturbance == "fire") %>% pull(pc1_2.5_diff))
+
+#pc1 2.5 ID 
+ggqqplot(quantile.diffs.df %>% filter(disturbance == "insect.disease") %>% pull(pc1_2.5_diff))
+shapiro.test(quantile.diffs.df %>% filter(disturbance == "insect.disease") %>% pull(pc1_2.5_diff))
+
+#pc1 2.5 none 
+ggqqplot(quantile.diffs.df %>% filter(disturbance == "none") %>% pull(pc1_2.5_diff))
+shapiro.test(quantile.diffs.df %>% filter(disturbance == "none") %>% pull(pc1_2.5_diff))
+
+#pc1 97.5 fire -- NOT NORMAL
+ggqqplot(quantile.diffs.df %>% filter(disturbance == "fire") %>% pull(pc1_97.5_diff))
+shapiro.test(quantile.diffs.df %>% filter(disturbance == "fire") %>% pull(pc1_97.5_diff))
+
+#pc1 97.5 ID 
+ggqqplot(quantile.diffs.df %>% filter(disturbance == "insect.disease") %>% pull(pc1_97.5_diff))
+shapiro.test(quantile.diffs.df %>% filter(disturbance == "insect.disease") %>% pull(pc1_97.5_diff))
+
+#pc1 97.5 none
+ggqqplot(quantile.diffs.df %>% filter(disturbance == "none") %>% pull(pc1_97.5_diff))
+shapiro.test(quantile.diffs.df %>% filter(disturbance == "none") %>% pull(pc1_97.5_diff))
+
+
+##pc2
+#pc2 2.5 fire 
+ggqqplot(quantile.diffs.df %>% filter(disturbance == "fire") %>% pull(pc2_2.5_diff))
+shapiro.test(quantile.diffs.df %>% filter(disturbance == "fire") %>% pull(pc2_2.5_diff))
+
+#pc2 2.5 ID 
+ggqqplot(quantile.diffs.df %>% filter(disturbance == "insect.disease") %>% pull(pc2_2.5_diff))
+shapiro.test(quantile.diffs.df %>% filter(disturbance == "insect.disease") %>% pull(pc2_2.5_diff))
+
+#pc2 2.5 none
+ggqqplot(quantile.diffs.df %>% filter(disturbance == "none") %>% pull(pc2_2.5_diff))
+shapiro.test(quantile.diffs.df %>% filter(disturbance == "none") %>% pull(pc2_2.5_diff))
+
+#pc2 97.5 fire
+ggqqplot(quantile.diffs.df %>% filter(disturbance == "fire") %>% pull(pc2_97.5_diff))
+shapiro.test(quantile.diffs.df %>% filter(disturbance == "fire") %>% pull(pc2_97.5_diff))
+
+#pc2 97.5 ID
+ggqqplot(quantile.diffs.df %>% filter(disturbance == "insect.disease") %>% pull(pc2_97.5_diff))
+shapiro.test(quantile.diffs.df %>% filter(disturbance == "insect.disease") %>% pull(pc2_97.5_diff))
+
+#pc2 97.5 none 
+ggqqplot(quantile.diffs.df %>% filter(disturbance == "none") %>% pull(pc2_97.5_diff))
+shapiro.test(quantile.diffs.df %>% filter(disturbance == "none") %>% pull(pc2_97.5_diff))
+```
+
+```{r}
+#t-tests/Wilcoxen test of quantile differences
+
+ttest.results <- data.frame(agent = NA, quant = NA, p.value = NA, estimate = NA, lowerci = NA, upperci = NA, t=NA, df=NA, wilcoxon=NA)
+disturbance.list = c("fire","insect.disease","none")
+quant.list = colnames(quantile.diffs.df)[3:6]
+  
+for(i in 1:length(disturbance.list)){
+  for(j in 1:length(quant.list)){
+test.temp<- quantile.diffs.df %>% filter(disturbance == disturbance.list[i]) %>% 
+  pull(quant.list[j]) %>% 
+  t.test(y = NULL, alternative = "two.sided", mu = 0, paired = FALSE, var.equal = FALSE, conf.level = 0.95)
+  
+ttest.results<- rbind(ttest.results,c(agent =  disturbance.list[i], quant = quant.list[j], p.value = test.temp$p.value, estimate = test.temp$estimate, lowerci = test.temp$conf.int[1], upperci = test.temp$conf.int[2], t=test.temp$statistic, df=test.temp$parameter, wilcoxon="n"))
+  }}
+
+#pc1 97.5 fire
+nonnormal.dist.list<- c("fire")
+nonnormal.quant.list<- c("pc1_97.5_diff")
+
+nonnormal.results <- list(
+# quantile.diffs.df %>% filter(disturbance == "none") %>%
+#   pull("pc2_2.5_diff") %>%
+#   t.test(y = NULL, alternative = "two.sided", mu = 0, paired = FALSE, var.equal = FALSE, conf.level = 0.95),
+# quantile.diffs.df %>% filter(disturbance == "insect.disease") %>%
+#   pull("pc1_2.5_diff") %>%
+#   t.test(y = NULL, alternative = "two.sided", mu = 0, paired = FALSE, var.equal = FALSE, conf.level = 0.95),
+ quantile.diffs.df %>% filter(disturbance == "fire") %>%
+  pull("pc1_97.5_diff") %>%
+  wilcox.test(y = NULL, alternative = "two.sided", mu = 0, conf.int = TRUE, conf.level = 0.95)
+)
+
+nonnormal.results.table<-data.frame(agent = NA, quant = NA, p.value = NA, estimate = NA, lowerci = NA, upperci = NA, t=NA, df=NA, wilcoxon=NA)
+for(i in 1){
+nonnormal.results.table<- rbind(nonnormal.results.table,c(agent =  nonnormal.dist.list[i], quant = nonnormal.quant.list[i], p.value = nonnormal.results[[i]]$p.value, estimate = nonnormal.results[[i]]$estimate, lowerci = nonnormal.results[[i]]$conf.int[1], upperci = nonnormal.results[[i]]$conf.int[2], t=nonnormal.results[[i]]$statistic, df=NA, wilcoxon="y"))
+}
+
+
+percentile.results<- ttest.results %>% 
+  rows_update(nonnormal.results.table,by=c("agent","quant")) %>%  #put in wilcoxen results
+  separate(quant,into=c("pc","quant","extra"),sep="_") %>% 
+  filter(!is.na(agent)) %>% 
+  mutate(estimate=as.numeric(estimate),
+         upperci = as.numeric(upperci),
+         lowerci = as.numeric(lowerci)) %>% 
+  dplyr::select(-extra) %>% 
+  bind_rows(centroid.results.pc1,centroid.results.pc2) %>%  #add in centroids
+  mutate(quant = factor(quant, levels=c("2.5","centroid","97.5")))
+```
+
+```{r}
+#plot new figure 2
+
+##dataframe for stars
+pvalues.percentileshifts<- percentile.results %>% 
+  mutate(sym.pos = ifelse(p.value<0.05,0.25,NA))
+##
+
+ggplot(percentile.results %>% filter(pc=="pc1"), aes(x=agent, y=estimate, color = agent, fill=agent))+
+  geom_point(shape = 23, size = 3.5)+
+  geom_errorbar(aes(ymin=lowerci, ymax=upperci),width=0.3, size=1)+
+  #scale_color_manual(values = c("#d7191c", "#fdae61","#2b83ba"))+
+  #scale_fill_manual(values = c("#d7191c", "#fdae61","#2b83ba"))+
+  scale_color_manual(values = disturbance.colors)+
+  scale_fill_manual(values = disturbance.colors)+
+  geom_text(data = subset(pvalues.percentileshifts %>% filter(pc=="pc1"), !is.na(sym.pos)), aes(x=agent, y=sym.pos), label="*", color="black",size=8)+
+  geom_hline(yintercept=0, color="black", lty=2, size=1)+
+  ylim(c(-.3,.3))+
+  coord_flip()+
+facet_wrap(~ factor(quant,levels=c("2.5","centroid","97.5")))+
+  ggtitle("Shifts on PC1")+
+  ylab("Difference on PC1")+
+  xlab("")+
+  theme_bw()+
+  theme(axis.text.x = element_text(angle=45, hjust = 1), axis.text = element_text(size=12, color="black"), text = element_text(size=12),legend.text = element_text(size=12),strip.text = element_text(color="black",size=12), legend.position = "none")
+
+ggplot(percentile.results %>% filter(pc=="pc2"), aes(x=agent, y=estimate, color = agent, fill=agent))+
+  geom_point(shape = 23, size = 3.5)+
+  geom_errorbar(aes(ymin=lowerci, ymax=upperci),width=0.3, size=1)+
+  #scale_color_manual(values = c("#d7191c", "#fdae61","#2b83ba"))+
+  #scale_fill_manual(values = c("#d7191c", "#fdae61","#2b83ba"))+
+  scale_color_manual(values = disturbance.colors)+
+  scale_fill_manual(values = disturbance.colors)+
+  geom_text(data = subset(pvalues.percentileshifts %>% filter(pc=="pc2"), !is.na(sym.pos)), aes(x=agent, y=sym.pos), label="*", color="black",size=8)+
+  geom_hline(yintercept=0, color="black", lty=2, size=1)+
+  ylim(c(-.3,.3))+
+  facet_wrap(~ factor(quant,levels=c("2.5","centroid","97.5")))+
+  ggtitle("Shifts on PC2")+
+  ylab("Difference on PC2")+
+  xlab("")+
+  theme_bw()+
+  theme(axis.text.x = element_text(angle=45, hjust = 1), axis.text = element_text(size=12, color="black"), text = element_text(size=12),legend.text = element_text(size=12),strip.text = element_text(color="black",size=12), legend.position = "none")
+
+```
+
+
 
 ## Checking inventory type
 
