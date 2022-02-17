@@ -3587,6 +3587,9 @@ ggplot(percentile.results %>% filter(pc=="pc2"), aes(x=agent, y=estimate, color 
 ## Checking inventory type
 
 ```{r}
+plot<- read_csv("annual_plots2020.csv")
+cond<- read_csv("C:/Users/Katie/Google Drive/FIA project/compiled_data_annual2020/COND.csv")
+
 plot.data <- dist %>% 
   left_join(plot, by=c("PLT_CN" = "CN"))
 
@@ -3724,6 +3727,15 @@ ggplot()+
                 color="black", fill="lightblue")+
   geom_point(data=forest.plots.multconds, aes(x=LON, y=LAT))+
   coord_quickmap()
+
+#look at multiple conditions plots that were multiple forest types (ecotones)
+
+cond %>% 
+  filter(OWNCD < 40) %>% 
+  filter(CONDPROP_UNADJ < 1) %>% 
+  group_by(PLT_CN) %>% 
+  dplyr::summarise(fldyps = paste(list(unique(FLDTYPCD))))
+
 ```
 
 ##Tree status exploration
