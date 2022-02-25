@@ -2286,10 +2286,10 @@ ggplot()+
 
 
 arrowsplot1<- ggplot(cart_positions.all, aes(x,y)) +
-  geom_polygon(data=df.top.triangle, aes(x,y),fill=rect.colors[2],alpha=0.5)+
+  geom_polygon(data=df.top.triangle, aes(x,y),fill=rect.colors[1],alpha=0.5)+
   geom_polygon(data=df.right.triangle, aes(x,y),fill=rect.colors[4],alpha=0.5)+
   geom_polygon(data=df.bottom.triangle, aes(x,y),fill=rect.colors[3],alpha=0.5)+
-  geom_polygon(data=df.left.triangle, aes(x,y),fill=rect.colors[1],alpha=0.5)+
+  geom_polygon(data=df.left.triangle, aes(x,y),fill=rect.colors[2],alpha=0.5)+
   #geom_bin2d(bins = 50, fill="white", aes(alpha= ..density..)) +
   #scale_alpha(range=c(0.1,1)) +
   coord_cartesian(xlim = c(-.4, +.4), ylim = c(-.4, +.4)) +
@@ -2434,15 +2434,15 @@ anova.stats.medang <- data.frame(disturbance=c("fire","insect.disease","none"), 
 
 
 angle.boxplot<- ggplot(median_vectors_all, aes(x=disturbance, y=medAngle, fill=disturbance))+
-  annotate("rect",xmin = -Inf, xmax = Inf, ymin=0.79, ymax = 2.35, fill=rect.colors[2], alpha = 0.5)+
+  annotate("rect",xmin = -Inf, xmax = Inf, ymin=0.79, ymax = 2.35, fill=rect.colors[1], alpha = 0.5)+
   annotate("rect",xmin = -Inf, xmax = Inf, ymin=-0.79, ymax = 0.79, fill=rect.colors[4], alpha = 0.5)+
   annotate("rect",xmin = -Inf, xmax = Inf, ymin=-2.35, ymax = -0.79, fill=rect.colors[3], alpha = 0.5)+
-  annotate("rect",xmin = -Inf, xmax = Inf, ymin=-3.14, ymax = -2.35, fill=rect.colors[1], alpha = 0.5)+
-  annotate("rect",xmin = -Inf, xmax = Inf, ymin=2.35, ymax = 3.14, fill=rect.colors[1], alpha = 0.5)+
+  annotate("rect",xmin = -Inf, xmax = Inf, ymin=-3.14, ymax = -2.35, fill=rect.colors[2], alpha = 0.5)+
+  annotate("rect",xmin = -Inf, xmax = Inf, ymin=2.35, ymax = 3.14, fill=rect.colors[2], alpha = 0.5)+
   geom_text(aes(x="none",y=2.745),nudge_x=0.4,label="hot/dry",size=3.5)+
   geom_text(aes(x="none",y=1.57),nudge_x=0.4,label="hot/wet",size=3.5)+
-  geom_text(aes(x="none",y=0),nudge_x=0.4,label="cold/wet",size=3.5)+
-  geom_text(aes(x="none",y=-1.57),nudge_x=0.4,label="cold/dry",size=3.5)+
+  geom_text(aes(x="none",y=0.1),nudge_x=0.4,label="cold/wet",size=3.5)+
+  geom_text(aes(x="none",y=-1.7),nudge_x=0.4,label="cold/dry",size=3.5)+
   geom_text(aes(x="none",y=-2.745),nudge_x=0.4,label="hot/dry",size=3.5)+
   geom_boxplot()+
   geom_jitter(data=median_vectors_all,aes(x=disturbance, y=medAngle),width=0.1,height=0.1)+
@@ -2459,9 +2459,9 @@ angle.boxplot<- ggplot(median_vectors_all, aes(x=disturbance, y=medAngle, fill=d
 ```{r}
 #combine plots
 boxplots<- ggarrange(distance.boxplot,angle.boxplot,nrow=2,ncol=1)
-arrowcentroidplot<- ggarrange(arrowsplot1,boxplots, nrow=1,ncol=2, widths=c(2,1))
+arrowcentroidplot<- ggarrange(arrowsplot1,boxplots, nrow=1,ncol=2, widths=c(3.5,1))
 
-pdf(file="C:/Users/Katie/Google Drive/FIA project/FIA_rproject/figures/arrowsplot.pdf",width=17,height=8)
+pdf(file="C:/Users/Katie/Google Drive/FIA project/FIA_rproject/figures/arrowsplot.pdf",width=20,height=6)
 
 arrowcentroidplot
 
@@ -2733,7 +2733,7 @@ percentile.results<- ttest.results %>%
 
 ##dataframe for stars
 pvalues.percentileshifts<- percentile.results %>% 
-  mutate(sym.pos = ifelse(p.value<0.05,0.25,NA))
+  mutate(sym.pos = ifelse(p.value<0.05,0.15,NA))
 ##
 
 ggplot(percentile.results %>% filter(pc=="pc1"), aes(x=agent, y=estimate, color = agent, fill=agent))+
@@ -2771,6 +2771,42 @@ ggplot(percentile.results %>% filter(pc=="pc2"), aes(x=agent, y=estimate, color 
   theme_bw()+
   theme(axis.text.x = element_text(angle=45, hjust = 1), axis.text = element_text(size=12, color="black"), text = element_text(size=12),legend.text = element_text(size=12),strip.text = element_text(color="black",size=12), legend.position = "none")
 
+##plot just 95% estimates
+
+ggplot(percentile.results %>% filter(pc=="pc1") %>% filter(!quant %in% c("5","95")), aes(x=agent, y=estimate, color = agent, fill=agent))+
+  geom_point(shape = 23, size = 3.5)+
+  geom_errorbar(aes(ymin=lowerci, ymax=upperci),width=0.3, size=1)+
+  #scale_color_manual(values = c("#d7191c", "#fdae61","#2b83ba"))+
+  #scale_fill_manual(values = c("#d7191c", "#fdae61","#2b83ba"))+
+  scale_color_manual(values = disturbance.colors)+
+  scale_fill_manual(values = disturbance.colors)+
+  geom_text(data = subset(pvalues.percentileshifts %>% filter(pc=="pc1") %>% filter(!quant %in% c("5","95")), !is.na(sym.pos)), aes(x=agent, y=sym.pos), label="*", color="black",size=8)+
+  geom_hline(yintercept=0, color="black", lty=2, size=1)+
+  ylim(c(-.2,.2))+
+  coord_flip()+
+facet_wrap(~ factor(quant,levels=c("2.5","centroid","97.5")))+
+  ggtitle("Shifts on PC1")+
+  ylab("Difference on PC1")+
+  xlab("")+
+  theme_bw()+
+  theme(axis.text.x = element_text(angle=45, hjust = 1), axis.text = element_text(size=12, color="black"), text = element_text(size=12),legend.text = element_text(size=12),strip.text = element_text(color="black",size=12), legend.position = "none")
+
+ggplot(percentile.results %>% filter(pc=="pc2") %>% filter(!quant %in% c("5","95")), aes(x=agent, y=estimate, color = agent, fill=agent))+
+  geom_point(shape = 23, size = 3.5)+
+  geom_errorbar(aes(ymin=lowerci, ymax=upperci),width=0.3, size=1)+
+  #scale_color_manual(values = c("#d7191c", "#fdae61","#2b83ba"))+
+  #scale_fill_manual(values = c("#d7191c", "#fdae61","#2b83ba"))+
+  scale_color_manual(values = disturbance.colors)+
+  scale_fill_manual(values = disturbance.colors)+
+  geom_text(data = subset(pvalues.percentileshifts %>% filter(pc=="pc2") %>% filter(!quant %in% c("5","95")), !is.na(sym.pos)), aes(x=agent, y=sym.pos), label="*", color="black",size=8)+
+  geom_hline(yintercept=0, color="black", lty=2, size=1)+
+  ylim(c(-.2,.2))+
+  facet_wrap(~ factor(quant,levels=c("2.5","centroid","97.5")))+
+  ggtitle("Shifts on PC2")+
+  ylab("Difference on PC2")+
+  xlab("")+
+  theme_bw()+
+  theme(axis.text.x = element_text(angle=45, hjust = 1), axis.text = element_text(size=12, color="black"), text = element_text(size=12),legend.text = element_text(size=12),strip.text = element_text(color="black",size=12), legend.position = "none")
 ```
 
 ```{r}
@@ -3108,7 +3144,7 @@ pc1.contr.plot<- ggplot(data=niche.shift.trait.table,aes(x=pc1speciesmean,y=log(
   theme(axis.text = element_text(size=24),axis.title = element_text(size=24),legend.text = element_text(size=24),legend.title = element_text(size=24),plot.margin = unit(c(0.5, 0.5, 0, 0.5), "cm"))
 
 
-traits.plot8 <- ggarrange(shade.exp.plot,shade.contr.plot ,weight.exp.plot,  weight.contr.plot, pc1.exp.plot, pc1.contr.plot, nrow=5, ncol=2, disp.exp.plot,disp.contr.plot,  common.legend = TRUE, labels= c("a","","b","","c","","d"), font.label = list(size=24))
+traits.plot8 <- ggarrange(shade.exp.plot,shade.contr.plot , pc1.exp.plot, pc1.contr.plot, nrow=4, ncol=2, disp.exp.plot,disp.contr.plot,  common.legend = TRUE, labels= c("a","","b","","c","","d"), font.label = list(size=24))
 
 ggarrange(diff.plot,traits.plot8,ncol=1,nrow=2,heights=c(1.5,4))
 
