@@ -510,7 +510,7 @@ autoplot(clim_pca,x=1,y=2,colour="grey",loadings.colour="red", loadings=T, loadi
 #   theme_bw()+
 #   theme(axis.text = element_text(color="black",size=18),text = element_text(size=18),legend.text = element_text(size=18))
 
- pdf("C:/Users/Katie/Google Drive/FIA project/FIA_rproject/figures/FIA_pca.pdf", width = 13, height = 7)
+ pdf("figures/FIA_pca.pdf", width = 13, height = 7)
 
  autoplot(clim_pca,x=1,y=2,colour="grey",loadings.colour="red", loadings=T, loadings.label=T, loadings.label.colour="black", scale=0, loadings.label.vjust=c(-.5,-.3,-.5,-.3,-.4,1.1,1.4,0), loadings.label.hjust=c(0,1,0,-.1,1.1,-.1,0,-.1), loadings.label.size=7, alpha=0.5)+
   geom_hline(yintercept=0,linetype="dashed")+geom_vline(xintercept=0,linetype="dashed")+
@@ -2461,7 +2461,7 @@ angle.boxplot<- ggplot(median_vectors_all, aes(x=disturbance, y=medAngle, fill=d
 boxplots<- ggarrange(distance.boxplot,angle.boxplot,nrow=2,ncol=1)
 arrowcentroidplot<- ggarrange(arrowsplot1,boxplots, nrow=1,ncol=2, widths=c(3.5,1))
 
-pdf(file="C:/Users/Katie/Google Drive/FIA project/FIA_rproject/figures/arrowsplot.pdf",width=20,height=6)
+pdf(file="figures/arrowsplot.pdf",width=20,height=6)
 
 arrowcentroidplot
 
@@ -2873,7 +2873,7 @@ trait.data <- data.frame(species.name = species.names$species.name,
 
 #read in seed weight data
 #need to get weights for new species
-seed.weight <- read_csv("C:/Users/Katie/Google Drive/FIA project/TRY data/TRY_seed_edited.csv")
+seed.weight <- read_csv("TRY data/TRY_seed_edited.csv")
 
 try.names <- data.frame(scientific.name = unique(seed.weight$AccSpeciesName), species.name = c("white fir","grand fir","subalpine fir","alligator juniper","Engelmann spruce","lodgepole pine","two needle pinyon","ponderosa pine","trembling aspen","Douglas-fir","Gambel oak","western redcedar","western larch","whitebark pine","limber pine"))
 
@@ -3624,7 +3624,7 @@ ggplot(percentile.results %>% filter(pc=="pc2"), aes(x=agent, y=estimate, color 
 
 ```{r}
 plot<- read_csv("annual_plots2020.csv")
-cond<- read_csv("C:/Users/Katie/Google Drive/FIA project/compiled_data_annual2020/COND.csv")
+cond<- read_csv("compiled_data_annual2020/COND.csv")
 
 plot.data <- dist %>% 
   left_join(plot, by=c("PLT_CN" = "CN"))
@@ -3632,22 +3632,255 @@ plot.data <- dist %>%
 #forest vs. non-forest
 plot.data %>% 
   group_by(PLOT_STATUS_CD) %>% 
-  dplyr::summarise(n=n()) ##so i do have non-forest plots in here...is this a problem???
+  dplyr::summarise(n=n()) ##so i do have non-forest plots in here, but they were all sampled...is this a problem??? 1 = sampled - at least one accessible forest land condition on plot, 2 = sampled - no accessible forest land condition on plot
+plot.data %>% 
+  group_by(KINDCD) %>% 
+  dplyr::summarise(n=n()) #all either initial installation, re-measurement or replacement of National design plot
 plot.data %>% 
   group_by(PLOT_NONSAMPLE_REASN_CD) %>% 
-  dplyr::summarise(n=n())
+  dplyr::summarise(n=n()) #none of them have a nonsample reason, which makes sense because they were all sampled
 plot.data %>% 
   group_by(NF_SAMPLING_STATUS_CD) %>% 
-  dplyr::summarise(n=n())
+  dplyr::summarise(n=n()) #lots of 0's here - which means "Nonforest plots / conditions are not inventoried" and some 1's which mean "Nonforest plots / conditions are inventoried". I'm wondering if this is a mistake because according to the PLOT_STATUS_CD, they were all sampled, but maybe this just means the condition data is not complete??" 
+plot.data %>% 
+  group_by(NF_PLOT_STATUS_CD) %>% 
+  dplyr::summarise(n=n()) # 1 = sampled, one accessible nonforest land condition on plot, 2 = sampled, no nonforest land condition present on plot, 3 = nonsampled nonforest
 plot.data %>% 
   group_by(INTENSITY) %>% 
-  dplyr::summarise(n=n())
+  dplyr::summarise(n=n()) #15 of the plots had intensified sampling (more plots per acre than federal base grid)
+
+plot.data %>% 
+  filter(PLOT_STATUS_CD==2) %>% #sampled - no accessible forest land on plot
+  group_by(NF_SAMPLING_STATUS_CD) %>% 
+  dplyr::summarise(n=n()) # 0 = nonforest plots / conditions are not inventoried, #1 = nonforest plots / conditions are inventoried
+
+################
+plot.codes.summary<- plot.data %>% 
+  group_by(PLOT_STATUS_CD,NF_PLOT_STATUS_CD, NF_SAMPLING_STATUS_CD) %>% 
+  dplyr::summarise(n=n()) 
+
+write.csv(plot.codes.summary, "FIAplots_plotcode_summary.csv")
+
+#look at some of the unique combinations
+View(cond %>% 
+  filter(PLT_CN %in% c(plot.data %>% 
+  filter(PLOT_STATUS_CD==1,is.na(NF_PLOT_STATUS_CD),is.na(NF_SAMPLING_STATUS_CD)) %>% 
+  pull(unique(PLT_CN)))))
+
+#look at which combinations have trees recorded
+View(tree %>% 
+       filter(PLT_CN %in% 
+                c(cond %>% 
+  filter(PLT_CN %in% c(plot.data %>% 
+  filter(PLOT_STATUS_CD==2,NF_PLOT_STATUS_CD==2,NF_SAMPLING_STATUS_CD==1) %>% 
+  pull(unique(PLT_CN)))) %>% 
+    pull(PLT_CN))))
+
+tree %>% 
+       filter(PLT_CN %in% 
+                c(cond %>% 
+  filter(PLT_CN %in% c(plot.data %>% 
+  filter(PLOT_STATUS_CD==2,is.na(NF_PLOT_STATUS_CD),NF_SAMPLING_STATUS_CD==0) %>% 
+  pull(PLT_CN) %>% 
+    unique())) %>% 
+    pull(PLT_CN) %>% 
+    unique())) %>% 
+  pull(PLT_CN) %>% 
+  unique() %>% 
+  length() #128 plots with trees, but no disturbance data recorded by FIA
+
+tree %>% 
+       filter(PLT_CN %in% 
+                c(cond %>% 
+  filter(PLT_CN %in% c(plot.data %>% 
+  filter(PLOT_STATUS_CD==2,NF_PLOT_STATUS_CD==2,NF_SAMPLING_STATUS_CD==1) %>% 
+  pull(PLT_CN) %>% 
+    unique())) %>% 
+    pull(PLT_CN) %>% 
+    unique())) %>% 
+  pull(PLT_CN) %>% 
+  unique() %>% 
+  length() #28 plots with trees, but no disturbance data recorded by FIA
+
+tree %>% 
+       filter(PLT_CN %in% 
+                c(cond %>% 
+  filter(PLT_CN %in% c(plot.data %>% 
+  filter(PLOT_STATUS_CD==2,NF_PLOT_STATUS_CD==1,NF_SAMPLING_STATUS_CD==1) %>% 
+  pull(PLT_CN) %>% 
+    unique())) %>% 
+    pull(PLT_CN) %>% 
+    unique())) %>% 
+  pull(PLT_CN) %>% 
+  unique() %>% 
+  length() #242 plots with trees, but no disturbance data recorded by FIA
+
+tree %>% 
+       filter(PLT_CN %in% 
+                c(cond %>% 
+  filter(PLT_CN %in% c(plot.data %>% 
+  filter(PLOT_STATUS_CD==1,is.na(NF_PLOT_STATUS_CD),NF_SAMPLING_STATUS_CD==0) %>% 
+  pull(PLT_CN) %>% 
+    unique())) %>% 
+    pull(PLT_CN) %>% 
+    unique())) %>% 
+  pull(PLT_CN) %>% 
+  unique() %>% 
+  length() #9781 plots with trees, but no disturbance data recorded by FIA
+
+tree %>% 
+       filter(PLT_CN %in% 
+                c(cond %>% 
+  filter(PLT_CN %in% c(plot.data %>% 
+  filter(PLOT_STATUS_CD==1,is.na(NF_PLOT_STATUS_CD),NF_SAMPLING_STATUS_CD==1) %>% 
+  pull(PLT_CN) %>% 
+    unique())) %>% 
+    pull(PLT_CN) %>% 
+    unique())) %>% 
+  pull(PLT_CN) %>% 
+  unique() %>% 
+  length() #9781 plots with trees, but no disturbance data recorded by FIA
+
+tree %>% 
+       filter(PLT_CN %in% 
+                c(cond %>% 
+  filter(PLT_CN %in% c(plot.data %>% 
+  filter(PLOT_STATUS_CD==1,is.na(NF_PLOT_STATUS_CD),is.na(NF_SAMPLING_STATUS_CD)) %>% 
+  pull(PLT_CN) %>% 
+    unique())) %>% 
+    pull(PLT_CN) %>% 
+    unique())) %>% 
+  pull(PLT_CN) %>% 
+  unique() %>% 
+  length() #9781 plots with trees, but no disturbance data recorded by FIA
+
+######################
+
 View(plot.data %>% 
        filter(PLOT_STATUS_CD == 1 & NF_SAMPLING_STATUS_CD == 1))
-View(plot.data %>%
-       left_join(cond, by="PLT_CN") %>% 
-       filter(COND_STATUS_CD == 1 & NF_SAMPLING_STATUS_CD == 1))
 
+View(plot.data %>% 
+  filter(PLOT_STATUS_CD == 2 & NF_SAMPLING_STATUS_CD == 0))
+
+##looking at how many of the plots that weren't sampled (supposedly) have tree data. 
+View(tree %>% 
+       filter(PLT_CN %in% c(plot.data %>% 
+                filter(PLOT_STATUS_CD == 2 & NF_SAMPLING_STATUS_CD == 0) %>% 
+                pull(PLT_CN))))
+tree %>% 
+       filter(PLT_CN %in% c(plot.data %>% 
+                filter(PLOT_STATUS_CD == 2 & NF_SAMPLING_STATUS_CD == 0) %>% 
+                pull(PLT_CN))) %>% 
+  pull(PLT_CN) %>% 
+  unique() %>% 
+  length() #128 out of 28,442 plots that had "conditions not inventoried" have tree data
+
+plot.data %>% 
+  filter(PLOT_STATUS_CD == 2 & NF_SAMPLING_STATUS_CD == 0) %>% 
+  pull(PLT_CN) %>% 
+  unique() %>% 
+  length()
+
+tree %>% 
+       filter(PLT_CN %in% c(plot.data %>% 
+                filter(PLOT_STATUS_CD == 2 & NF_SAMPLING_STATUS_CD == 1) %>% #conditions inventoried
+                pull(PLT_CN))) %>% 
+  pull(PLT_CN) %>% 
+  unique() %>% 
+  length() #270 out of 1,101
+
+tree %>% 
+       filter(PLT_CN %in% c(plot.data %>% 
+                filter(PLOT_STATUS_CD == 2 & is.na(NF_SAMPLING_STATUS_CD)) %>% #NA for conditions inventoried or not
+                pull(PLT_CN))) %>% 
+  pull(PLT_CN) %>% 
+  unique() %>% 
+  length() #no data on trees in these plots
+
+tree %>% 
+       filter(PLT_CN %in% c(plot.data %>% 
+                filter(PLOT_STATUS_CD == 1) %>% #sampled with at least one accessible forest land condition on plot
+                pull(PLT_CN))) %>% 
+  pull(PLT_CN) %>% 
+  unique() %>% 
+  length() #19,334 of the 19,587 plots in this category have tree data. 
+###
+
+#########
+##look at subplot data
+subplot<- read_csv("compiled_data_annual2020/SUBPLOT.csv")
+subplotcond<- read_csv("compiled_data_annual2020/SUBP_COND.csv")
+
+
+subplot %>% 
+  filter(PLT_CN %in% c(plot.data %>% pull(PLT_CN))) %>% 
+  group_by(SUBPCOND) %>% 
+  dplyr::summarise(n=n(),plots=length(unique(PLT_CN)))
+
+subplotcond %>% 
+  filter(PLT_CN %in% c(plot.data %>% pull(PLT_CN))) %>%
+  group_by(CONDID) %>% 
+  dplyr::summarise(n=n(),plots=length(unique(PLT_CN)))
+##########
+
+
+#look at how many "conditions are not inventoried" plots have condition data 
+View(cond %>% 
+       filter(PLT_CN %in% c(plot.data %>% 
+                filter(PLOT_STATUS_CD == 2 & NF_SAMPLING_STATUS_CD == 0) %>% 
+                pull(PLT_CN)))) # all of the 28,442 plots have condition data with COND_STATUS_CD = 2 (nonforest land), COND_NONSAMPLE_REASON_CD = NA. None of them have a FORTYPCD (forest type) or FLDTYPCD (field forest type) code or any other data related to slope, aspect, disturbance and treatment types. This must be why they are labelled as "conditions not inventoried". The only issue I see here is that disturbances in these plots cannot be categorized by FIA condition data, so we may be missing small fires or insect outbreaks that occurred in these plots but were not picked up by the spatial data layers.   
+View(cond %>% 
+       filter(PLT_CN %in% c(plot.data %>% 
+                filter(PLOT_STATUS_CD == 2 & NF_SAMPLING_STATUS_CD == 1) %>% 
+                pull(PLT_CN)))) #most of these have data on disturbance
+View(cond %>% 
+       filter(PLT_CN %in% c(plot.data %>% 
+                filter(PLOT_STATUS_CD == 2 & is.na(NF_SAMPLING_STATUS_CD)) %>% 
+                pull(PLT_CN)))) #about 1,060 out of 10,323 of these plots have a disturbance code
+
+cond %>% 
+       filter(PLT_CN %in% c(plot.data %>% 
+                filter(PLOT_STATUS_CD == 2 & is.na(NF_SAMPLING_STATUS_CD)) %>% 
+                pull(PLT_CN))) %>% 
+  pull(PLT_CN) %>% 
+  unique() %>% 
+  length()
+
+#all of the nonforest sampled plots together (n = 39,866)
+
+View(cond %>% 
+       filter(PLT_CN %in% c(plot.data %>% 
+                filter(PLOT_STATUS_CD == 2) %>% #sampled with at least one forest land condition on plot
+                pull(PLT_CN))) %>% 
+  filter_at(vars(c(SLOPE:PRESNFCD,FLDAGE:MIXEDCONFCD,CARBON_DOWN_DEAD:CARBON_UNDERSTORY_BG,SOIL_ROOTING_DEPTH_PNW:LAND_COVER_CLASS_CD)), any_vars(!is.na(.))) %>% 
+    dplyr::select(c(SLOPE:PRESNFCD,FLDAGE:MIXEDCONFCD,CARBON_DOWN_DEAD:CARBON_UNDERSTORY_BG,SOIL_ROOTING_DEPTH_PNW:LAND_COVER_CLASS_CD))) #this shows the plots that are not NA for all condition data (i.e. that had some level of condition data recorded)
+
+cond %>% 
+       filter(PLT_CN %in% c(plot.data %>% 
+                filter(PLOT_STATUS_CD == 2) %>% #sampled with at least one forest land condition on plot
+                pull(PLT_CN))) %>% 
+  filter_at(vars(c(SLOPE:PRESNFCD,FLDAGE:MIXEDCONFCD,CARBON_DOWN_DEAD:CARBON_UNDERSTORY_BG,SOIL_ROOTING_DEPTH_PNW:LAND_COVER_CLASS_CD)), any_vars(!is.na(.))) %>%
+  pull(PLT_CN) %>% 
+  unique() %>% 
+  length() #there are 30,604 plots out of the 39,866 plots with some condition data recorded. Most of the time when disturbance wasn't recorded, the field "PRESENFCD" was - which is a code indicating the current nonforest land use for conditions that were previously classified as forest but are now classified as nonforest 
+    
+
+
+
+
+cond %>% 
+       filter(PLT_CN %in% c(plot.data %>% 
+                filter(PLOT_STATUS_CD == 2) %>% #sampled with at least one forest land condition on plot
+                pull(PLT_CN))) %>% 
+  group_by(DSTRBCD1) %>% 
+  dplyr::summarise(n=n())
+
+
+View(cond %>% 
+       filter(PLT_CN %in% c(plot.data %>% 
+                filter(PLOT_STATUS_CD == 1) %>% #sampled with at least one forest land condition on plot
+                pull(PLT_CN)))) #these plots have data on forest type, slope, aspect, disturbance, etc. - expect for where COND_PROP_UNADJ = 0, which appear to all be the second entry for a plot. 
+###
 
 
 plot.data %>% 
@@ -3716,6 +3949,34 @@ View(plot.data %>%
   dplyr::summarise(list(paste(unique(STATECD)))))
 ```
 
+
+```{r}
+#see how many plots have trees and seedlings recorded on them
+tree %>% 
+  filter(PLT_CN %in% plot.data$PLT_CN) %>% 
+  pull(PLT_CN) %>% 
+  unique() %>% 
+  length()#19,732
+
+seedling %>% 
+  filter(PLT_CN %in% plot.data$PLT_CN) %>% 
+  filter(!PLT_CN %in% c(tree %>% 
+  filter(PLT_CN %in% plot.data$PLT_CN) %>% 
+  pull(PLT_CN) %>% 
+  unique())
+  ) #there are 343 plots with seedlings but no trees
+
+seedling %>% 
+  filter(PLT_CN %in% plot.data$PLT_CN) %>% 
+  filter(!PLT_CN %in% c(tree %>% 
+  filter(PLT_CN %in% plot.data$PLT_CN) %>% 
+  pull(PLT_CN) %>% 
+  unique())
+  ) %>% 
+  pull(PLT_CN)
+```
+
+
 ## >1 Condition Plots
 
 I'm going to look at where the plots were that I excluded based on being in more than one condition. 
@@ -3725,8 +3986,8 @@ I'm going to look at where the plots were that I excluded based on being in more
 
 ## updated 1/23/2020 for new FIA data. Restricted to only Interior West plots since that's all we have coordinates for. 
 ##read in FIA tree & regen data 
-cond<- read_csv("C:/Users/Katie/Google Drive/FIA project/compiled_data_annual2020/COND.csv")
-survey<- read_csv("C:/Users/Katie/Google Drive/FIA project/compiled_data_annual2020/SURVEY.csv")
+cond<- read_csv("compiled_data_annual2020/COND.csv")
+survey<- read_csv("compiled_data_annual2020/SURVEY.csv")
 
 ##subset to public plots in more than one condition, forested and unforested
 cond %>% 
@@ -3766,11 +4027,117 @@ ggplot()+
 
 #look at multiple conditions plots that were multiple forest types (ecotones)
 
-cond %>% 
+multcond_summary<- cond %>% 
   filter(OWNCD < 40) %>% 
   filter(CONDPROP_UNADJ < 1) %>% 
   group_by(PLT_CN) %>% 
-  dplyr::summarise(fldyps = paste(list(unique(FLDTYPCD))))
+  dplyr::summarise(fldyps = n_distinct(FLDTYPCD,na.rm=TRUE),
+                   fortyps = n_distinct(FORTYPCD,na.rm=TRUE),
+                   owners = n_distinct(OWNGRPCD,na.rm=TRUE),
+                   standsize = n_distinct(STDSZCD,na.rm=TRUE),
+                   fldstandsize = n_distinct(FLDSZCD,na.rm=TRUE),
+                   productivity = n_distinct(SITECLCD,na.rm=TRUE),
+                   disturbance = n_distinct(DSTRBCD1,na.rm=TRUE),
+                   treatment = n_distinct(TRTCD1,na.rm=TRUE),
+                   nonforestcd = n_distinct(PRESNFCD,na.rm=TRUE),
+                   habitat = n_distinct(HABTYPCD1,na.rm=TRUE),
+                   coverclass = n_distinct(LAND_COVER_CLASS_CD, na.rm=TRUE),
+                   coverclass_ret = n_distinct(LAND_COVER_CLASS_CD_RET, na.rm=TRUE)
+                   )
+
+View(multcond_summary %>% 
+  filter(if_any(.cols = fldyps:coverclass, .fns = ~.> 1)))
+
+multcond_summary %>% 
+  filter(if_any(.cols = fldyps:coverclass, .fns = ~.> 1)) %>% 
+  filter(disturbance <2)
+
+multcond_summary %>% 
+  filter(if_any(.cols = fldyps:coverclass, .fns = ~.> 1)) %>% 
+  filter(disturbance <2) %>% 
+  filter(fldyps <2) %>% 
+  filter(fortyps<2)
+
+##all plots with more than one field forest type
+View(cond %>% 
+  filter(PLT_CN %in% c(multcond_summary %>% 
+  filter(if_any(.cols = fldyps:coverclass, .fns = ~.> 1)) %>% 
+  filter(disturbance <2) %>% 
+  filter(fldyps > 1) %>% 
+  pull(PLT_CN) %>% 
+  unique())) %>% 
+  group_by(PLT_CN) %>% 
+  dplyr::summarise(paste(list(unique(FLDTYPCD))))) #1201
+
+##all plots with more than one algorithm derived forest type, that didn't have more than one field forest type 
+cond %>% 
+  filter(PLT_CN %in% c(multcond_summary %>% 
+  filter(if_any(.cols = fldyps:coverclass, .fns = ~.> 1)) %>% 
+  filter(disturbance <2) %>% 
+  filter(fortyps > 1 & fldyps < 2) %>% 
+  pull(PLT_CN) %>% 
+  unique())) %>% 
+  group_by(PLT_CN) %>% 
+  dplyr::summarise(paste(list(unique(FORTYPCD)))) #314
+
+#there are only 4 plots that are partially privately owned
+View(cond %>% 
+  filter(PLT_CN %in% c(multcond_summary %>% 
+  filter(if_any(.cols = fldyps:coverclass, .fns = ~.> 1)) %>% 
+  filter(disturbance <2) %>% 
+  filter(owners > 1) %>% 
+  pull(PLT_CN) %>% 
+  unique())) %>% 
+  group_by(PLT_CN) %>% 
+  dplyr::summarise(owners = paste(list(unique(OWNGRPCD)))))
+
+#plots that have multiple stand sizes that don't have different forest types
+cond %>% 
+  filter(PLT_CN %in% c(multcond_summary %>% 
+  filter(if_any(.cols = fldyps:coverclass, .fns = ~.> 1)) %>% 
+  filter(disturbance <2) %>% 
+  filter(fortyps < 2 & fldyps < 2 & standsize > 1) %>% 
+  pull(PLT_CN) %>% 
+  unique())) %>% 
+  group_by(PLT_CN) %>% 
+  dplyr::summarise(paste(list(unique(STDSZCD)))) #253
+
+#number of plots I'd be excluding if I used plots with multiple conditions AS LONG AS they didn't have multiple disturbances or treatments or owners on them 
+multcond_summary %>% 
+  filter(disturbance < 2, treatment < 2, owners <2) #8,158 plots 
+
+##why are the plots in different conditions?
+condition.comparison<- cond %>% 
+  filter(PLT_CN %in% 
+            c(multcond_summary %>% 
+            filter(disturbance < 2, treatment < 2, owners <2) %>% 
+            filter(!if_any(.cols = fldyps:coverclass, .fns = ~ . >1)) %>% 
+            pull(PLT_CN))
+  ) %>% 
+  group_by(PLT_CN) %>% 
+  dplyr::summarise_all(n_distinct,na.rm=TRUE) 
+
+View(condition.comparison %>% 
+  filter(if_any(.cols = colnames(condition.comparison)[4:ncol(condition.comparison)], .fns = ~.>1)))
+
+largecondstatusplots<- cond %>% filter(PLT_CN %in% c(
+condition.comparison %>% 
+  filter(if_any(.cols = colnames(condition.comparison)[4:ncol(condition.comparison)], .fns = ~.>1)) %>% 
+  filter(COND_STATUS_CD > 1) %>% 
+  pull(PLT_CN) %>% 
+  unique())
+) %>% 
+  group_by(PLT_CN) %>% 
+  dplyr::summarise(COND_STATUS_CD > 2) %>% 
+  filter(`COND_STATUS_CD > 2` == "TRUE") %>% 
+  pull(PLT_CN) %>% 
+  unique()
+
+#number of plots I'd be excluding if I used plots with multiple conditions AS LONG AS they didn't have multiple disturbances or treatments or owners on them 
+multcond_summary %>% 
+  filter(disturbance < 2, treatment < 2, owners <2) %>% 
+  filter(! PLT_CN %in% largecondstatusplots)  #6,733 plots 
+
 
 ```
 
@@ -5386,7 +5753,7 @@ dist %>%
   dplyr::summarise(n = n(), max = max(dist_year), min = min(dist_year))
 
 ###look at condition data
-cond <- read_csv("C:/Users/Katie/Google Drive/FIA project/compiled_data_annual2020/COND.csv")
+cond <- read_csv("compiled_data_annual2020/COND.csv")
 
 plot.conds<- cond %>% 
   filter(PLT_CN %in% dist$PLT_CN)
