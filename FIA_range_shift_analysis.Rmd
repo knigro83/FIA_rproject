@@ -3977,7 +3977,7 @@ seedling %>%
 ```
 
 
-## >1 Condition Plots
+## >1 Condition Plots 
 
 I'm going to look at where the plots were that I excluded based on being in more than one condition. 
 
