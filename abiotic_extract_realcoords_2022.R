@@ -293,9 +293,11 @@ for(i in 1:length(vars)){
     left_join(vals)
   }
 head(bioclim_vars)
+options(scipen=0)
 View(bioclim_vars)
 bioclim_table<- bioclim_vars %>% 
-  dplyr::select(-c(1:2))
+  dplyr::select(-1)
+View(bioclim_table)
 write.csv(bioclim_table, "C:/Users/Katie/Google Drive/FIA project/FIA_rproject/bioclim_vars_FIA_multconds.csv")
 bioclim_table = read.csv("C:/Users/Katie/Google Drive/FIA project/FIA_rproject/bioclim_vars_FIA_multconds.csv")
 View(bioclim_table)
@@ -316,8 +318,8 @@ colnames(prism_annual_data)=c("PLT_CN","ppt","tmean","tmin","tmax","vpdmax","vpd
 
 
 
-all_vars=prism_annual_data %>% 
-  left_join(bioclim_table,by="PLT_CN")
+all_vars= bioclim_table %>% 
+  left_join(prism_annual_data,by="PLT_CN")
 nrow(all_vars)
 
 write.csv(all_vars, "env_vars_FIA_2022.csv")
