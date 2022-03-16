@@ -283,19 +283,19 @@ vars<- c("mcmt",	"mwmt",	"td",	"msp",	"ahm",	"shm",	"dd_0",	"DD5",
          "tave_sm",	"ppt_wt",	"ppt_sm")
 
 
-bioclim_vars<-matrix(0,nrow(poly.dbf),length(vars))
+bioclim_vars<-as.data.frame(poly.dbf)
 for(i in 1:length(vars)){
-  rast<- as.raster(arc.raster(arc.open(paste("E:/Bioclimate_Layers/Bioclimate_UTM_Zone12.gdb/",vars[i],sep=""))))
-  vals <- raster::extract(rast, poly, fun = mean, na.rm=TRUE, df=TRUE)
-  bioclim_vars[,i]<- vals[,2]
+  rast <- as.raster(arc.raster(arc.open(paste("E:/Bioclimate_Layers/Bioclimate_UTM_Zone12.gdb/",vars[i],sep=""))))
+  vals <- raster::extract(rast, poly, fun = mean, na.rm=TRUE, df=TRUE, sp=TRUE)
+  vals <- as.data.frame(vals@data) %>% 
+    dplyr::rename(!!paste(vars[i]) := Band_1)
+  bioclim_vars<- bioclim_vars %>% 
+    left_join(vals)
   }
 head(bioclim_vars)
-bioclim_table<- cbind(poly.dbf[,2],bioclim_vars)
-str(bioclim_table)
-bioclim_table<-as.data.frame(bioclim_table)
-head(bioclim_table)
-colnames(bioclim_table)=c("PLT_CN",vars)
-View(bioclim_table)
+View(bioclim_vars)
+bioclim_table<- bioclim_vars %>% 
+  dplyr::select(-c(1:2))
 write.csv(bioclim_table, "C:/Users/Katie/Google Drive/FIA project/FIA_rproject/bioclim_vars_FIA_multconds.csv")
 bioclim_table = read.csv("C:/Users/Katie/Google Drive/FIA project/FIA_rproject/bioclim_vars_FIA_multconds.csv")
 View(bioclim_table)
@@ -319,6 +319,8 @@ colnames(prism_annual_data)=c("PLT_CN","ppt","tmean","tmin","tmax","vpdmax","vpd
 all_vars=prism_annual_data %>% 
   left_join(bioclim_table,by="PLT_CN")
 nrow(all_vars)
+
+write.csv(all_vars, "env_vars_FIA_2022.csv")
 
 ###############extract disturbance data
 

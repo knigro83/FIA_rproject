@@ -6,8 +6,8 @@
 
 
 #load packages
-library(data.table)
 library(readr)
+library(dplyr)
 
 ## Subset data into public plots with one condition
 #FIA data for AZ, CO, NM, NV, ID, UT, WY, MT
