@@ -1907,7 +1907,7 @@ ggplot(niche.areas.long, aes(x=name, y=niche.area, fill=age))+
 #calculate niche areas and overlap
 ##this takes ~10 hours 
 # install.packages("beepr")
-# 
+
 # overlap.list<-list()
 # for(i in 1:length(ellipses.posterior.list)){
 #     cat(i, "\n")
@@ -1937,7 +1937,7 @@ ggplot(niche.areas.long, aes(x=name, y=niche.area, fill=age))+
 # }
 # names(overlap.list)<- names(ellipses.posterior.list)
 # 
-# saveRDS(overlap.list, file = "overlap.list.14spp.nov.RDS")
+# saveRDS(overlap.list, file = "overlap.list.2022.RDS")
 
 ```
 
@@ -1963,7 +1963,7 @@ ggplot(niche.areas.long, aes(x=name, y=niche.area, fill=age))+
 
 ```{r}
 #read in overlap data
-overlap.list <- readRDS("overlap.list.14spp.nov.RDS")
+overlap.list <- readRDS("overlap.list.2022.RDS")
 names(overlap.list) <- names(ellipses.posterior.list)
 #overlap.list.90 <- readRDS("overlap.list.90.nov.RDS")
 ```
@@ -1978,7 +1978,7 @@ for(i in 1:length(overlap.list)){
   overlap.summary[[i]]<- temp.summary
   }
 
-overlap.table <- as.data.frame(matrix(unlist(overlap.summary),nrow = 36, ncol=5,byrow=TRUE))  
+overlap.table <- as.data.frame(matrix(unlist(overlap.summary),nrow = 41, ncol=5,byrow=TRUE))  
 colnames(overlap.table)<-names(overlap.summary[[1]])
 overlap.table<- overlap.table %>% 
   mutate(names = names(overlap.list)) %>% 
@@ -1992,12 +1992,12 @@ Lets look at some plots of expansion and contraction across species and disturba
 
 ```{r}
 #some plots
-ggplot(overlap.table %>% filter(!(disturbance == 'fire' & species.name %in% c("limber pine","grand fir","two needle pinyon"))),aes(x=species.name,y=mean.exp.prop.adult,fill=disturbance))+
+ggplot(overlap.table %>% filter(!(disturbance == 'fire' & species.name %in% insectonlyspp)) %>% filter(!(disturbance=="insect.disease" & species.name %in% fireonlyspp)),aes(x=species.name,y=mean.exp.prop.adult,fill=disturbance))+
   geom_bar(stat='identity',position='dodge')+
   scale_fill_manual(values=disturbance.colors)+
   theme(axis.text.x = element_text(angle=45,vjust=0.9,hjust=0.8))
 
-ggplot(overlap.table %>% filter(!(disturbance == 'fire' & species.name %in% c("limber pine","grand fir","two needle pinyon"))),aes(x=species.name,y=mean.contr.prop.adult,fill=disturbance))+
+ggplot(overlap.table %>% filter(!(disturbance == 'fire' & species.name %in% insectonlyspp)) %>% filter(!(disturbance=="insect.disease" & species.name %in% fireonlyspp)),aes(x=species.name,y=mean.contr.prop.adult,fill=disturbance))+
   geom_bar(stat='identity',position='dodge')+
   scale_fill_manual(values=disturbance.colors)+
   theme(axis.text.x = element_text(angle=45,vjust=0.9,hjust=0.8))
@@ -2006,7 +2006,7 @@ ggplot(overlap.table %>% filter(!(disturbance == 'fire' & species.name %in% c("l
 overlap.table$diff = overlap.table$mean.exp.prop.adult - overlap.table$mean.contr.prop.adult
 
 #for 8 species
-diff.plot<- ggplot(overlap.table %>% filter(!(species.name %in% insectonlyspp)),aes(x=species.name,y=diff,fill=disturbance))+
+diff.plot<- ggplot(overlap.table %>% filter(!(disturbance == 'fire' & species.name %in% insectonlyspp)) %>% filter(!(disturbance=="insect.disease" & species.name %in% fireonlyspp)),aes(x=species.name,y=diff,fill=disturbance))+
   geom_bar(stat='identity',position='dodge')+
   scale_fill_manual(values=disturbance.colors)+
   scale_x_discrete(position='top',name="")+
@@ -2021,7 +2021,7 @@ diff.plot<- ggplot(overlap.table %>% filter(!(species.name %in% insectonlyspp)),
 # dev.off()
 
 
-expansion.plot <- ggplot(overlap.table %>% filter(!(disturbance == "fire" & species.name %in% c("limber pine", "grand fir","two needle pinyon"))),aes(x=disturbance,y=mean.exp.prop.adult))+
+expansion.plot <- ggplot(overlap.table %>% filter(!(disturbance == "fire" & species.name %in% insectonlyspp)) %>% filter(!(disturbance=="insect.disease" & species.name %in% fireonlyspp)),aes(x=disturbance,y=mean.exp.prop.adult))+
   geom_boxplot(fill="gray")+
   geom_jitter(height=0,width=0.2, aes(color=species.name),pch=15,size=2)+
   scale_color_manual(values=c("#d55f90","#5aa554","#ad74d6","#9ab13f","#6070d5","#cd9337","#563686","#45c097","#8b2965","#9b8a40","#ca71c0","#b95336","#628ed6","#ba4758"),name="Species")+
@@ -2031,7 +2031,7 @@ expansion.plot <- ggplot(overlap.table %>% filter(!(disturbance == "fire" & spec
   theme_bw()+
   theme(axis.text=element_text(size=16,color="black"),legend.text = element_text(size=14),axis.title = element_text(size=14),legend.title = element_text(size=14))
 
-contraction.plot <- ggplot(overlap.table %>% filter(!(disturbance == "fire" & species.name %in% c("limber pine", "grand fir","two needle pinyon"))),aes(x=disturbance,y=mean.contr.prop.adult))+
+contraction.plot <- ggplot(overlap.table %>% filter(!(disturbance == "fire" & species.name %in% insectonlyspp)) %>% filter(!(disturbance=="insect.disease" & species.name %in% fireonlyspp)),aes(x=disturbance,y=mean.contr.prop.adult))+
   geom_boxplot(fill="gray")+
   geom_jitter(height=0,width=0.2, aes(color=species.name),pch=15,size=2)+
   scale_color_manual(values=c("#d55f90","#5aa554","#ad74d6","#9ab13f","#6070d5","#cd9337","#563686","#45c097","#8b2965","#9b8a40","#ca71c0","#b95336","#628ed6","#ba4758"),name="Species")+
