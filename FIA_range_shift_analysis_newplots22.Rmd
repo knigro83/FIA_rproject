@@ -504,15 +504,15 @@ autoplot(clim_pca,x=1,y=2,colour="grey",loadings.colour="red", loadings=T, loadi
 #   theme_bw()+
 #   theme(axis.text = element_text(color="black",size=18),text = element_text(size=18),legend.text = element_text(size=18))
 
-pdf("figures/FIA_pca.pdf", width = 13, height = 7)
+pdf("figures/FIA_pca22.pdf", width = 13, height = 7)
 
-autoplot(clim_pca,x=1,y=2,colour="grey",loadings.colour="red", loadings=T, loadings.label=T, loadings.label.colour="black", scale=0, loadings.label.vjust=c(-.5,-.3,-.5,-.3,-.4,1.1,1.4,0), loadings.label.hjust=c(0,1,0,-.1,1.1,-.1,0,-.1), loadings.label.size=7, alpha=0.5)+
+autoplot(clim_pca,x=1,y=2,colour="grey",loadings.colour="red", loadings=T, loadings.label=T, loadings.label.colour="black", scale=0, loadings.label.vjust=c(1,-.3,-.5,0.5,-.4,-.1,1.4,0), loadings.label.hjust=c(0,1,0,-.1,1.1,1.1,0,-.1), loadings.label.size=7, alpha=0.5)+
   geom_hline(yintercept=0,linetype="dashed")+geom_vline(xintercept=0,linetype="dashed")+
   geom_abline(intercept=0, slope = 1, linetype="dashed")+
   geom_abline(intercept=0, slope = -1, linetype="dashed")+
   annotate("text",x=-0.2,y=3.6,label="cold/dry",size=6,angle=90)+
   annotate(geom="text",x=5.5,y=0.2,label="cold/wet",size=6)+
-  annotate(geom="text",x=-0.2,y=-2.5,label="hot/wet",size=6,angle=90)+
+  annotate(geom="text",x=-0.2,y=-3.5,label="hot/wet",size=6,angle=90)+
   annotate(geom="text",x=-6.7,y= 0.2,label="hot/dry",size=6)+
   annotate(geom="text",x=3.4,y= 3.8,label="cold",size=6, angle=45)+
   annotate(geom="text",x=3,y= -2.7,label="wet",size=6, angle=313)+
@@ -2006,7 +2006,7 @@ ggplot(overlap.table %>% filter(!(disturbance == 'fire' & species.name %in% inse
 overlap.table$diff = overlap.table$mean.exp.prop.adult - overlap.table$mean.contr.prop.adult
 
 #for 8 species
-diff.plot<- ggplot(overlap.table %>% filter(!(disturbance == 'fire' & species.name %in% insectonlyspp)) %>% filter(!(disturbance=="insect.disease" & species.name %in% fireonlyspp)),aes(x=species.name,y=diff,fill=disturbance))+
+diff.plot<- ggplot(overlap.table %>% filter(!species.name %in% c(insectonlyspp,fireonlyspp)),aes(x=species.name,y=diff,fill=disturbance))+
   geom_bar(stat='identity',position='dodge')+
   scale_fill_manual(values=disturbance.colors)+
   scale_x_discrete(position='top',name="")+
@@ -2070,7 +2070,7 @@ Full set results:
 ```{r, echo=FALSE}
 overlap.table.partialset <- overlap.table
 overlap.table.fullset <- overlap.table %>% 
-  filter(!species.name %in% insectonlyspp)
+  filter(!species.name %in% c(insectonlyspp,fireonlyspp))
 
 dist.exp.anova <- aov(log(mean.exp.prop.adult)~factor(disturbance),data=overlap.table.fullset)
 par(mfrow=c(2,2))
@@ -2295,9 +2295,9 @@ ggplot()+
 
 
 arrowsplot1<- ggplot(cart_positions.all, aes(x,y)) +
-  geom_polygon(data=df.top.triangle, aes(x,y),fill=rect.colors[1],alpha=0.5)+
+  geom_polygon(data=df.top.triangle, aes(x,y),fill=rect.colors[3],alpha=0.5)+
   geom_polygon(data=df.right.triangle, aes(x,y),fill=rect.colors[4],alpha=0.5)+
-  geom_polygon(data=df.bottom.triangle, aes(x,y),fill=rect.colors[3],alpha=0.5)+
+  geom_polygon(data=df.bottom.triangle, aes(x,y),fill=rect.colors[1],alpha=0.5)+
   geom_polygon(data=df.left.triangle, aes(x,y),fill=rect.colors[2],alpha=0.5)+
   #geom_bin2d(bins = 50, fill="white", aes(alpha= ..density..)) +
   #scale_alpha(range=c(0.1,1)) +
@@ -2313,37 +2313,37 @@ arrowsplot1<- ggplot(cart_positions.all, aes(x,y)) +
   scale_color_manual(values=rep("black",15),labels=NULL,name=NULL)+
   #scale_color_manual(values=c("#d55f90","#5aa554","#ad74d6","#9ab13f","#6070d5","#cd9337","#563686","#45c097","#8b2965","#9b8a40","#ca71c0","#b95336","#628ed6","#ba4758"))+
   geom_text(data=for_arrows.all %>% filter(!y==0),aes(label=species.number,x=x,y=y),size=5,hjust=-.4,vjust=.4,col="darkred")+
-  annotate("text",x=0,y=0.4,label="hot/wet",size=5)+
+  annotate("text",x=0,y=0.4,label="cold/dry",size=5)+
   annotate(geom="text",x=0.4,y=0,label="cold/wet",size=5,angle=90)+
-  annotate(geom="text",x=0,y=-0.4,label="cold/dry",size=5)+
+  annotate(geom="text",x=0,y=-0.4,label="hot/wet",size=5)+
   annotate(geom="text",x=-0.4,y= 0,label="hot/dry",size=5,angle=90)+
   ylab("PC2") +
   xlab("PC1") + 
   theme(text = element_text(size=20,color="black"),legend.position = "none")
 
 #option2
-ggplot(cart_positions.all, aes(x,y)) +
-    geom_bin2d(bins = 50, aes(fill= ..density..)) +
-  scale_fill_gradient(low="#EBFBFF",high="#004D60") +
-  coord_cartesian(xlim = c(-.4, +.4), ylim = c(-.4, +.4)) +
-  facet_wrap( ~ factor(disturbance), scales = "fixed", ncol=3) + 
-  theme_classic() +
-  geom_hline(yintercept=0)+geom_vline(xintercept=0)+
-  geom_abline(intercept=0, slope = 1, linetype="dashed")+
-  geom_abline(intercept=0, slope = -1, linetype="dashed")+
-  geom_path(data = for_arrows.all, aes(col=species.name),
-            arrow = arrow(type = "open", length = unit(0.2, "cm")),
-            alpha = 0.7, size=1) +
-  scale_color_manual(values=rep("black",13),labels=NULL,name=NULL)+
-  #scale_color_manual(values=c("#d55f90","#5aa554","#ad74d6","#9ab13f","#6070d5","#cd9337","#563686","#45c097","#8b2965","#9b8a40","#ca71c0","#b95336","#628ed6","#ba4758"))+
-  geom_text(data=for_arrows.all %>% filter(!y==0),aes(label=species.number,x=x,y=y),size=5,hjust=-.4,vjust=.4,col="darkred")+
-  annotate("text",x=0,y=0.4,label="hot/wet",size=5)+
-  annotate(geom="text",x=0.4,y=0,label="cold/wet",size=5,angle=90)+
-  annotate(geom="text",x=0,y=-0.4,label="cold/dry",size=5)+
-  annotate(geom="text",x=-0.4,y= 0,label="hot/dry",size=5,angle=90)+
-  ylab("PC2") +
-  xlab("PC1") + 
-  theme(text = element_text(size=15))
+# ggplot(cart_positions.all, aes(x,y)) +
+#     geom_bin2d(bins = 50, aes(fill= ..density..)) +
+#   scale_fill_gradient(low="#EBFBFF",high="#004D60") +
+#   coord_cartesian(xlim = c(-.4, +.4), ylim = c(-.4, +.4)) +
+#   facet_wrap( ~ factor(disturbance), scales = "fixed", ncol=3) + 
+#   theme_classic() +
+#   geom_hline(yintercept=0)+geom_vline(xintercept=0)+
+#   geom_abline(intercept=0, slope = 1, linetype="dashed")+
+#   geom_abline(intercept=0, slope = -1, linetype="dashed")+
+#   geom_path(data = for_arrows.all, aes(col=species.name),
+#             arrow = arrow(type = "open", length = unit(0.2, "cm")),
+#             alpha = 0.7, size=1) +
+#   scale_color_manual(values=rep("black",13),labels=NULL,name=NULL)+
+#   #scale_color_manual(values=c("#d55f90","#5aa554","#ad74d6","#9ab13f","#6070d5","#cd9337","#563686","#45c097","#8b2965","#9b8a40","#ca71c0","#b95336","#628ed6","#ba4758"))+
+#   geom_text(data=for_arrows.all %>% filter(!y==0),aes(label=species.number,x=x,y=y),size=5,hjust=-.4,vjust=.4,col="darkred")+
+#   annotate("text",x=0,y=0.4,label="hot/wet",size=5)+
+#   annotate(geom="text",x=0.4,y=0,label="cold/wet",size=5,angle=90)+
+#   annotate(geom="text",x=0,y=-0.4,label="cold/dry",size=5)+
+#   annotate(geom="text",x=-0.4,y= 0,label="hot/dry",size=5,angle=90)+
+#   ylab("PC2") +
+#   xlab("PC1") + 
+#   theme(text = element_text(size=15))
 ```
 
 ```{r}
@@ -2403,7 +2403,7 @@ plot(distmodmed.8spp)
 summary(distmodmed.8spp)
 TukeyHSD(distmodmed.8spp)
 
-anova.stats.meddist <- data.frame(disturbance=c("fire","insect.disease","none"), y=c(.38,.38,.38),letter=c("A","A","B"))
+anova.stats.meddist <- data.frame(disturbance=c("fire","insect.disease","none"), y=c(.41,.41,.41),letter=c("A","A","B"))
 
 distance.boxplot<- ggplot(median_vectors_all %>% filter(!species.name %in% c(insectonlyspp)), aes(x=disturbance, y=medDist, fill=disturbance))+
   geom_boxplot()+
@@ -2423,29 +2423,31 @@ plot(angmodmed)
 summary(angmodmed)
 TukeyHSD(angmodmed)
 
-anova.stats.medang <- data.frame(disturbance=c("fire","insect.disease","none"), y=c(1.5,1.5,1.5),letter=c("A","A","A"))
+anova.stats.medang <- data.frame(disturbance=c("fire","insect.disease","none"), y=c(2.5,2.5,2.5),letter=c("A","A","A"))
 
+median_vectors_all2<- median_vectors_all %>% 
+  add_row(disturbance = "x",)
 
-angle.boxplot<- ggplot(median_vectors_all, aes(x=disturbance, y=medAngle, fill=disturbance))+
+angle.boxplot<- ggplot(median_vectors_all2, aes(x=disturbance, y=medAngle, fill=disturbance))+
   annotate("rect",xmin = -Inf, xmax = Inf, ymin=0.79, ymax = 2.35, fill=rect.colors[3], alpha = 0.5)+
   annotate("rect",xmin = -Inf, xmax = Inf, ymin=-0.79, ymax = 0.79, fill=rect.colors[4], alpha = 0.5)+
   annotate("rect",xmin = -Inf, xmax = Inf, ymin=-2.35, ymax = -0.79, fill=rect.colors[1], alpha = 0.5)+
   annotate("rect",xmin = -Inf, xmax = Inf, ymin=-3.14, ymax = -2.35, fill=rect.colors[2], alpha = 0.5)+
   annotate("rect",xmin = -Inf, xmax = Inf, ymin=2.35, ymax = 3.14, fill=rect.colors[2], alpha = 0.5)+
-  geom_text(aes(x="none",y=2.745),nudge_x=0.4,label="hot/dry",size=3.5)+
-  geom_text(aes(x="none",y=1.57),nudge_x=0.4,label="cold/dry",size=3.5)+
-  geom_text(aes(x="none",y=0.1),nudge_x=0.4,label="cold/wet",size=3.5)+
-  geom_text(aes(x="none",y=-1.7),nudge_x=0.4,label="hot/wet",size=3.5)+
-  geom_text(aes(x="none",y=-2.745),nudge_x=0.4,label="hot/dry",size=3.5)+
+  geom_text(aes(x="x",y=2.745),label="hot/dry",size=5)+
+  geom_text(aes(x="x",y=1.7),label="cold/dry",size=5)+
+  geom_text(aes(x="x",y=0.1),label="cold/wet",size=5)+
+  geom_text(aes(x="x",y=-1.7),label="hot/wet",size=5)+
+  geom_text(aes(x="x",y=-2.745),label="hot/dry",size=5)+
   geom_boxplot()+
   geom_jitter(data=median_vectors_all,aes(x=disturbance, y=medAngle),width=0.1,height=0.1)+
   ylab("Median angle (radians)")+
   xlab("")+
   ylim(c(-3.14,3.14))+
-  scale_fill_manual(values=c("lightgray","darkgray","white"))+
+  scale_fill_manual(values=c("lightgray","darkgray","white","white"))+
   geom_text(data= anova.stats.medang, aes(x=disturbance,y=y,label=letter),size=5)+
   theme_bw()+
-  theme(text=element_text(size=20, color="black"),axis.text = element_text(color="black"),legend.position = "none")
+  theme(text=element_text(size=20, color="black"),axis.text = element_text(color="black"),legend.position = "none",axis.text.x = element_text(color=c(rep("black",3),"white"),size=14))
 
 ```
 
@@ -2453,8 +2455,9 @@ angle.boxplot<- ggplot(median_vectors_all, aes(x=disturbance, y=medAngle, fill=d
 #combine plots
 boxplots<- ggarrange(distance.boxplot,angle.boxplot,nrow=2,ncol=1)
 arrowcentroidplot<- ggarrange(arrowsplot1,boxplots, nrow=1,ncol=2, widths=c(3.5,1))
+arrowcentroidplot
 
-pdf(file="figures/arrowsplot.pdf",width=20,height=6)
+pdf(file="figures/arrowsplot22.pdf",width=20,height=6)
 
 arrowcentroidplot
 
@@ -2864,8 +2867,8 @@ Now I will look at the effect of species traits on the amount of expansion/contr
 #make shade tolerance dataframe from https://figshare.com/collections/TOLERANCE_TO_SHADE_DROUGHT_AND_WATERLOGGING_OF_TEMPERATE_NORTHERN_HEMISPHERE_TREES_AND_SHRUBS/3309258
 
 trait.data <- data.frame(species.name = species.names$species.name,
-                         shade.tolerance=c(4.33,4.01,4.83,4.53,1,1.44,1.48,1.56,1.64,1.17,2.78,4.73,1.21,2.09),
-                         dispersal = c(rep("wind",4),rep("animal",2),"wind","animal","wind","animal",rep("wind",3),"animal"))
+                         shade.tolerance=c(4.33,4.01,4.83,1.48,1.35,4.53,1,1.44,1.48,1.56,1.64,1.17,2.78,4.73,1.21,2.09),
+                         dispersal = c(rep("wind",3),"animal","wind","wind",rep("animal",2),"wind","animal","wind","animal",rep("wind",3),"animal"))
 
 #read in seed weight data
 #need to get weights for new species
@@ -2920,7 +2923,7 @@ My hypotheses are that shade tolerance and seed weight will significantly affect
 
 In order to test these hypotheses, I will model the amount of expansion and contraction for each species in each disturbance type as a function of either shade tolerance or seed weight, disturbance, and the interaction between the trait and disturbance category.
 
-####8 species analysis
+####9 species analysis
 
 First I will only include the eight species that have big enough sample sizes for all 3 disturbance categories. 
 
@@ -2932,7 +2935,7 @@ niche.shift.trait.table <- overlap.table.fullset %>%
 
 #models for expansion
 #shade tolerance
-exp.shade.mod<- lm(log(mean.exp.prop.adult)~shade.tolerance*disturbance,data=niche.shift.trait.table)
+exp.shade.mod<- lm(mean.exp.prop.adult~shade.tolerance*disturbance,data=niche.shift.trait.table)
 par(mfrow=c(2,2))
 plot(exp.shade.mod)
 Anova(exp.shade.mod, type='3')
@@ -3145,7 +3148,7 @@ traits.plot8 <- ggarrange(shade.exp.plot,shade.contr.plot , pc1.exp.plot, pc1.co
 ggarrange(diff.plot,traits.plot8,ncol=1,nrow=2,heights=c(1.5,4))
 
 
-png("traitplot.png", width = 800, height = 1600)
+png("traitplot22.png", width = 800, height = 1600)
 
 ggarrange(diff.plot,traits.plot8,ncol=1,nrow=2,heights=c(1.5,4))
 
