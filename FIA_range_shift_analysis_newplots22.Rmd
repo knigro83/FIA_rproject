@@ -2010,9 +2010,9 @@ diff.plot<- ggplot(overlap.table %>% filter(!species.name %in% c(insectonlyspp,f
   geom_bar(stat='identity',position='dodge')+
   scale_fill_manual(values=disturbance.colors)+
   scale_x_discrete(position='top',name="")+
-  ylab("Expansion - Contraction")+
+  ylab("(Expansion - Contraction)")+
   theme_bw()+
-  theme(axis.text.x = element_text(angle=25,vjust=0,hjust=0),axis.text = element_text(size=24),legend.text = element_text(size=24),legend.title = element_text(size=24),legend.position = 'none',axis.title = element_text(size=24),plot.margin=margin(0,3.8,.1,.1,"cm"))
+  theme(axis.text.x = element_text(angle=25,vjust=0,hjust=0),axis.text = element_text(size=24),legend.text = element_text(size=24),legend.title = element_text(size=24),legend.position = 'none',axis.title = element_text(size=24),plot.margin=margin(0,3.9,.6,.1,"cm"))
 
 # png("diffplot.png", width = 1000, height = 800)
 # 
