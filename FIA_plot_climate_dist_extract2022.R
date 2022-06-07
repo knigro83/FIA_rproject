@@ -378,19 +378,19 @@ write.csv(all_vars, "env_vars_FIA_2022.csv")
 #load packages
 
 points = readOGR(dsn="F:/FIA_plot_locations_multconds", layer = "FIA_plot_locations_multconds")
-polys = readOGR(dsn="C:/Users/Katie/Google Drive/ArcGIS/mtbs_perimeter_data", layer ="mtbs_perims_DD")
+polys = readOGR(dsn="C:/Users/katie/My Drive/ArcGIS/mtbs_perimeter_data", layer ="mtbs_perims_DD")
 polys = spTransform(polys,CRS("+proj=longlat +datum=NAD83 +no_defs"))
 
 polys@data$poly.ids <- 1:nrow(polys)
 join <- point.in.poly(points, polys, sp=FALSE, duplicate=FALSE)
 jointable <- as.data.frame(join@data)
-setwd("C:/Users/Katie/Google Drive/FIA project/FIA_rproject")
+setwd("C:/Users/katie/My Drive/FIA project/FIA_rproject")
 write.csv(jointable, "mtbs_join_2022.csv")
 write.csv(polys@data, "mtbs_data_2022.csv")
 
 ##subset plot data to include only plots with MTBS fire history
-join.table<- read.csv("C:/Users/Katie/Google Drive/FIA project/FIA_rproject/mtbs_join_2022.csv")
-mtbs_data <- read.csv("C:/Users/Katie/Google Drive/FIA project/FIA_rproject/mtbs_data_2022.csv")
+join.table<- read.csv("C:/Users/katie/My Drive/FIA project/FIA_rproject/mtbs_join_2022.csv")
+mtbs_data <- read.csv("C:/Users/katie/My Drive/FIA project/FIA_rproject/mtbs_data_2022.csv")
 
 join.table.fire <- join.table[! is.na(join.table$pid1), ]
 nrow(join.table)
