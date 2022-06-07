@@ -126,6 +126,12 @@ unique_plots<- no.artregen.plots2 %>%
   filter(!CN %in% no.artregen.plots2$PREV_PLT_CN) #64,286 plot locations
 
 
+#####checking out plots more
+
+
+
+#####
+
 ################
 
 #"no.artregen.plots2" is the final plot list for all time points.
