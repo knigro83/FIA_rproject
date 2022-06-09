@@ -8,6 +8,7 @@
 #load packages
 library(readr)
 library(dplyr)
+library(ggplot2)
 
 ## Subset data into public plots with one condition
 #FIA data for AZ, CO, NM, NV, ID, UT, WY, MT
@@ -21,21 +22,21 @@ seedling<- read_csv("compiled_data_annual2020/SEEDLING.csv")
 ####################
 #goal = obtain all plots that are completely within public land & accessible (COND_STATUS_CD < 3)
 public.plots<- plot %>% 
-  filter(!CN %in% c(cond %>% 
-  filter(OWNCD > 40 | COND_STATUS_CD > 2) %>% 
+  dplyr::filter(!CN %in% c(cond %>% 
+  dplyr::filter(OWNCD > 40 | COND_STATUS_CD > 2) %>% 
   pull(PLT_CN))
   )
 
 #check that there are no private owners in here
 View(cond %>% 
-  filter(PLT_CN %in% public.plots$CN))
+  dplyr::filter(PLT_CN %in% public.plots$CN))
 #there aren't
 ####################
 
 ####################
-#goal = filter public plots down to those that only had one disturbance/treatment condition across all subplots
+#goal = dplyr::filter public plots down to those that only had one disturbance/treatment condition across all subplots
 disturbance.summary<- cond %>% 
-  filter(PLT_CN %in% public.plots$CN) %>% 
+  dplyr::filter(PLT_CN %in% public.plots$CN) %>% 
   group_by(PLT_CN) %>% 
   dplyr::summarise(d1 = n_distinct(DSTRBCD1,na.rm=TRUE),
                    d2 = n_distinct(DSTRBCD2,na.rm=TRUE),
@@ -52,9 +53,9 @@ disturbance.summary<- cond %>%
                    )
 
 public.onedist.plots<- public.plots %>% 
-  filter(! CN %in% c(
+  dplyr::filter(! CN %in% c(
 disturbance.summary %>% 
-  filter(if_any(.cols=d1:p2a_t3,.fns = ~.>1)) %>% 
+  dplyr::filter(if_any(.cols=d1:p2a_t3,.fns = ~.>1)) %>% 
   pull(PLT_CN) #these are plots that have different disturbances in different subplots
 )
 )
@@ -66,20 +67,20 @@ nrow(public.onedist.plots)
 #now do the same thing for the previously sampled plot
 
 plot %>% 
-  filter(CN %in% plot$PREV_PLT_CN) %>% 
-  filter(!is.na(PREV_PLT_CN)) #there are no plots survyed more than two times
+  dplyr::filter(CN %in% plot$PREV_PLT_CN) %>% 
+  dplyr::filter(!is.na(PREV_PLT_CN)) #there are no plots survyed more than two times
 
 
 
 public.plots2<- public.onedist.plots %>% 
-  filter(!PREV_PLT_CN %in% c(cond %>% 
-                      filter(OWNCD > 40 | COND_STATUS_CD > 2) %>% 
+  dplyr::filter(!PREV_PLT_CN %in% c(cond %>% 
+                      dplyr::filter(OWNCD > 40 | COND_STATUS_CD > 2) %>% 
                       pull(PLT_CN))
   )
 public.onedist.plots2<- public.plots2 %>% 
-  filter(! PREV_PLT_CN %in% c(
+  dplyr::filter(! PREV_PLT_CN %in% c(
     disturbance.summary %>% 
-      filter(if_any(.cols=d1:p2a_t3,.fns = ~.>1)) %>% 
+      dplyr::filter(if_any(.cols=d1:p2a_t3,.fns = ~.>1)) %>% 
       pull(PLT_CN) #these are plots that have different disturbances in different subplots
   )
   )
@@ -89,16 +90,16 @@ nrow(public.onedist.plots2)
 #######################
 #eliminate plots with documented artificial regen or stand origin from artificial regen
 no.artregen.plots<- public.onedist.plots2 %>% 
-  filter(!CN %in% c(cond %>% 
-  filter(TRTCD1 == 30 | TRTCD2 == 30 | TRTCD3 == 30 |
+  dplyr::filter(!CN %in% c(cond %>% 
+  dplyr::filter(TRTCD1 == 30 | TRTCD2 == 30 | TRTCD3 == 30 |
           TRTCD1_P2A == 30 | TRTCD2_P2A == 30 | TRTCD3_P2A == 30 | 
             STDORGCD ==1 ) %>% 
   pull(PLT_CN) %>% 
     unique())
   )
 no.artregen.plots2<- no.artregen.plots %>% 
-  filter(!PREV_PLT_CN %in% c(cond %>% 
-                      filter(TRTCD1 == 30 | TRTCD2 == 30 | TRTCD3 == 30 |
+  dplyr::filter(!PREV_PLT_CN %in% c(cond %>% 
+                      dplyr::filter(TRTCD1 == 30 | TRTCD2 == 30 | TRTCD3 == 30 |
                                TRTCD1_P2A == 30 | TRTCD2_P2A == 30 | TRTCD3_P2A == 30 | 
                                STDORGCD ==1 ) %>% 
                       pull(PLT_CN) %>% 
@@ -112,10 +113,15 @@ no.artregen.plots2<- no.artregen.plots %>%
 
 no.artregen.plots2 %>% 
   group_by(KINDCD) %>% 
-  dplyr::summarise(n=n()) #no periodic inventory plots here
+  dplyr::summarise(n=n(), minyear = min(MEASYEAR), maxyear=max(MEASYEAR)) #no periodic inventory plots here
+
+no.artregen.plots2 %>% 
+  dplyr::filter(KINDCD == 2) %>% 
+  group_by(STATECD) %>% 
+  dplyr::summarise(n=n())
 
 cond %>% 
-  filter(PLT_CN %in% no.artregen.plots2$CN) %>% 
+  dplyr::filter(PLT_CN %in% no.artregen.plots2$CN) %>% 
   group_by(PLT_CN) %>% 
   dplyr::summarise(conds = n_distinct(CONDID)) %>% 
   group_by(conds) %>% 
@@ -123,12 +129,96 @@ cond %>%
 
 ##reduce to just the unique plot locations
 unique_plots<- no.artregen.plots2 %>% 
-  filter(!CN %in% no.artregen.plots2$PREV_PLT_CN) #64,286 plot locations
+  dplyr::filter(!CN %in% no.artregen.plots2$PREV_PLT_CN) #64,286 plot locations
 
 
 #####checking out plots more
+sumtable<- unique_plots %>% 
+  left_join(cond, by=c("CN" = "PLT_CN")) %>% 
+  left_join(tree, by=c("CN" = "PLT_CN")) %>% 
+  group_by(COND_STATUS_CD,NF_SAMPLING_STATUS_CD,NF_PLOT_STATUS_CD,
+           NF_PLOT_NONSAMPLE_REASN_CD,SAMP_METHOD_CD,SUBP_EXAMINE_CD) %>% 
+  dplyr::summarise(n_plots=length(unique(CN)),minyear=min(MEASYEAR),maxyear=max(MEASYEAR),
+            states=paste(list(unique(STATECD.x))),trees= paste(list(unique(SPCD))))
 
+#write.csv(sumtable, "FIA_plots_sumtable.csv")
 
+unique_plots %>% 
+  left_join(cond, by=c("CN" = "PLT_CN")) %>% 
+  left_join(tree, by=c("CN" = "PLT_CN")) %>% 
+  dplyr::filter((COND_STATUS_CD == 2 & NF_SAMPLING_STATUS_CD==1 & is.na(NF_PLOT_STATUS_CD))|
+           (COND_STATUS_CD == 2 & NF_SAMPLING_STATUS_CD==1 & NF_PLOT_STATUS_CD %in% c(1,2))|
+           (COND_STATUS_CD == 2 & is.na(NF_SAMPLING_STATUS_CD) & is.na(NF_PLOT_STATUS_CD))) %>% 
+  group_by(STATECD.x) %>% 
+  dplyr::summarise(n=length(unique(CN)),minyear=min(MEASYEAR),maxyear=max(MEASYEAR))
+
+View(unique_plots %>% 
+  left_join(cond, by=c("CN" = "PLT_CN")) %>% 
+  left_join(tree, by=c("CN" = "PLT_CN")) %>% 
+  dplyr::filter(COND_STATUS_CD==2,NF_SAMPLING_STATUS_CD==0,is.na(NF_PLOT_STATUS_CD),
+           is.na(NF_PLOT_NONSAMPLE_REASN_CD),SAMP_METHOD_CD==1,SUBP_EXAMINE_CD==4) %>% 
+  group_by(CN) %>% 
+  dplyr::summarise(nconds = length(unique(CONDID.x)),trees= paste(list(unique(SPCD)))))
+
+unique_plots %>% 
+       left_join(cond, by=c("CN" = "PLT_CN")) %>% 
+       left_join(tree, by=c("CN" = "PLT_CN")) %>% 
+       dplyr::filter(COND_STATUS_CD==2,NF_SAMPLING_STATUS_CD==0,is.na(NF_PLOT_STATUS_CD),
+              is.na(NF_PLOT_NONSAMPLE_REASN_CD),SAMP_METHOD_CD==1,SUBP_EXAMINE_CD==4) %>% 
+       group_by(INTENSITY) %>% 
+       dplyr::summarise(n=n())
+
+plot.locs <- unique_plots %>% 
+  left_join(cond, by=c("CN" = "PLT_CN")) %>% 
+  left_join(tree, by=c("CN" = "PLT_CN")) %>% 
+  dplyr::filter((COND_STATUS_CD == 2 & NF_SAMPLING_STATUS_CD==1 & is.na(NF_PLOT_STATUS_CD))|
+           (COND_STATUS_CD == 2 & NF_SAMPLING_STATUS_CD==1 & NF_PLOT_STATUS_CD %in% c(1,2))|
+           (COND_STATUS_CD == 2 & is.na(NF_SAMPLING_STATUS_CD) & is.na(NF_PLOT_STATUS_CD))) %>% 
+  distinct(LAT, LON)
+  
+ggplot(plot.locs, aes(LON, LAT))+
+  geom_point(size=.25, show.legend=FALSE)+
+  coord_quickmap()
+
+unique_plots %>% 
+  left_join(cond, by=c("CN" = "PLT_CN")) %>% 
+  group_by(CN) %>% 
+  dplyr::summarise(n_conds=n_distinct(COND_STATUS_CD)) %>% 
+  group_by(n_conds) %>% 
+  dplyr::summarise(n=n())
+
+unique_plots %>% 
+  left_join(cond, by=c("CN" = "PLT_CN")) %>% 
+  group_by(CN) %>% 
+  dplyr::summarise(n_codes=n_distinct(SUBP_EXAMINE_CD)) %>% 
+  group_by(n_codes) %>% 
+  dplyr::summarise(n=n())
+
+unique_plots %>% 
+  left_join(cond, by=c("CN" = "PLT_CN")) %>% 
+  dplyr::filter(!(COND_STATUS_CD == 2 & NF_SAMPLING_STATUS_CD ==0)) %>% 
+  dplyr::filter(!(COND_STATUS_CD == 2 & NF_PLOT_STATUS_CD == 3)) %>% 
+  pull(CN) %>% 
+  unique() %>% 
+  length()
+
+unique_plots %>% 
+  left_join(cond, by=c("CN" = "PLT_CN")) %>% 
+  dplyr::filter(!(COND_STATUS_CD == 2 & NF_SAMPLING_STATUS_CD ==0)) %>% 
+  dplyr::filter(!(COND_STATUS_CD == 2 & NF_PLOT_STATUS_CD == 3)) %>% 
+  group_by(CN) %>% 
+  dplyr::summarise(n_conds = n_distinct(COND_STATUS_CD)) %>% 
+  dplyr::filter(n_conds > 1)
+
+##STATECDs#
+# 4  AZ
+# 8  CO
+# 16 ID
+# 30 MT
+# 32 NV
+# 35 NM
+# 49 UT
+# 56 WY
 
 #####
 
