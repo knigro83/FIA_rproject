@@ -261,7 +261,23 @@ sample_size <- adult_sample_cmbsurv %>%
   dplyr::rename(n.seed = n_plots) %>% 
   left_join(species.names, by=c("SPCD"="species.code"))
 
-datatable(sample_size)
+sample_size_wide<- sample_size %>% 
+  filter(Agent == "fire") %>% 
+  dplyr::rename(n.adult.fire = n.adult, n.seed.fire = n.seed) %>% 
+  dplyr::select(-Agent) %>% 
+  left_join(sample_size %>% 
+  filter(Agent == "insect.disease") %>% 
+  dplyr::rename(n.adult.ID = n.adult, n.seed.ID = n.seed) %>% 
+  dplyr::select(-Agent),
+    by="species.name") %>% 
+  left_join(sample_size %>% 
+  filter(Agent == "none") %>% 
+  dplyr::rename(n.adult.none = n.adult, n.seed.none = n.seed) %>% 
+  dplyr::select(-Agent),
+    by="species.name") %>% 
+  dplyr::select(species.name, n.seed.fire, n.adult.fire, n.seed.ID, n.adult.ID, n.seed.none, n.adult.none)
+
+#write.csv(sample_size_wide, "sample_size_wide.csv")
 
 insectonlyspp <- sample_size %>% 
   filter(n.seed < 60 & Agent == "fire") %>% 
@@ -505,20 +521,20 @@ as.data.frame(clim_pca$rotation[,1:3]) %>%
 ```{r, echo=FALSE}
 #plot pca and climate variable loadings
 
-pdf("figures/FIA_pca22_subset.pdf", width = 13, height = 7)
+png("figures/FIA_pca22_subset.png", width = 700, height = 400)
 
 autoplot(clim_pca,x=1,y=2,colour="grey",loadings.colour="red", loadings=T, loadings.label=T, loadings.label.colour="black", scale=0, loadings.label.vjust=c(.5,-.3,-.5,-.3,-.4,-.05,1.4,0), loadings.label.hjust=c(1.1,1,0,-.1,1.1,-.05,0,-.1), loadings.label.size=7, alpha=0.5)+
   geom_hline(yintercept=0,linetype="dashed")+geom_vline(xintercept=0,linetype="dashed")+
   geom_abline(intercept=0, slope = 1, linetype="dashed")+
   geom_abline(intercept=0, slope = -1, linetype="dashed")+
-  annotate("text",x=-0.2,y=3.6,label="cold/dry",size=6,angle=90)+
-  annotate(geom="text",x=5.5,y=0.2,label="cold/wet",size=6)+
-  annotate(geom="text",x=-0.2,y=-2.5,label="hot/wet",size=6,angle=90)+
-  annotate(geom="text",x=-6.7,y= 0.2,label="hot/dry",size=6)+
-  annotate(geom="text",x=3.4,y= 3.8,label="cold",size=6, angle=45)+
-  annotate(geom="text",x=3,y= -2.7,label="wet",size=6, angle=313)+
-  annotate(geom="text",x=-3.2,y= -2.8,label="hot",size=6, angle=45)+
-  annotate(geom="text",x=-3.4,y= 3.7,label="dry",size=6, angle=312)+
+  annotate("text",x=-0.4,y=3.2,label="cold/dry",size=6,angle=90)+
+  annotate(geom="text",x=5.2,y=-0.2,label="cold/wet",size=6)+
+  annotate(geom="text",x=-0.4,y=-4,label="hot/wet",size=6,angle=90)+
+  annotate(geom="text",x=-10,y=- 0.2,label="hot/dry",size=6)+
+  annotate(geom="text",x=3.2,y= 3.6,label="cold",size=6, angle=45)+
+  annotate(geom="text",x=5,y= -4.5,label="wet",size=6, angle=-45)+
+  annotate(geom="text",x=-5,y= -4.5,label="hot",size=6, angle=45)+
+  annotate(geom="text",x=-3.2,y= 3.7,label="dry",size=6, angle=-45)+
   theme_bw()+
   theme(axis.text = element_text(color="black",size=18),text = element_text(size=18),legend.text = element_text(size=18))
 
@@ -1233,7 +1249,7 @@ This plot shows the difference in seedling vs. adult positions on PC1 (seedling 
 
 ```{r,echo=FALSE}
 
-ggplot(pc1.ttest.pvalues.sep, aes(x = agent, y = diff.means, fill = agent))+
+allspp_pc1<- ggplot(pc1.ttest.pvalues.sep, aes(x = agent, y = diff.means, fill = agent))+
   geom_col()+
   geom_text(data = subset(pc1.ttest.pvalues.sep, !is.na(sym.pos)), aes(x=agent, y=sym.pos), label="*", color="black",size=8)+
   scale_fill_manual(values=disturbance.colors)+
@@ -1245,7 +1261,13 @@ ggplot(pc1.ttest.pvalues.sep, aes(x = agent, y = diff.means, fill = agent))+
   ylab("Difference in Means")+
   labs(fill = "Disturbance Agent")+
   theme_bw()+
-  theme(axis.text.x = element_blank(), axis.text=element_text(color="black", size=14), legend.text = element_text(color="black", size=14), text=element_text(color="black", size=14), strip.text = element_text(color="black", size=11), legend.position = "none",legend.justification = c(1, -0.3))
+  theme(axis.text.x = element_text(angle=45, hjust=1), axis.text=element_text(color="black", size=14), legend.text = element_text(color="black", size=14), text=element_text(color="black", size=14), strip.text = element_text(color="black", size=11), legend.position = "none",legend.justification = c(1, -0.3))
+
+png("allspecies.plot.pc1.png", width=700,height=600)
+
+allspp_pc1
+
+dev.off()
 ```
 
 ###PC2
@@ -1418,7 +1440,7 @@ pc2.ttest.pvalues.sep <- pc2.ttest.pvalues %>%
 ```
 
 ```{r, echo=FALSE}
-ggplot(pc2.ttest.pvalues.sep, aes(x = agent, y = diff.means, fill = agent))+
+allspp_pc2<- ggplot(pc2.ttest.pvalues.sep, aes(x = agent, y = diff.means, fill = agent))+
   geom_col()+
   geom_text(data = subset(pc2.ttest.pvalues.sep, !is.na(sym.pos)), aes(x=agent, y=sym.pos), label="*", color="black",size=8)+
   scale_fill_manual(values=disturbance.colors)+
@@ -1430,7 +1452,13 @@ ggplot(pc2.ttest.pvalues.sep, aes(x = agent, y = diff.means, fill = agent))+
   ylab("Difference in Means")+
   labs(fill = "Disturbance Agent")+
   theme_bw()+
-  theme(axis.text.x = element_blank(), axis.text=element_text(color="black",size=14), text=element_text(color="black",size=14), legend.text = element_text(color="black",size=14), strip.text = element_text(color="black",size=11),legend.position = "none", legend.justification = c(1,-0.3))
+  theme(axis.text.x = element_text(angle=45, hjust=1), axis.text=element_text(color="black",size=14), text=element_text(color="black",size=14), legend.text = element_text(color="black",size=14), strip.text = element_text(color="black",size=11),legend.position = "none", legend.justification = c(1,-0.3))
+
+png("allsp_plot_pc2.png", width=700, height=600)
+
+allspp_pc2
+
+dev.off()
 ```
 
 ##Niche models
@@ -1615,53 +1643,6 @@ ggplot(niche.areas.long, aes(x=name, y=niche.area, fill=age))+
 
 ### Niche Overlap
 
-```{r}
-#Run things in parallel
-list.of.packages <- c(
-  "foreach",
-  "doParallel",
-  "ranger",
-  "palmerpenguins",
-  "tidyverse",
-  "kableExtra"
-  )
-
-new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
-
-if(length(new.packages) > 0){
-  install.packages(new.packages, dep=TRUE)
-}
-
-#loading packages
-for(package.i in list.of.packages){
-  suppressPackageStartupMessages(
-    library(
-      package.i, 
-      character.only = TRUE
-      )
-    )
-}
-
-
-n.cores <- parallel::detectCores() - 1
-
-#create the cluster
-my.cluster <- parallel::makeCluster(
-  n.cores, 
-  type = "PSOCK"
-  )
-
-#check cluster definition (optional)
-print(my.cluster)
-
-#register it to be used by %dopar%
-doParallel::registerDoParallel(cl = my.cluster)
-
-#check if it is registered (optional)
-foreach::getDoParRegistered()
-foreach::getDoParWorkers()
-
-```
 
 ```{r}
 #calculate niche areas and overlap
@@ -2081,6 +2062,8 @@ arrowsplot1<- ggplot(cart_positions.all, aes(x,y)) +
   annotate(geom="text",x=-0.4,y= 0,label="hot/dry",size=5,angle=90)+
   ylab("PC2") +
   xlab("PC1") + 
+  scale_y_continuous(limits=c(-.5,.5),expand=c(0,0))+
+  scale_x_continuous(limits=c(-.5,.5),expand=c(0,0))+
   theme(text = element_text(size=20,color="black"),legend.position = "none")
 
 #option2
@@ -2131,15 +2114,15 @@ TukeyHSD(distmodmed.8spp)
 
 anova.stats.meddist <- data.frame(disturbance=c("fire","insect.disease","none"), y=c(.5,.5,.5),letter=c("A","A","A"))
 
-distance.boxplot<- ggplot(median_vectors_all %>% filter(!species.name %in% c(insectonlyspp)), aes(x=disturbance, y=medDist, fill=disturbance))+
+distance.boxplot<- ggplot(median_vectors_all %>% filter(!species.name %in% c(insectonlyspp)) %>% mutate(disturbance = factor(disturbance, levels=c("fire","insect.disease","none"), labels=c("fire","insect/\ndisease","none"))), aes(x=disturbance, y=medDist, fill=disturbance))+
   geom_boxplot()+
   scale_fill_manual(values=c("lightgray","darkgray","white"))+
   ylab("Median distance")+
   xlab("")+
-  geom_text(data= anova.stats.meddist, aes(x=disturbance,y=y,label=letter),size=5)+
-  annotate(geom="text",x=2,y=0.4,label="p = 0.05")+
+  geom_text(data= anova.stats.meddist %>% mutate(disturbance = factor(disturbance, levels=c("fire","insect.disease","none"), labels=c("fire","insect/\ndisease","none"))), aes(x=disturbance,y=y,label=letter),size=5)+
+  annotate(geom="text",x=1,y=0.04,label="p = 0.05")+
   theme_bw()+
-  theme(text=element_text(size=20, color="black"),axis.text = element_text(color="black"),legend.position = "none")
+  theme(text=element_text(size=20, color="black"),axis.text = element_text(color="black"),axis.text.x = element_text(color="black"),legend.position = "none")
 
 
 #angle model 8 spp
@@ -2155,7 +2138,7 @@ anova.stats.medang <- data.frame(disturbance=c("fire","insect.disease","none"), 
 median_vectors_all2<- median_vectors_all %>% 
   add_row(disturbance = "x",)
 
-angle.boxplot<- ggplot(median_vectors_all2, aes(x=disturbance, y=medAngle, fill=disturbance))+
+angle.boxplot<- ggplot(median_vectors_all2, aes(x=factor(disturbance, levels=c("fire","insect.disease","none"),labels=c("fire","insect/\ndisease","none")), y=medAngle, fill=disturbance))+
   annotate("rect",xmin = -Inf, xmax = Inf, ymin=0.79, ymax = 2.35, fill=rect.colors[3], alpha = 0.5)+
   annotate("rect",xmin = -Inf, xmax = Inf, ymin=-0.79, ymax = 0.79, fill=rect.colors[4], alpha = 0.5)+
   annotate("rect",xmin = -Inf, xmax = Inf, ymin=-2.35, ymax = -0.79, fill=rect.colors[1], alpha = 0.5)+
@@ -2167,12 +2150,12 @@ angle.boxplot<- ggplot(median_vectors_all2, aes(x=disturbance, y=medAngle, fill=
   geom_text(aes(x="x",y=-1.7),label="hot/wet",size=5)+
   geom_text(aes(x="x",y=-2.745),label="hot/dry",size=5)+
   geom_boxplot()+
-  geom_jitter(data=median_vectors_all,aes(x=disturbance, y=medAngle),width=0.1,height=0.1)+
+  geom_jitter(data=median_vectors_all,aes(x=factor(disturbance, levels=c("fire","insect.disease","none"),labels=c("fire","insect/\ndisease","none")), y=medAngle),width=0.1,height=0.1)+
   ylab("Median angle (radians)")+
   xlab("")+
   ylim(c(-3.14,3.14))+
   scale_fill_manual(values=c("lightgray","darkgray","white","white"))+
-  geom_text(data= anova.stats.medang, aes(x=disturbance,y=y,label=letter),size=5)+
+  geom_text(data= anova.stats.medang, aes(x=factor(disturbance, levels=c("fire","insect.disease","none"),labels=c("fire","insect/\ndisease","none")),y=y,label=letter),size=5)+
   theme_bw()+
   theme(text=element_text(size=20, color="black"),axis.text = element_text(color="black"),legend.position = "none",axis.text.x = element_text(color=c(rep("black",3),"white"),size=14))
 
@@ -2181,10 +2164,16 @@ angle.boxplot<- ggplot(median_vectors_all2, aes(x=disturbance, y=medAngle, fill=
 ```{r}
 #combine plots
 boxplots<- ggarrange(distance.boxplot,angle.boxplot,nrow=2,ncol=1)
-arrowcentroidplot<- ggarrange(arrowsplot1,boxplots, nrow=1,ncol=2, widths=c(3.5,1))
+arrowcentroidplot<- ggarrange(arrowsplot1,boxplots, nrow=1,ncol=2, widths=c(3,1))
 arrowcentroidplot
 
-pdf(file="figures/arrowsplot22_subset.pdf",width=20,height=6)
+# pdf(file="figures/arrowsplot22_subset.pdf",width=20,height=6)
+# 
+# arrowcentroidplot
+# 
+# dev.off()
+
+png(file="figures/arrowsplot22_subset.png",width=1200,height=700)
 
 arrowcentroidplot
 
@@ -2479,87 +2468,6 @@ percentile.results<- ttest.results %>%
 ```
 
 ```{r}
-#plot new figure 2
-
-##dataframe for stars
-pvalues.percentileshifts<- percentile.results %>% 
-  mutate(sym.pos = ifelse(p.value<0.05,0.15,NA))
-##
-
-ggplot(percentile.results %>% filter(pc=="pc1"), aes(x=agent, y=estimate, color = agent, fill=agent))+
-  geom_point(shape = 23, size = 3.5)+
-  geom_errorbar(aes(ymin=lowerci, ymax=upperci),width=0.3, size=1)+
-  #scale_color_manual(values = c("#d7191c", "#fdae61","#2b83ba"))+
-  #scale_fill_manual(values = c("#d7191c", "#fdae61","#2b83ba"))+
-  scale_color_manual(values = disturbance.colors)+
-  scale_fill_manual(values = disturbance.colors)+
-  geom_text(data = subset(pvalues.percentileshifts %>% filter(pc=="pc1"), !is.na(sym.pos)), aes(x=agent, y=sym.pos), label="*", color="black",size=8)+
-  geom_hline(yintercept=0, color="black", lty=2, size=1)+
-  ylim(c(-.3,.3))+
-  coord_flip()+
-facet_wrap(~ factor(quant,levels=c("2.5","5","centroid","95","97.5")))+
-  ggtitle("Shifts on PC1")+
-  ylab("Difference on PC1")+
-  xlab("")+
-  theme_bw()+
-  theme(axis.text.x = element_text(angle=45, hjust = 1), axis.text = element_text(size=12, color="black"), text = element_text(size=12),legend.text = element_text(size=12),strip.text = element_text(color="black",size=12), legend.position = "none")
-
-ggplot(percentile.results %>% filter(pc=="pc2"), aes(x=agent, y=estimate, color = agent, fill=agent))+
-  geom_point(shape = 23, size = 3.5)+
-  geom_errorbar(aes(ymin=lowerci, ymax=upperci),width=0.3, size=1)+
-  #scale_color_manual(values = c("#d7191c", "#fdae61","#2b83ba"))+
-  #scale_fill_manual(values = c("#d7191c", "#fdae61","#2b83ba"))+
-  scale_color_manual(values = disturbance.colors)+
-  scale_fill_manual(values = disturbance.colors)+
-  geom_text(data = subset(pvalues.percentileshifts %>% filter(pc=="pc2"), !is.na(sym.pos)), aes(x=agent, y=sym.pos), label="*", color="black",size=8)+
-  geom_hline(yintercept=0, color="black", lty=2, size=1)+
-  ylim(c(-.3,.3))+
-  facet_wrap(~ factor(quant,levels=c("2.5","5","centroid","95","97.5")))+
-  ggtitle("Shifts on PC2")+
-  ylab("Difference on PC2")+
-  xlab("")+
-  theme_bw()+
-  theme(axis.text.x = element_text(angle=45, hjust = 1), axis.text = element_text(size=12, color="black"), text = element_text(size=12),legend.text = element_text(size=12),strip.text = element_text(color="black",size=12), legend.position = "none")
-
-##plot just 95% estimates
-
-ggplot(percentile.results %>% filter(pc=="pc1") %>% filter(!quant %in% c("5","95")), aes(x=agent, y=estimate, color = agent, fill=agent))+
-  geom_point(shape = 23, size = 3.5)+
-  geom_errorbar(aes(ymin=lowerci, ymax=upperci),width=0.3, size=1)+
-  #scale_color_manual(values = c("#d7191c", "#fdae61","#2b83ba"))+
-  #scale_fill_manual(values = c("#d7191c", "#fdae61","#2b83ba"))+
-  scale_color_manual(values = disturbance.colors)+
-  scale_fill_manual(values = disturbance.colors)+
-  geom_text(data = subset(pvalues.percentileshifts %>% filter(pc=="pc1") %>% filter(!quant %in% c("5","95")), !is.na(sym.pos)), aes(x=agent, y=sym.pos), label="*", color="black",size=8)+
-  geom_hline(yintercept=0, color="black", lty=2, size=1)+
-  ylim(c(-.2,.2))+
-  coord_flip()+
-facet_wrap(~ factor(quant,levels=c("2.5","centroid","97.5")))+
-  ggtitle("Shifts on PC1")+
-  ylab("Difference on PC1")+
-  xlab("")+
-  theme_bw()+
-  theme(axis.text.x = element_text(angle=45, hjust = 1), axis.text = element_text(size=12, color="black"), text = element_text(size=12),legend.text = element_text(size=12),strip.text = element_text(color="black",size=12), legend.position = "none")
-
-ggplot(percentile.results %>% filter(pc=="pc2") %>% filter(!quant %in% c("5","95")), aes(x=agent, y=estimate, color = agent, fill=agent))+
-  geom_point(shape = 23, size = 3.5)+
-  geom_errorbar(aes(ymin=lowerci, ymax=upperci),width=0.3, size=1)+
-  #scale_color_manual(values = c("#d7191c", "#fdae61","#2b83ba"))+
-  #scale_fill_manual(values = c("#d7191c", "#fdae61","#2b83ba"))+
-  scale_color_manual(values = disturbance.colors)+
-  scale_fill_manual(values = disturbance.colors)+
-  geom_text(data = subset(pvalues.percentileshifts %>% filter(pc=="pc2") %>% filter(!quant %in% c("5","95")), !is.na(sym.pos)), aes(x=agent, y=sym.pos), label="*", color="black",size=8)+
-  geom_hline(yintercept=0, color="black", lty=2, size=1)+
-  ylim(c(-.2,.2))+
-  facet_wrap(~ factor(quant,levels=c("2.5","centroid","97.5")))+
-  ggtitle("Shifts on PC2")+
-  ylab("Difference on PC2")+
-  xlab("")+
-  theme_bw()+
-  theme(axis.text.x = element_text(angle=45, hjust = 1), axis.text = element_text(size=12, color="black"), text = element_text(size=12),legend.text = element_text(size=12),strip.text = element_text(color="black",size=12), legend.position = "none")
-```
-
-```{r}
 #ANOVAs
 centroidshifts
 #check for significant differences in PC1 2.5th percentile by disturbance type
@@ -2605,9 +2513,105 @@ plot(pc2.mod97.5)
 leveneTest(pc2diff_97.5 ~ factor(disturbance), data=centroidshifts %>% filter(!species.name %in% insectonlyspp))
 anova(pc2.mod97.5)
 TukeyHSD(aov(pc2diff_97.5 ~ factor(disturbance), data=centroidshifts %>% filter(!species.name %in% insectonlyspp)))
-
-
 ```
+
+```{r}
+#plot new figure 2
+
+##dataframe for stars
+pvalues.percentileshifts<- percentile.results %>% 
+  mutate(sym.pos = ifelse(p.value<0.05,0.15,NA))
+##
+
+ggplot(percentile.results %>% filter(pc=="pc1"), aes(x=agent, y=estimate, color = agent, fill=agent))+
+  geom_point(shape = 23, size = 3.5)+
+  geom_errorbar(aes(ymin=lowerci, ymax=upperci),width=0.3, size=1)+
+  #scale_color_manual(values = c("#d7191c", "#fdae61","#2b83ba"))+
+  #scale_fill_manual(values = c("#d7191c", "#fdae61","#2b83ba"))+
+  scale_color_manual(values = disturbance.colors)+
+  scale_fill_manual(values = disturbance.colors)+
+  geom_text(data = subset(pvalues.percentileshifts %>% filter(pc=="pc1"), !is.na(sym.pos)), aes(x=agent, y=sym.pos), label="*", color="black",size=8)+
+  geom_hline(yintercept=0, color="black", lty=2, size=1)+
+  ylim(c(-.3,.3))+
+  coord_flip()+
+facet_wrap(~ factor(quant,levels=c("2.5","5","centroid","95","97.5")))+
+  ggtitle("Shifts on PC1")+
+  ylab("Difference on PC1")+
+  xlab("")+
+  theme_bw()+
+  theme(axis.text.x = element_text(angle=45, hjust = 1), axis.text = element_text(size=12, color="black"), text = element_text(size=12),legend.text = element_text(size=12),strip.text = element_text(color="black",size=12), legend.position = "none")
+
+ggplot(percentile.results %>% filter(pc=="pc2"), aes(x=agent, y=estimate, color = agent, fill=agent))+
+  geom_point(shape = 23, size = 3.5)+
+  geom_errorbar(aes(ymin=lowerci, ymax=upperci),width=0.3, size=1)+
+  #scale_color_manual(values = c("#d7191c", "#fdae61","#2b83ba"))+
+  #scale_fill_manual(values = c("#d7191c", "#fdae61","#2b83ba"))+
+  scale_color_manual(values = disturbance.colors)+
+  scale_fill_manual(values = disturbance.colors)+
+  geom_text(data = subset(pvalues.percentileshifts %>% filter(pc=="pc2"), !is.na(sym.pos)), aes(x=agent, y=sym.pos), label="*", color="black",size=8)+
+  geom_hline(yintercept=0, color="black", lty=2, size=1)+
+  ylim(c(-.3,.3))+
+  facet_wrap(~ factor(quant,levels=c("2.5","5","centroid","95","97.5")))+
+  ggtitle("Shifts on PC2")+
+  ylab("Difference on PC2")+
+  xlab("")+
+  theme_bw()+
+  theme(axis.text.x = element_text(angle=45, hjust = 1), axis.text = element_text(size=12, color="black"), text = element_text(size=12),legend.text = element_text(size=12),strip.text = element_text(color="black",size=12), legend.position = "none")
+
+##plot just 95% estimates
+
+anova.letters.pc1<- data.frame(quant = rep(c("2.5","centroid","97.5"),3), agent=c(rep("fire",3),rep("insect.disease",3),rep("none",3)), letters=c("A","C","A","A","B","A","A","A","A"))
+
+anova.letters.pc2<- data.frame(quant = rep(c("2.5","centroid","97.5"),3), agent=c(rep("fire",3),rep("insect.disease",3),rep("none",3)), letters=rep("A",9))
+
+pc1nicheshiftsplot<- ggplot(percentile.results %>% filter(pc=="pc1") %>% filter(!quant %in% c("5","95")), aes(x=agent, y=estimate, color = agent, fill=agent))+
+  geom_point(shape = 23, size = 3.5)+
+  geom_errorbar(aes(ymin=lowerci, ymax=upperci),width=0.3, size=1)+
+  #scale_color_manual(values = c("#d7191c", "#fdae61","#2b83ba"))+
+  #scale_fill_manual(values = c("#d7191c", "#fdae61","#2b83ba"))+
+  scale_color_manual(values = disturbance.colors)+
+  scale_fill_manual(values = disturbance.colors)+
+  geom_text(data = subset(pvalues.percentileshifts %>% filter(pc=="pc1") %>% filter(!quant %in% c("5","95")), !is.na(sym.pos)), aes(x=agent, y=sym.pos), label="*", color="black",size=8)+
+  geom_hline(yintercept=0, color="black", lty=2, size=1)+
+  ylim(c(-.2,.2))+
+  coord_flip()+
+facet_wrap(~ factor(quant,levels=c("2.5","centroid","97.5")))+
+  geom_segment(aes(x=0.8,xend=3.2,y=-.15,yend=-.15),size=1,color="azure4")+
+  geom_text(data=anova.letters.pc1, aes(x=agent, y=-0.18,fill=NULL, label=letters), parse=TRUE, col="azure4", size=5)+
+  ggtitle("Shifts on PC1")+
+  ylab("Difference on PC1")+
+  xlab("")+
+  theme_bw()+
+  theme(axis.text.x = element_text(angle=45, hjust = 1), axis.text = element_text(size=12, color="black"), text = element_text(size=12),legend.text = element_text(size=12),strip.text = element_text(color="black",size=12), legend.position = "none")
+
+pc2nicheshiftsplot<- ggplot(percentile.results %>% filter(pc=="pc2") %>% filter(!quant %in% c("5","95")), aes(x=agent, y=estimate, color = agent, fill=agent))+
+  geom_point(shape = 23, size = 3.5)+
+  geom_errorbar(aes(ymin=lowerci, ymax=upperci),width=0.3, size=1)+
+  #scale_color_manual(values = c("#d7191c", "#fdae61","#2b83ba"))+
+  #scale_fill_manual(values = c("#d7191c", "#fdae61","#2b83ba"))+
+  scale_color_manual(values = disturbance.colors)+
+  scale_fill_manual(values = disturbance.colors)+
+  geom_text(data = subset(pvalues.percentileshifts %>% filter(pc=="pc2") %>% filter(!quant %in% c("5","95")), !is.na(sym.pos)), aes(x=agent, y=sym.pos), label="*", color="black",size=8)+
+  geom_hline(yintercept=0, color="black", lty=2, size=1)+
+  ylim(c(-.11,.17))+
+  facet_wrap(~ factor(quant,levels=c("2.5","centroid","97.5")))+
+  geom_segment(aes(x=0.8,xend=3.2,y=-.09,yend=-.09),size=1,color="azure4")+
+  geom_text(data=anova.letters.pc2, aes(x=agent, y=-0.1,fill=NULL, label=letters), parse=TRUE, col="azure4", size=5)+
+  ggtitle("Shifts on PC2")+
+  ylab("Difference on PC2")+
+  xlab("")+
+  theme_bw()+
+  theme(axis.text.x = element_text(angle=45, hjust = 1), axis.text = element_text(size=12, color="black"), text = element_text(size=12),legend.text = element_text(size=12),strip.text = element_text(color="black",size=12),legend.position = 'none', plot.margin=margin(5,5,5,60))
+
+#put them together
+png("percentile_shifts_figure.png", width= 600, height = 500)
+
+ggarrange(pc1nicheshiftsplot, pc2nicheshiftsplot, nrow=2, heights=c(0.87,1))
+
+dev.off()
+```
+
+
 
 ###Traits
 
