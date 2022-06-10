@@ -561,7 +561,8 @@ These boxplots display the range of PC1 and PC2 coordinates that plots within ea
 
 ```{r, echo=FALSE}
 #color palette
-disturbance.colors<- c("#661100", "#6699CC", "#888888")
+disturbance.colors<- c("#bb5f4c","#8e5db0","#729b57")
+#red,blue,gray c("#661100", "#6699CC", "#888888")
 
 #summarize position on PC1 and 2 of plots in each disturbance category. 
 pca_pts_by_dist <- clim_pca_points %>% 
@@ -1666,42 +1667,40 @@ foreach::getDoParWorkers()
 #calculate niche areas and overlap
 ##this takes ~10 hours length(ellipses.posterior.list)
 
-overlap.list<-list()
-for(i in 1:2){
-    cat(i, "\n")
-temp.overlap <- bayesianOverlap("1.1","1.2",ellipses.posterior.list[[i]],draws=NULL,p.interval=0.95)
-
-temp.overlap$exp.prop.adult = (temp.overlap$area2 - temp.overlap$overlap)/temp.overlap$area1
-
-temp.overlap$contr.prop.adult = (temp.overlap$area1 - temp.overlap$overlap)/temp.overlap$area1
-
-overlap.list[[i]] <- temp.overlap
-}
-names(overlap.list)<- names(ellipses.posterior.list)
-
-saveRDS(overlap.list, file = "overlap.list.2022.subset.RDS")
-
-for(i in 3:length(ellipses.posterior.list)){
-    cat(i, "\n")
-temp.overlap <- bayesianOverlap("1.1","1.2",ellipses.posterior.list[[i]],draws=NULL,p.interval=0.95)
-
-temp.overlap$exp.prop.adult = (temp.overlap$area2 - temp.overlap$overlap)/temp.overlap$area1
-
-temp.overlap$contr.prop.adult = (temp.overlap$area1 - temp.overlap$overlap)/temp.overlap$area1
-
-overlap.list[[i]] <- temp.overlap
-}
-names(overlap.list)<- names(ellipses.posterior.list)
-
-saveRDS(overlap.list, file = "overlap.list.2022.RDS")
+# overlap.list<-list()
+# for(i in 1:2){
+#     cat(i, "\n")
+# temp.overlap <- bayesianOverlap("1.1","1.2",ellipses.posterior.list[[i]],draws=NULL,p.interval=0.95)
+# 
+# temp.overlap$exp.prop.adult = (temp.overlap$area2 - temp.overlap$overlap)/temp.overlap$area1
+# 
+# temp.overlap$contr.prop.adult = (temp.overlap$area1 - temp.overlap$overlap)/temp.overlap$area1
+# 
+# overlap.list[[i]] <- temp.overlap
+# }
+# names(overlap.list)<- names(ellipses.posterior.list)
+# 
+# saveRDS(overlap.list, file = "overlap.list.2022.subset.RDS")
+# 
+# for(i in 3:length(ellipses.posterior.list)){
+#     cat(i, "\n")
+# temp.overlap <- bayesianOverlap("1.1","1.2",ellipses.posterior.list[[i]],draws=NULL,p.interval=0.95)
+# 
+# temp.overlap$exp.prop.adult = (temp.overlap$area2 - temp.overlap$overlap)/temp.overlap$area1
+# 
+# temp.overlap$contr.prop.adult = (temp.overlap$area1 - temp.overlap$overlap)/temp.overlap$area1
+# 
+# overlap.list[[i]] <- temp.overlap
+# }
+# names(overlap.list)<- names(ellipses.posterior.list)
+# 
+# saveRDS(overlap.list, file = "overlap.list.2022.subset.RDS")
 
 ```
 
 ```{r}
 #read in overlap data
-overlap.list <- readRDS("overlap.list.2022.RDS")
-names(overlap.list) <- names(ellipses.posterior.list)
-#overlap.list.90 <- readRDS("overlap.list.90.nov.RDS")
+overlap.list <- readRDS("overlap.list.2022.subset.RDS")
 ```
 
 
@@ -1719,7 +1718,7 @@ colnames(overlap.table)<-names(overlap.summary[[1]])
 overlap.table<- overlap.table %>% 
   mutate(names = names(overlap.list)) %>% 
   separate(names,into=c("species","disturbance","extra"),sep="_") %>% 
-  mutate(species = as.numeric(species)) %>% 
+  #mutate(species = as.numeric(species)) %>% 
   left_join(species.names,by=c("species"="species.code")) %>% 
   filter(!species.name=="singleleaf pinyon")
 ```
@@ -1760,7 +1759,21 @@ diff.plot<- ggplot(overlap.table %>% filter(!species.name %in% c(insectonlyspp,f
 expansion.plot <- ggplot(overlap.table %>% filter(!(disturbance == "fire" & species.name %in% insectonlyspp)) %>% filter(!(disturbance=="insect.disease" & species.name %in% fireonlyspp)),aes(x=disturbance,y=mean.exp.prop.adult))+
   geom_boxplot(fill="gray")+
   geom_jitter(height=0,width=0.2, aes(color=species.name),pch=15,size=2)+
-  scale_color_manual(values=c("#d55f90","#5aa554","#ad74d6","#9ab13f","#6070d5","#cd9337","#563686","#45c097","#8b2965","#9b8a40","#ca71c0","#b95336","#628ed6","#ba4758"),name="Species")+
+  scale_color_manual(values=c("#119329",
+"#c975eb",
+"#e6c035",
+"#002489",
+"#00daa9",
+"#530046",
+"#dfd783",
+"#5676ef",
+"#3a5e00",
+"#0072d7",
+"#a65200",
+"#ff8cc0",
+"#614800",
+"#b15674",
+"#ff8e68"),name="Species")+
   xlab("")+
   ylab("Proportion Expanded")+
   ylim(c(-0.001,0.42))+
@@ -1770,7 +1783,21 @@ expansion.plot <- ggplot(overlap.table %>% filter(!(disturbance == "fire" & spec
 contraction.plot <- ggplot(overlap.table %>% filter(!(disturbance == "fire" & species.name %in% insectonlyspp)) %>% filter(!(disturbance=="insect.disease" & species.name %in% fireonlyspp)),aes(x=disturbance,y=mean.contr.prop.adult))+
   geom_boxplot(fill="gray")+
   geom_jitter(height=0,width=0.2, aes(color=species.name),pch=15,size=2)+
-  scale_color_manual(values=c("#d55f90","#5aa554","#ad74d6","#9ab13f","#6070d5","#cd9337","#563686","#45c097","#8b2965","#9b8a40","#ca71c0","#b95336","#628ed6","#ba4758"),name="Species")+
+  scale_color_manual(values=c("#119329",
+"#c975eb",
+"#e6c035",
+"#002489",
+"#00daa9",
+"#530046",
+"#dfd783",
+"#5676ef",
+"#3a5e00",
+"#0072d7",
+"#a65200",
+"#ff8cc0",
+"#614800",
+"#b15674",
+"#ff8e68"),name="Species")+
   xlab("")+
   ylab("Proportion Contracted")+   ylim(c(-0.001,0.42))+
   theme_bw()+
@@ -2660,7 +2687,7 @@ niche.shift.trait.table <- overlap.table.fullset %>%
 
 #models for expansion
 #shade tolerance
-exp.shade.mod<- lm(mean.exp.prop.adult~shade.tolerance*disturbance,data=niche.shift.trait.table)
+exp.shade.mod<- lm(log(mean.exp.prop.adult)~shade.tolerance*disturbance,data=niche.shift.trait.table)
 par(mfrow=c(2,2))
 plot(exp.shade.mod)
 Anova(exp.shade.mod, type='3')
@@ -2873,7 +2900,7 @@ traits.plot8 <- ggarrange(shade.exp.plot,shade.contr.plot , pc1.exp.plot, pc1.co
 ggarrange(diff.plot,traits.plot8,ncol=1,nrow=2,heights=c(1.5,4))
 
 
-png("traitplot22.png", width = 800, height = 1600)
+png("traitplot22.subset.png", width = 800, height = 1600)
 
 ggarrange(diff.plot,traits.plot8,ncol=1,nrow=2,heights=c(1.5,4))
 
