@@ -145,6 +145,14 @@ sumtable<- unique_plots %>%
 
 unique_plots %>% 
   left_join(cond, by=c("CN" = "PLT_CN")) %>% 
+  left_join(seedling, by=c("CN" = "PLT_CN")) %>% 
+  group_by(COND_STATUS_CD,NF_SAMPLING_STATUS_CD,NF_PLOT_STATUS_CD,
+           NF_PLOT_NONSAMPLE_REASN_CD,SAMP_METHOD_CD,SUBP_EXAMINE_CD) %>% 
+  dplyr::summarise(n_plots=length(unique(CN)),minyear=min(MEASYEAR),maxyear=max(MEASYEAR),
+                   states=paste(list(unique(STATECD.x))),trees= paste(list(unique(SPCD))))
+
+unique_plots %>% 
+  left_join(cond, by=c("CN" = "PLT_CN")) %>% 
   left_join(tree, by=c("CN" = "PLT_CN")) %>% 
   dplyr::filter((COND_STATUS_CD == 2 & NF_SAMPLING_STATUS_CD==1 & is.na(NF_PLOT_STATUS_CD))|
            (COND_STATUS_CD == 2 & NF_SAMPLING_STATUS_CD==1 & NF_PLOT_STATUS_CD %in% c(1,2))|
@@ -179,6 +187,22 @@ plot.locs <- unique_plots %>%
 ggplot(plot.locs, aes(LON, LAT))+
   geom_point(size=.25, show.legend=FALSE)+
   coord_quickmap()
+
+plot.locs2 <- unique_plots %>% 
+  left_join(cond, by=c("CN" = "PLT_CN")) %>% 
+  left_join(tree, by=c("CN" = "PLT_CN")) %>% 
+  dplyr::filter(COND_STATUS_CD == 1) %>% 
+  distinct(LAT, LON)
+
+ggplot(plot.locs2, aes(LON, LAT))+
+  geom_point(size=.25, color="blue", show.legend=FALSE)+
+  coord_quickmap()
+
+ggplot(plot.locs2, aes(LON, LAT))+
+  geom_point(size=.25, color="blue", show.legend=FALSE)+
+  geom_point(data=plot.locs, color="yellow", size=.25, show.legend = FALSE)+
+  coord_quickmap()
+
 
 unique_plots %>% 
   left_join(cond, by=c("CN" = "PLT_CN")) %>% 
