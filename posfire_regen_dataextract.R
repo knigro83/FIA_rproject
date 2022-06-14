@@ -312,7 +312,7 @@ landfireHC = dist_data_clean[dist_data_clean$Type_Confidence=="High" | dist_data
 
 cond_dist<- cond %>% 
   filter(PLT_CN %in% c(unique_plots$CN, unique_plots$PREV_PLT_CN)) %>% 
-  select(PLT_CN,DSTRBCD1,DSTRBYR1,DSTRBCD2,DSTRBYR2,DSTRBCD3,DSTRBYR3,
+  dplyr::select(PLT_CN,DSTRBCD1,DSTRBYR1,DSTRBCD2,DSTRBYR2,DSTRBCD3,DSTRBYR3,
          TRTCD1,TRTYR1,TRTCD2,TRTYR2,TRTCD3,TRTYR3,DSTRBCD1_P2A,DSTRBCD2_P2A,
          DSTRBCD3_P2A,DSTRBYR1_P2A,DSTRBYR2_P2A,DSTRBYR3_P2A) %>% 
   filter(!(is.na(DSTRBCD1)& is.na(TRTCD1))) %>% 
@@ -450,15 +450,13 @@ snowp<- data.frame(PLT_CN = plot.pts.dbf[,"PLT_CN"],SP_mean = snow.ext$SP_mean)
 adults <- tree %>% 
   filter(!STATUSCD == 0) %>% 
   group_by(SPCD,PLT_CN) %>% 
-  dplyr::summarise(adult_total = n()) %>% 
-  filter(PLT_CN %in% unique_plots$CN)
+  dplyr::summarise(adult_total = n())
 
 head(adults)
 
 seeds <- seedling %>% 
   group_by(SPCD, PLT_CN) %>% 
-  dplyr::summarise(seedling_mintotal = sum(TREECOUNT_CALC)) %>% 
-  filter(PLT_CN %in% unique_plots$CN)
+  dplyr::summarise(seedling_mintotal = sum(TREECOUNT_CALC)) 
 
 head(seeds)
 
@@ -466,62 +464,94 @@ head(seeds)
 dead_adults <- tree %>% 
   filter(STATUSCD == 2) %>% 
   group_by(SPCD,PLT_CN) %>% 
-  dplyr::summarise(adult_dead = n()) %>% 
-  filter(PLT_CN %in% unique_plots$CN) 
+  dplyr::summarise(adult_dead = n()) 
   #mutate(SPCD = paste(SPCD, "_dead", sep=""))
 cut_adults <-tree %>% 
   filter(STATUSCD == 3) %>% 
   group_by(SPCD,PLT_CN) %>% 
-  dplyr::summarise(adult_cut = n()) %>% 
-  filter(PLT_CN %in% unique_plots$CN)
+  dplyr::summarise(adult_cut = n()) 
   #mutate(SPCD = paste(SPCD, "_cut", sep=""))
 burned_adults <- tree %>% 
   filter(DAMAGE_AGENT_CD1 == 30000 |
           DAMAGE_AGENT_CD2 == 30000 |
            DAMAGE_AGENT_CD3 == 30000 ) %>% 
   group_by(SPCD,PLT_CN) %>% 
-  dplyr::summarise(adult_burned = n()) %>% 
-  filter(PLT_CN %in% unique_plots$CN) 
+  dplyr::summarise(adult_burned = n())
   #mutate(SPCD = paste(SPCD, "_burned", sep=""))
 deadbyfire_adults<-tree %>% 
   filter(STATUSCD == 2 & AGENTCD == 30) %>% 
   group_by(SPCD,PLT_CN) %>% 
-  dplyr::summarise(adult_dbyfire = n()) %>% 
-  filter(PLT_CN %in% unique_plots$CN)
+  dplyr::summarise(adult_dbyfire = n()) 
 
 #compile together
 
 tree.data<- adults %>% 
-  left_join(dead_adults, by=c("PLT_CN","SPCD")) %>% 
-  left_join(cut_adults, by=c("PLT_CN","SPCD")) %>% 
-  left_join(burned_adults, by=c("PLT_CN","SPCD")) %>% 
-  left_join(deadbyfire_adults, by=c("PLT_CN","SPCD")) %>% 
-  left_join(seeds, by=c("PLT_CN","SPCD")) 
+  full_join(dead_adults, by=c("PLT_CN","SPCD")) %>% 
+  full_join(cut_adults, by=c("PLT_CN","SPCD")) %>% 
+  full_join(burned_adults, by=c("PLT_CN","SPCD")) %>% 
+  full_join(deadbyfire_adults, by=c("PLT_CN","SPCD")) %>% 
+  full_join(seeds, by=c("PLT_CN","SPCD")) 
   
 
 #combine with other attributes
 
 all_data<- unique_plots %>% 
-  select(CN, LAT, LON, ELEV, MEASYEAR, MEASMON, MEASDAY, PLOT_STATUS_CD, KINDCD,
+  dplyr::select(CN, LAT, LON, ELEV, MEASYEAR, MEASMON, MEASDAY, PLOT_STATUS_CD, KINDCD,
          DESIGNCD, MANUAL, SAMP_METHOD_CD) %>% 
   left_join(all_dist2, by=c("CN" = "PLT_CN")) %>% 
   left_join(tree.data, by=c("CN" = "PLT_CN")) %>% 
   left_join(env_vars, by=c("CN" = "PLT_CN")) %>% 
-  select(- c(X, RSCD, INVYR, ANN_INV, CYCLE)) %>% 
+  dplyr::select(- c(X, RSCD, INVYR, ANN_INV, CYCLE)) %>% 
   left_join(snowp, by=c("CN" = "PLT_CN"))
 
-View(all_data)
+#now get previous plot trees & seedlings
+prev_data <- unique_plots %>% 
+  filter(!is.na(PREV_PLT_CN)) %>% 
+  dplyr::select(CN, PREV_PLT_CN) %>% 
+  left_join(tree.data, by=c("PREV_PLT_CN"="PLT_CN")) %>% 
+  left_join(plot %>% 
+              dplyr::select(CN, LAT, LON, ELEV, MEASYEAR, MEASMON, MEASDAY,
+                            PLOT_STATUS_CD, KINDCD, DESIGNCD, MANUAL, SAMP_METHOD_CD), by=c("PREV_PLT_CN"="CN")) %>% 
+  rename_with(~paste0(., "_prev"),SPCD:SAMP_METHOD_CD)
+  
+View(prev_data)
 
-all_data %>% 
+##add previous plots back to original plots
+all_data2<- all_data %>% 
+  left_join(prev_data, by=c("CN"))
+
+View(all_data2)
+
+unique(all_data2$LAT == all_data2$LAT_prev)
+unique(all_data2$LON == all_data2$LON_prev)
+unique(all_data2$ELEV == all_data2$ELEV_prev)
+unique(all_data2$MEASYEAR == all_data2$MEASYEAR_prev)
+
+all_data2 %>% 
   group_by(dist_type) %>% 
   summarise(n_plots = n_distinct(CN)) #number of plots with different disturbances
 
-all_data %>% 
+all_data2 %>% 
   group_by(CN) %>% 
   summarise(n_dist = n_distinct(dist_type)) %>% 
   group_by(n_dist) %>% 
   summarise(n_plots = n()) #this is the number of plots that have 1 or more disturbances (n_dist)
 
-View(all_data %>% filter(CN == unique(all_data$CN)[26]))
+View(all_data2 %>% filter(CN == "188771216020004"))
 
-write.csv(all_data, "postfireregen_data1_060622.csv")
+write.csv(all_data, "postfireregen_data2_060822.csv")
+
+data<- read.csv("postfireregen_data1_060622.csv")
+
+colnames(data)
+
+data %>% 
+  left_join(plot, by="CN") %>% 
+  group_by(KINDCD.x) %>% 
+  dplyr::summarise(states = paste(list(unique(STATECD))))
+
+data %>% 
+  left_join(plot, by="CN") %>% 
+  filter(! is.na(PREV_PLT_CN)) %>% 
+  group_by(STATECD) %>% 
+  summarise(uniqueplots = length(unique(CN)))
