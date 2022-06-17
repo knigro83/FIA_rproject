@@ -137,11 +137,69 @@ sumtable<- unique_plots %>%
   left_join(cond, by=c("CN" = "PLT_CN")) %>% 
   left_join(tree, by=c("CN" = "PLT_CN")) %>% 
   group_by(COND_STATUS_CD,NF_SAMPLING_STATUS_CD,NF_PLOT_STATUS_CD,
-           NF_PLOT_NONSAMPLE_REASN_CD,SAMP_METHOD_CD,SUBP_EXAMINE_CD) %>% 
+           NF_PLOT_NONSAMPLE_REASN_CD,SAMP_METHOD_CD,SUBP_EXAMINE_CD,SUBCYCLE==0) %>% 
   dplyr::summarise(n_plots=length(unique(CN)),minyear=min(MEASYEAR),maxyear=max(MEASYEAR),
             states=paste(list(unique(STATECD.x))),trees= paste(list(unique(SPCD))))
 
 #write.csv(sumtable, "FIA_plots_sumtable.csv")
+
+##investigate plots survyed before 2000
+#when I compiled plot data, I filtered KINDCD > 0 to avoid periodic inventory,
+#but are some periodic inventories snuck in here?
+unique_plots %>% 
+  filter(MEASYEAR < 2000) %>% 
+  group_by(STATECD, MEASYEAR, INVYR, SUBCYCLE, KINDCD, DESIGNCD) %>% 
+  summarise(n=n()) 
+##ok so these plots have KINDCD = 1 and DESIGNCD = 1 indicating that they have
+##the national plot design. BUT, they have SUBCYCLE = 0 which the guide says 
+##means they are periodic inventory. However, they were sampled with the 
+##"national design" so it should be fine to include them, especially since I 
+##am just getting tree data (and not seedling) from them. 
+unique_plots %>% 
+  filter(SUBCYCLE == 0) %>% 
+  group_by(MEASYEAR) %>% 
+  summarise(n=n()) ##there are even plots up to 2004 that have SUBCYCLE = 0
+                   ##which implies they are periodic inventory
+##lets see the trees recorded in periodic inventory
+unique_plots %>% 
+  filter(SUBCYCLE == 0) %>% 
+  left_join(tree, by=c("CN" = "PLT_CN")) %>%
+  group_by(MEASYEAR) %>% 
+  summarise(trees=list(unique(SPCD))) %>% 
+  View() #no trees recorded in 2004. I think this is because these are all nonforest
+         #plots that probably didn't have trees
+
+##lets look at the nonforest plots that are NA for other codes
+unique_plots %>% 
+  left_join(cond, by=c("CN"="PLT_CN")) %>% 
+  filter(COND_STATUS_CD==2, is.na(NF_SAMPLING_STATUS_CD)) %>% 
+  left_join(tree, by=c("CN"="PLT_CN")) %>% 
+  group_by(CN) %>% 
+  dplyr::summarise(trees=list(unique(SPCD))) %>% 
+  group_by(is.na(trees)) %>% 
+  dplyr::summarise(n=n()) ##most of these plots (10,401) do not have trees recorded on them
+                          ##I could leave these plots out, but I think it's also fine just
+                          ##to leave them in for the PCA. 
+
+unique_plots %>% 
+  left_join(cond, by=c("CN"="PLT_CN")) %>% 
+  filter(COND_STATUS_CD==2, is.na(NF_SAMPLING_STATUS_CD)) %>% 
+  left_join(tree, by=c("CN"="PLT_CN")) %>% 
+  group_by(CN) %>% 
+  dplyr::summarise(trees=list(unique(SPCD))) %>% 
+  filter(!is.na(trees)) 
+
+View(unique_plots %>% 
+  filter(CN %in% c(2453897010690, 2464278010690 )))
+
+
+unique_plots %>% 
+  filter(SUBCYCLE == 0) %>% 
+  left_join(cond, by=c("CN"="PLT_CN")) %>% 
+  group_by(COND_STATUS_CD,NF_SAMPLING_STATUS_CD,NF_PLOT_STATUS_CD,
+           NF_PLOT_NONSAMPLE_REASN_CD,SAMP_METHOD_CD,SUBP_EXAMINE_CD) %>% 
+  summarise(n=n()) %>% 
+  View()
 
 unique_plots %>% 
   left_join(cond, by=c("CN" = "PLT_CN")) %>% 
