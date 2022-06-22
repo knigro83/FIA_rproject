@@ -1847,6 +1847,13 @@ hist(overlap.table.fullset$mean.exp.prop.adult) #not normal
 hist(overlap.table.fullset$mean.contr.prop.adult) #normal-ish
 var.test(overlap.table.fullset$mean.exp.prop.adult, overlap.table.fullset$mean.contr.prop.adult, alternative = "two.sided")
 wilcox.test(overlap.table.fullset$mean.exp.prop.adult, overlap.table.fullset$mean.contr.prop.adult) #significant difference between amount of contraction and amount of expansion
+
+#for the partial set (all species)
+par(mfrow=c(1,1))
+hist(overlap.table.partialset$mean.exp.prop.adult) #not normal
+hist(overlap.table.partialset$mean.contr.prop.adult) #normal-ish
+var.test(overlap.table.partialset$mean.exp.prop.adult, overlap.table.partialset$mean.contr.prop.adult, alternative = "two.sided")
+wilcox.test(overlap.table.partialset$mean.exp.prop.adult, overlap.table.partialset$mean.contr.prop.adult) #significant difference between amount of contraction and amount of expansion
 ```
 
 Partial Set Results:
@@ -2930,6 +2937,21 @@ ggarrange(diff.plot,traits.plot8,ncol=1,nrow=2,heights=c(1.5,4))
 # 
 # dev.off()
 ```
+
+```{r}
+##try all traits in one model 
+
+
+all.traits.mod <- lm(log(mean.contr.prop.adult)~ pc1speciesmean*disturbance+dispersal*disturbance + shade.tolerance*disturbance, data=niche.shift.trait.table)
+plot(all.traits.mod)
+Anova(all.traits.mod, type='3')
+summary(all.traits.mod)
+emtrends(all.traits.mod, pairwise ~ disturbance, var = "pc1speciesmean")
+emtrends(all.traits.mod, pairwise ~ disturbance, var = "shade.tolerance")
+
+
+```
+
 
 
 ####13 species analysis
