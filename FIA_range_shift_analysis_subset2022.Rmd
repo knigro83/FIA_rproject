@@ -2942,16 +2942,76 @@ ggarrange(diff.plot,traits.plot8,ncol=1,nrow=2,heights=c(1.5,4))
 ##try all traits in one model 
 
 
-all.traits.mod <- lm(log(mean.contr.prop.adult)~ pc1speciesmean*disturbance+dispersal*disturbance + shade.tolerance*disturbance, data=niche.shift.trait.table)
-plot(all.traits.mod)
-Anova(all.traits.mod, type='3')
-summary(all.traits.mod)
-emtrends(all.traits.mod, pairwise ~ disturbance, var = "pc1speciesmean")
-emtrends(all.traits.mod, pairwise ~ disturbance, var = "shade.tolerance")
+all.traits.mod.contr <- lm(log(mean.contr.prop.adult)~ pc1speciesmean*disturbance+dispersal*disturbance + shade.tolerance*disturbance, data=niche.shift.trait.table)
+plot(all.traits.mod.contr)
+Anova(all.traits.mod.contr, type='3')
+summary(all.traits.mod.contr)
+emtrends(all.traits.mod.contr, pairwise ~ disturbance, var = "pc1speciesmean")
+emtrends(all.traits.mod.contr, pairwise ~ disturbance, var = "shade.tolerance")
+
+
+all.traits.mod.exp <- lm(log(mean.exp.prop.adult)~ pc1speciesmean*disturbance+dispersal*disturbance + shade.tolerance*disturbance, data=niche.shift.trait.table)
+plot(all.traits.mod.exp)
+Anova(all.traits.mod.exp, type='3')
+summary(all.traits.mod.exp)
+emtrends(all.traits.mod.exp, pairwise ~ disturbance, var = "pc1speciesmean")
+emtrends(all.traits.mod.exp, pairwise ~ disturbance, var = "shade.tolerance")
 
 
 ```
 
+```{r}
+#look at climate niche size as a predictor of expansion/contraction
+niche.areas %>% 
+  separate(col= name, into=c("species","disturbance","extra"), sep="_",remove = TRUE)
+  
+
+area.append<- niche.shift.trait.table %>% 
+  left_join( niche.areas %>% 
+  separate(col= name, into=c("species","disturbance","extra"), sep="_",remove = TRUE), by=c("species","disturbance","extra"))
+
+#expansion model
+exp.area.mod <- lm(log(mean.exp.prop.adult)~ adult_area*disturbance, data=area.append)
+plot(exp.area.mod)
+Anova(exp.area.mod)
+summary(exp.area.mod)
+
+#contraction model
+cont.area.mod <- lm(log(mean.contr.prop.adult)~ adult_area*disturbance, data=area.append)
+plot(cont.area.mod)
+Anova(cont.area.mod)
+summary(cont.area.mod)
+
+```
+
+```{r}
+#looking at sample size 
+sample.append<- niche.shift.trait.table %>% 
+  left_join(sample_size %>% 
+              mutate(SPCD = as.character(SPCD)), by = c("species"="SPCD","disturbance"="Agent")) %>% 
+  left_join(niche.areas %>% 
+  separate(col= name, into=c("species","disturbance","extra"), sep="_",remove = TRUE), by=c("species","disturbance","extra"))
+
+
+#expansion model
+exp.samp.mod <- lm(log(mean.exp.prop.adult)~ n.seed*disturbance, data=sample.append)
+plot(exp.samp.mod)
+Anova(exp.samp.mod)
+summary(exp.samp.mod)
+ggplot(sample.append, aes(x=n.adult, y=mean.exp.prop.adult))+
+  geom_point()
+######there is a negative correlation between the adult sample size and the amount of niche expansion, which may indicate that species that are widespread have a harder time expanding into new climate zones (because they likely already occupy a large climate zone). However, niche area is not correlated with the amount of expansion or contraction so I'm not sure if this is actually the reason. 
+
+cor.test(sample.append$n.adult,sample.append$pc1speciesmean)
+cor.test(sample.append$n.adult,sample.append$adult_area)
+
+#contraction model
+cont.samp.mod <- lm(log(mean.contr.prop.adult)~ n.seed*disturbance, data=sample.append)
+plot(cont.samp.mod)
+Anova(cont.samp.mod)
+summary(cont.samp.mod)
+
+```
 
 
 ####13 species analysis
