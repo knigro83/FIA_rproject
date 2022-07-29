@@ -149,7 +149,7 @@ sumtable<- unique_plots %>%
 unique_plots %>% 
   filter(MEASYEAR < 2000) %>% 
   group_by(STATECD, MEASYEAR, INVYR, SUBCYCLE, KINDCD, DESIGNCD) %>% 
-  summarise(n=n()) 
+  dplyr::summarise(n=n()) 
 ##ok so these plots have KINDCD = 1 and DESIGNCD = 1 indicating that they have
 ##the national plot design. BUT, they have SUBCYCLE = 0 which the guide says 
 ##means they are periodic inventory. However, they were sampled with the 
@@ -158,14 +158,14 @@ unique_plots %>%
 unique_plots %>% 
   filter(SUBCYCLE == 0) %>% 
   group_by(MEASYEAR) %>% 
-  summarise(n=n()) ##there are even plots up to 2004 that have SUBCYCLE = 0
+  dplyr::summarise(n=n(), states=paste(unique(STATECD),collapse=",")) ##there are even plots up to 2004 that have SUBCYCLE = 0
                    ##which implies they are periodic inventory
 ##lets see the trees recorded in periodic inventory
 unique_plots %>% 
   filter(SUBCYCLE == 0) %>% 
   left_join(tree, by=c("CN" = "PLT_CN")) %>%
   group_by(MEASYEAR) %>% 
-  summarise(trees=list(unique(SPCD))) %>% 
+  dplyr::summarise(trees=list(unique(SPCD))) %>% 
   View() #no trees recorded in 2004. I think this is because these are all nonforest
          #plots that probably didn't have trees
 
@@ -198,7 +198,7 @@ unique_plots %>%
   left_join(cond, by=c("CN"="PLT_CN")) %>% 
   group_by(COND_STATUS_CD,NF_SAMPLING_STATUS_CD,NF_PLOT_STATUS_CD,
            NF_PLOT_NONSAMPLE_REASN_CD,SAMP_METHOD_CD,SUBP_EXAMINE_CD) %>% 
-  summarise(n=n()) %>% 
+  dplyr::summarise(n=n()) %>% 
   View()
 
 unique_plots %>% 
@@ -241,8 +241,24 @@ plot.locs <- unique_plots %>%
            (COND_STATUS_CD == 2 & NF_SAMPLING_STATUS_CD==1 & NF_PLOT_STATUS_CD %in% c(1,2))|
            (COND_STATUS_CD == 2 & is.na(NF_SAMPLING_STATUS_CD) & is.na(NF_PLOT_STATUS_CD))) %>% 
   distinct(LAT, LON)
-  
+
+
+plot.locs.trees <- unique_plots %>% 
+  left_join(cond, by=c("CN" = "PLT_CN")) %>% 
+  left_join(tree, by=c("CN" = "PLT_CN")) %>% 
+  dplyr::filter((COND_STATUS_CD == 2 & NF_SAMPLING_STATUS_CD==1 & is.na(NF_PLOT_STATUS_CD))|
+                  (COND_STATUS_CD == 2 & NF_SAMPLING_STATUS_CD==1 & NF_PLOT_STATUS_CD %in% c(1,2))|
+                  (COND_STATUS_CD == 2 & is.na(NF_SAMPLING_STATUS_CD) & is.na(NF_PLOT_STATUS_CD))) %>% 
+  group_by(CN,LAT,LON) %>% 
+  dplyr::summarise(tree.sp = paste(unique(SPCD),collapse=",")) %>% 
+  filter(!tree.sp=="NA") %>% 
+  distinct(LAT, LON)
+
 ggplot(plot.locs, aes(LON, LAT))+
+  geom_point(size=.25, show.legend=FALSE)+
+  coord_quickmap()
+
+ggplot(plot.locs.trees, aes(LON, LAT))+
   geom_point(size=.25, show.legend=FALSE)+
   coord_quickmap()
 
@@ -259,6 +275,7 @@ ggplot(plot.locs2, aes(LON, LAT))+
 ggplot(plot.locs2, aes(LON, LAT))+
   geom_point(size=.25, color="blue", show.legend=FALSE)+
   geom_point(data=plot.locs, color="yellow", size=.25, show.legend = FALSE)+
+  geom_point(data=plot.locs.trees, color="green", size=.25, show.legend = FALSE)+
   coord_quickmap()
 
 

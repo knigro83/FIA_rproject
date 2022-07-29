@@ -35,6 +35,7 @@ library(SIBER)
 library(emmeans)
 library(MASS)
 library(rjags)
+library(MuMIn)
 ```
 
 Let's first read in the data.
@@ -1743,9 +1744,11 @@ diff.plot<- ggplot(overlap.table %>% filter(!species.name %in% c(insectonlyspp,f
   geom_bar(stat='identity',position='dodge')+
   scale_fill_manual(values=disturbance.colors)+
   scale_x_discrete(position='top',name="")+
-  ylab("(Expansion - Contraction)")+
+  ylab("Net Expansion")+
+  annotate("text",x=8.5,y=0.15,label="expansion",size=7)+
+  annotate("text",x=8.5,y=-0.25,label="contraction",size=7)+
   theme_bw()+
-  theme(axis.text.x = element_text(angle=25,vjust=0,hjust=0),axis.text = element_text(size=24),legend.text = element_text(size=24),legend.title = element_text(size=24),legend.position = 'none',axis.title = element_text(size=24),plot.margin=margin(0,3.9,.6,.1,"cm"))
+  theme(axis.text.x = element_text(angle=-25,vjust=1,hjust=1),axis.text = element_text(size=24),legend.text = element_text(size=24),legend.title = element_text(size=24),legend.position = 'none',axis.title = element_text(size=24),plot.margin=margin(0,0.5,.6,.1,"cm"))
 
 # png("diffplot.png", width = 1000, height = 800)
 # 
@@ -2013,7 +2016,6 @@ for_arrows.all <- for_arrows.all %>%
   filter(!(disturbance=="fire" & species.name %in% insectonlyspp)) %>% 
   filter(!(disturbance=="insect.disease" & species.name %in% fireonlyspp)) %>% 
   filter(!species.name=="singleleaf pinyon") 
-
 #number species by elevation
 #based on PC1 mean score of adults
 species.numbers <- data.frame(species.name = c("two needle pinyon","Gambel oak","ponderosa pine","Rocky Mountain juniper","white fir","trembling aspen","Douglas-fir","western redcedar","limber pine","grand fir","western larch","lodgepole pine","Engelmann spruce","subalpine fir","whitebark pine"), species.number = seq(1,15,1))
@@ -2060,7 +2062,6 @@ df.right.triangle <- data.frame(x=c(Inf,0,Inf),y=c(-Inf,0,Inf))
 df.bottom.triangle <- data.frame(x=c(-Inf,0,Inf),y=c(-Inf,0,-Inf))
 df.left.triangle <- data.frame(x=c(-Inf,0,-Inf),y=c(-Inf,0,Inf))
 
-
 arrowsplot1<- ggplot(cart_positions.all, aes(x,y)) +
   geom_polygon(data=df.top.triangle, aes(x,y),fill=rect.colors[3],alpha=0.5)+
   geom_polygon(data=df.right.triangle, aes(x,y),fill=rect.colors[4],alpha=0.5)+
@@ -2069,7 +2070,7 @@ arrowsplot1<- ggplot(cart_positions.all, aes(x,y)) +
   #geom_bin2d(bins = 50, fill="white", aes(alpha= ..density..)) +
   #scale_alpha(range=c(0.1,1)) +
   #coord_cartesian(xlim = c(-.4, +.4), ylim = c(-.4, +.43)) +
-  facet_wrap( ~ factor(disturbance), scales = "fixed", ncol=3) + 
+  facet_wrap( ~ factor(disturbance, levels=c("fire","insect.disease","none"), labels=c("fire","insect/disease","none")), scales = "fixed", ncol=3) + 
   theme_classic() +
   geom_hline(yintercept=0)+geom_vline(xintercept=0)+
   geom_abline(intercept=0, slope = 1, linetype="dashed")+
@@ -2080,15 +2081,16 @@ arrowsplot1<- ggplot(cart_positions.all, aes(x,y)) +
   scale_color_manual(values=rep("black",15),labels=NULL,name=NULL)+
   #scale_color_manual(values=c("#d55f90","#5aa554","#ad74d6","#9ab13f","#6070d5","#cd9337","#563686","#45c097","#8b2965","#9b8a40","#ca71c0","#b95336","#628ed6","#ba4758"))+
   geom_text(data=for_arrows.all %>% filter(!y==0),aes(label=species.number,x=x,y=y),size=5,hjust=-.4,vjust=.4,col="darkred")+
-  annotate("text",x=0,y=0.4,label="cold/dry",size=5)+
-  annotate(geom="text",x=0.4,y=0,label="cold/wet",size=5,angle=90)+
-  annotate(geom="text",x=0,y=-0.4,label="hot/wet",size=5)+
-  annotate(geom="text",x=-0.4,y= 0,label="hot/dry",size=5,angle=90)+
+  annotate("text",x=0.13,y=0.47,label="cold/dry",size=5)+
+  annotate(geom="text",x=0.39,y=-0.02,label="cold/wet",size=5)+
+  annotate(geom="text",x=0.1,y=-0.47,label="hot/wet",size=5)+
+  annotate(geom="text",x=-0.4,y= -0.02,label="hot/dry",size=5)+
   ylab("PC2") +
   xlab("PC1") + 
   scale_y_continuous(limits=c(-.5,.5),expand=c(0,0))+
   scale_x_continuous(limits=c(-.5,.5),expand=c(0,0))+
-  theme(text = element_text(size=20,color="black"),legend.position = "none")
+  theme(text = element_text(size=20,color="black"),legend.position = "none",
+        plot.margin = unit(c(5.5,7,70,5.5),"points"), axis.text.x = element_text(angle = 45, hjust = 1, vjust= 1, color="black"), axis.text.y = element_text(color="black"),panel.spacing.x = unit(20, "points"))
 
 #option2
 # ggplot(cart_positions.all, aes(x,y)) +
@@ -2144,7 +2146,7 @@ distance.boxplot<- ggplot(median_vectors_all %>% filter(!species.name %in% c(ins
   ylab("Median distance")+
   xlab("")+
   geom_text(data= anova.stats.meddist %>% mutate(disturbance = factor(disturbance, levels=c("fire","insect.disease","none"), labels=c("fire","insect/\ndisease","none"))), aes(x=disturbance,y=y,label=letter),size=5)+
-  annotate(geom="text",x=1,y=0.04,label="p = 0.05")+
+  annotate(geom="text",x=1,y=0.04,label="p = 0.05",size=5)+
   theme_bw()+
   theme(text=element_text(size=20, color="black"),axis.text = element_text(color="black"),axis.text.x = element_text(color="black"),legend.position = "none")
 
@@ -2157,7 +2159,7 @@ plot(angmodmed)
 summary(angmodmed)
 #TukeyHSD(angmodmed)
 
-anova.stats.medang <- data.frame(disturbance=c("fire","insect.disease","none"), y=c(2.5,2.5,2.5),letter=c("A","A","A"))
+anova.stats.medang <- data.frame(disturbance=c("fire","insect.disease","none"), y=c(2.8,2.8,2.8),letter=c("A","A","A"))
 
 median_vectors_all2<- median_vectors_all %>% 
   add_row(disturbance = "x",)
@@ -2181,7 +2183,7 @@ angle.boxplot<- ggplot(median_vectors_all2, aes(x=factor(disturbance, levels=c("
   scale_fill_manual(values=c("lightgray","darkgray","white","white"))+
   geom_text(data= anova.stats.medang, aes(x=factor(disturbance, levels=c("fire","insect.disease","none"),labels=c("fire","insect/\ndisease","none")),y=y,label=letter),size=5)+
   theme_bw()+
-  theme(text=element_text(size=20, color="black"),axis.text = element_text(color="black"),legend.position = "none",axis.text.x = element_text(color=c(rep("black",3),"white"),size=14))
+  theme(text=element_text(size=20, color="black"),axis.text = element_text(size=20,color="black"),legend.position = "none",axis.text.x = element_text(color=c(rep("black",3),"white"),size=16))
 
 ```
 
@@ -2191,17 +2193,17 @@ boxplots<- ggarrange(distance.boxplot,angle.boxplot,nrow=2,ncol=1)
 arrowcentroidplot<- ggarrange(arrowsplot1,boxplots, nrow=1,ncol=2, widths=c(3,1))
 arrowcentroidplot
 
-# pdf(file="figures/arrowsplot22_subset.pdf",width=20,height=6)
-# 
-# arrowcentroidplot
-# 
-# dev.off()
+pdf(file="figures/arrowsplot22_subset.pdf",width=15,height=8.75)
 
-# png(file="figures/arrowsplot22_subset.png",width=1200,height=700)
-# 
-# arrowcentroidplot
-# 
-# dev.off()
+arrowcentroidplot
+
+dev.off()
+
+png(file="figures/arrowsplot22_subset.png",width=1200,height=700)
+
+arrowcentroidplot
+
+dev.off()
 ```
 
 ```{r}
@@ -2715,6 +2717,72 @@ First I will only include the eight species that have big enough sample sizes fo
 niche.shift.trait.table <- overlap.table.fullset %>% 
   left_join(trait.data,by="species.name")
 
+```
+
+
+```{r}
+#thinking about using some kind of indication of cold vs. warm adapted species. Let's look at mean position of adults on PC1 for each species to rank them
+
+pc1.means<- vector()
+for(i in 1:length(adult_data_pcapts)){
+  temp.mean <- adult_data_pcapts[[i]] %>% 
+    dplyr::summarise(mean(PC1))
+  pc1.means[i]<-temp.mean 
+}
+unlist(pc1.means)
+
+pc1means.table <- as.data.frame(matrix(unlist(pc1.means),nrow=length(pc1.means),ncol=1))
+pc1means.table<- pc1means.table %>% 
+  mutate(names =  names(adult_data_pcapts)) %>% 
+  tidyr::separate(names,into=c("species.code","disturbance","extra"),sep="_") %>% 
+  #mutate(species.code = as.numeric(species.code)) %>% 
+  left_join(species.names) %>% 
+  dplyr::rename(pc1mean = V1) %>% 
+  group_by(species.name) %>% 
+  dplyr::summarise(pc1speciesmean = mean(pc1mean)) %>% ungroup()
+
+ggplot(pc1means.table,aes(x=pc1speciesmean,y=rep(1,nrow(pc1means.table)),color=factor(species.name)))+
+  geom_point()
+
+ggplot(pc1means.table,aes(x=factor(species.name),y=pc1speciesmean))+
+  geom_boxplot()+
+  coord_flip()
+
+niche.shift.trait.table<-
+  niche.shift.trait.table %>% 
+  left_join(pc1means.table,by=c("species.name"))
+
+
+##include sample size as effect
+#looking at sample size 
+sample.append<- niche.shift.trait.table %>% 
+  left_join(sample_size %>% 
+              mutate(SPCD = as.character(SPCD)), by = c("species"="SPCD","disturbance"="Agent")) %>% 
+  left_join(niche.areas %>% 
+  separate(col= name, into=c("species","disturbance","extra"), sep="_",remove = TRUE), by=c("species","disturbance","extra"))
+```
+
+
+```{r}
+#overall expansion and contraction by disturbance type WITH sample size
+dist.exp.anova2 <- lm(log(mean.exp.prop.adult)~factor(disturbance)*n.adult,data=sample.append)
+par(mfrow=c(2,2))
+plot(dist.exp.anova)
+summary(dist.exp.anova2)
+Anova(dist.exp.anova2, type='3')
+
+AICc(dist.exp.anova, dist.exp.anova2)
+
+dist.contr.anova2<- lm(log(mean.contr.prop.adult)~factor(disturbance)*n.adult, data=sample.append)
+plot(dist.contr.anova2)
+summary(dist.contr.anova2)
+Anova(dist.contr.anova2, type= '3')
+
+AICc(dist.contr.anova,dist.contr.anova2)
+```
+
+
+```{r}
 #models for expansion
 #shade tolerance
 exp.shade.mod<- lm(log(mean.exp.prop.adult)~shade.tolerance*disturbance,data=niche.shift.trait.table)
@@ -2722,6 +2790,14 @@ par(mfrow=c(2,2))
 plot(exp.shade.mod)
 Anova(exp.shade.mod, type='3')
 summary(exp.shade.mod)
+###sample size as fixed
+exp.shade.mod2<- lm(log(mean.exp.prop.adult)~shade.tolerance*disturbance + shade.tolerance*n.adult,data=sample.append)
+par(mfrow=c(2,2))
+plot(exp.shade.mod2)
+Anova(exp.shade.mod2, type='3')
+summary(exp.shade.mod2)
+
+AICc(exp.shade.mod,exp.shade.mod2) #model 2 is lower
 
 ggplot(niche.shift.trait.table,aes(x=shade.tolerance,y=mean.exp.prop.adult))+
   geom_point()+
@@ -2749,11 +2825,39 @@ plot(exp.disp.mod)
 Anova(exp.disp.mod, type='3')
 summary(exp.disp.mod)
 
+##sample size as effect
+exp.disp.mod2<- lm(log(mean.exp.prop.adult)~dispersal*disturbance + dispersal*n.adult,data=sample.append)
+par(mfrow=c(2,2))
+plot(exp.disp.mod2)
+Anova(exp.disp.mod2, type="3")
+summary(exp.disp.mod2)
+
+AICc(exp.disp.mod,exp.disp.mod2) #both models are within 2 AICc
+
 ggplot(data=niche.shift.trait.table,aes(x=dispersal,y=mean.exp.prop.adult))+
   geom_boxplot()+
   facet_wrap(~disturbance)
 
+#average PC1 score 
+pc1.exp.mod <- lm(log(mean.exp.prop.adult)~ pc1speciesmean*disturbance, data=niche.shift.trait.table)
+plot(pc1.exp.mod)
+Anova(pc1.exp.mod, type='3')
+summary(pc1.exp.mod)
+emtrends(pc1.exp.mod, pairwise ~ disturbance, var = "pc1speciesmean")
 
+##sample size as effect
+pc1.exp.mod2 <- lm(log(mean.exp.prop.adult)~ pc1speciesmean*disturbance + pc1speciesmean*n.adult, data=sample.append)
+par(mfrow=c(2,2))
+plot(pc1.exp.mod2)
+Anova(pc1.exp.mod2, type="3")
+summary(pc1.exp.mod2)
+cor.test(sample.append$pc1speciesmean, sample.append$n.adult)
+contrasts(factor(sample.append$disturbance))
+
+AICc(pc1.exp.mod,pc1.exp.mod2) #second model has lower AIC
+
+#all models against each other
+AICc(exp.shade.mod2,exp.disp.mod2,pc1.exp.mod2)
 ```
 
 ```{r}
@@ -2765,6 +2869,16 @@ par(mfrow=c(2,2))
 plot(contr.shade.mod)
 Anova(contr.shade.mod, type='3')
 summary(contr.shade.mod)
+
+##sample size as effect
+contr.shade.mod2<- lm(log(mean.contr.prop.adult)~shade.tolerance*disturbance + shade.tolerance*n.adult,data=sample.append)
+par(mfrow=c(2,2))
+plot(contr.shade.mod2)
+Anova(contr.shade.mod2, type="3")
+summary(contr.shade.mod2)
+
+AICc(contr.shade.mod,contr.shade.mod2) #first model has lower AIC
+
 
 ggplot(niche.shift.trait.table, aes(x=shade.tolerance,y=mean.contr.prop.adult))+
   geom_point()+
@@ -2788,9 +2902,38 @@ plot(contr.disp.mod)
 Anova(contr.disp.mod, type='3')
 summary(contr.disp.mod)
 
+##sample size as effect
+contr.disp.mod2<- lm(log(mean.contr.prop.adult)~dispersal*disturbance+dispersal*n.adult,data=sample.append)
+par(mfrow=c(2,2))
+plot(contr.disp.mod2)
+Anova(contr.disp.mod2, type="3")
+summary(contr.disp.mod2)
+
+AICc(contr.disp.mod,contr.disp.mod2) #first model has lower AIC
+
+
 ggplot(data=niche.shift.trait.table,aes(x=dispersal,y=mean.contr.prop.adult))+
   geom_boxplot()+
   facet_wrap(~disturbance)
+
+#pc1 mean score
+pc1.contr.mod <- lm(log(mean.contr.prop.adult)~ pc1speciesmean*disturbance, data=niche.shift.trait.table)
+plot(pc1.contr.mod)
+Anova(pc1.contr.mod, type='3')
+summary(pc1.contr.mod)
+emtrends(pc1.contr.mod, pairwise ~ disturbance, var = "pc1speciesmean")
+
+##sample size as effect
+pc1.contr.mod2 <- lm(log(mean.contr.prop.adult)~ pc1speciesmean*disturbance+ pc1speciesmean*n.adult, data=sample.append)
+par(mfrow=c(2,2))
+plot(pc1.contr.mod2)
+Anova(pc1.contr.mod2, type="3")
+summary(pc1.contr.mod2)
+
+AICc(pc1.contr.mod,pc1.contr.mod2) #first model stil has lower AIC, even though sample size is marginally significant. But the effect size of n.adult is super small so it's probably not that impactful
+
+AICc(contr.shade.mod,contr.disp.mod,pc1.contr.mod)
+
 ```
 
 ```{r}
@@ -2848,73 +2991,6 @@ disp.contr.plot <- ggplot(data=niche.shift.trait.table, aes(x=dispersal,y=log(me
   theme(axis.text = element_text(size=24),axis.title = element_text(size=24),legend.text = element_text(size=24),legend.title = element_text(size=24),plot.margin = unit(c(0.5, 0.5, 0, 0.5), "cm"))
 
 
-```
-
-None of the models indicated that shade tolerance or seed weight significantly impacted the amount of expansion or contraction that a species experienced. 
-
-
-Looked at whether species in cooler/wetter habitats are expanding more/less than species in hotter/drier habitats by averaging each species' score on PC1 (higher = cooler/wetter). However, this does not seem to have any impact on expansion or contraction.  
-
-```{r}
-#thinking about using some kind of indication of cold vs. warm adapted species. Let's look at mean position of adults on PC1 for each species to rank them
-
-pc1.means<- vector()
-for(i in 1:length(adult_data_pcapts)){
-  temp.mean <- adult_data_pcapts[[i]] %>% 
-    dplyr::summarise(mean(PC1))
-  pc1.means[i]<-temp.mean 
-}
-unlist(pc1.means)
-
-pc1means.table <- as.data.frame(matrix(unlist(pc1.means),nrow=length(pc1.means),ncol=1))
-pc1means.table<- pc1means.table %>% 
-  mutate(names =  names(adult_data_pcapts)) %>% 
-  tidyr::separate(names,into=c("species.code","disturbance","extra"),sep="_") %>% 
-  #mutate(species.code = as.numeric(species.code)) %>% 
-  left_join(species.names) %>% 
-  dplyr::rename(pc1mean = V1) %>% 
-  group_by(species.name) %>% 
-  dplyr::summarise(pc1speciesmean = mean(pc1mean)) %>% ungroup()
-
-ggplot(pc1means.table,aes(x=pc1speciesmean,y=rep(1,nrow(pc1means.table)),color=factor(species.name)))+
-  geom_point()
-
-ggplot(pc1means.table,aes(x=factor(species.name),y=pc1speciesmean))+
-  geom_boxplot()+
-  coord_flip()
-
-niche.shift.trait.table<-
-  niche.shift.trait.table %>% 
-  left_join(pc1means.table,by=c("species.name"))
-
-```
-
-```{r, echo=FALSE}
-#model with average PC1 score across all disturbances as predictor
-
-pc1.exp.mod <- lm(log(mean.exp.prop.adult)~ pc1speciesmean*disturbance, data=niche.shift.trait.table)
-plot(pc1.exp.mod)
-Anova(pc1.exp.mod, type='3')
-summary(pc1.exp.mod)
-emtrends(pc1.exp.mod, pairwise ~ disturbance, var = "pc1speciesmean")
-
-
-pc1.exp.plot <- ggplot(data=niche.shift.trait.table,aes(x=pc1speciesmean,y=log(mean.exp.prop.adult),color=disturbance))+
-  geom_point(size=2.5)+
-  geom_smooth(method = "lm", se = FALSE, fullrange = T, size=1.5)+
-  theme_bw()+
-  xlab("PC1 Mean Score")+ ylab("Log(Expansion)")+
-  scale_color_manual(values=disturbance.colors)+
-  #ylim(c(-10,0))+
-  theme(axis.text = element_text(size=24),axis.title = element_text(size=24),legend.text = element_text(size=24),legend.title = element_text(size=24),plot.margin = unit(c(0.5, 0.5, 0, 0.5), "cm"))
-
-pc1.contr.mod <- lm(log(mean.contr.prop.adult)~ pc1speciesmean*disturbance, data=niche.shift.trait.table)
-plot(pc1.contr.mod)
-Anova(pc1.contr.mod, type='3')
-summary(pc1.contr.mod)
-emtrends(pc1.contr.mod, pairwise ~ disturbance, var = "pc1speciesmean")
-
-
 pc1.contr.plot<- ggplot(data=niche.shift.trait.table,aes(x=pc1speciesmean,y=log(mean.contr.prop.adult),color=disturbance))+
   geom_point(size=2.5)+
   geom_smooth(method = "lm", se = FALSE, fullrange = T, size=1.5)+
@@ -2924,12 +3000,23 @@ pc1.contr.plot<- ggplot(data=niche.shift.trait.table,aes(x=pc1speciesmean,y=log(
   #ylim(c(-10,0))+
   theme(axis.text = element_text(size=24),axis.title = element_text(size=24),legend.text = element_text(size=24),legend.title = element_text(size=24),plot.margin = unit(c(0.5, 0.5, 0, 0.5), "cm"))
 
+pc1.exp.plot <- ggplot(data=niche.shift.trait.table,aes(x=pc1speciesmean,y=log(mean.exp.prop.adult),color=disturbance))+
+  geom_point(size=2.5)+
+  geom_smooth(method = "lm", se = FALSE, fullrange = T, size=1.5)+
+  theme_bw()+
+  xlab("PC1 Mean Score")+ ylab("Log(Expansion)")+
+  scale_color_manual(values=disturbance.colors)+
+  #ylim(c(-10,0))+
+  theme(axis.text = element_text(size=24),axis.title = element_text(size=24),legend.text = element_text(size=24),legend.title = element_text(size=24),plot.margin = unit(c(0.5, 0.5, 0, 0.5), "cm"))
+```
 
+
+```{r}
 traits.plot8 <- ggarrange(shade.exp.plot,shade.contr.plot , pc1.exp.plot, pc1.contr.plot, nrow=4, ncol=2, disp.exp.plot,disp.contr.plot,  common.legend = TRUE, labels= c("a","","b","","c","","d"), font.label = list(size=24))
 
 ggarrange(diff.plot,traits.plot8,ncol=1,nrow=2,heights=c(1.5,4))
 
-
+# 
 # png("traitplot22.subset.png", width = 800, height = 1600)
 # 
 # ggarrange(diff.plot,traits.plot8,ncol=1,nrow=2,heights=c(1.5,4))
@@ -2940,8 +3027,6 @@ ggarrange(diff.plot,traits.plot8,ncol=1,nrow=2,heights=c(1.5,4))
 
 ```{r}
 ##try all traits in one model 
-
-
 all.traits.mod.contr <- lm(log(mean.contr.prop.adult)~ pc1speciesmean*disturbance+dispersal*disturbance + shade.tolerance*disturbance, data=niche.shift.trait.table)
 plot(all.traits.mod.contr)
 Anova(all.traits.mod.contr, type='3')
@@ -2956,8 +3041,6 @@ Anova(all.traits.mod.exp, type='3')
 summary(all.traits.mod.exp)
 emtrends(all.traits.mod.exp, pairwise ~ disturbance, var = "pc1speciesmean")
 emtrends(all.traits.mod.exp, pairwise ~ disturbance, var = "shade.tolerance")
-
-
 ```
 
 ```{r}
@@ -2985,20 +3068,13 @@ summary(cont.area.mod)
 ```
 
 ```{r}
-#looking at sample size 
-sample.append<- niche.shift.trait.table %>% 
-  left_join(sample_size %>% 
-              mutate(SPCD = as.character(SPCD)), by = c("species"="SPCD","disturbance"="Agent")) %>% 
-  left_join(niche.areas %>% 
-  separate(col= name, into=c("species","disturbance","extra"), sep="_",remove = TRUE), by=c("species","disturbance","extra"))
-
-
+#looking just at sample size effects
 #expansion model
 exp.samp.mod <- lm(log(mean.exp.prop.adult)~ n.seed*disturbance, data=sample.append)
 plot(exp.samp.mod)
 Anova(exp.samp.mod)
 summary(exp.samp.mod)
-ggplot(sample.append, aes(x=n.adult, y=mean.exp.prop.adult))+
+ggplot(sample.append, aes(x=n.adult, y=mean.exp.prop.adult, col=disturbance))+
   geom_point()
 ######there is a negative correlation between the adult sample size and the amount of niche expansion, which may indicate that species that are widespread have a harder time expanding into new climate zones (because they likely already occupy a large climate zone). However, niche area is not correlated with the amount of expansion or contraction so I'm not sure if this is actually the reason. 
 
