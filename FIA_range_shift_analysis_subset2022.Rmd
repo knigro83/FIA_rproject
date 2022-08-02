@@ -623,482 +623,6 @@ ggplot(pca_pts_by_dist[which(! pca_pts_by_dist$Agent %in% c("other","harvest","w
   theme_bw()
 ```
 
-##Effects of disturbance on range shifts across species 
-
-###PC1
-First I am going to look at whether changes in 5th, 50th and 95th percentiles of positions on both PC1 and PC2 were significantly different from zero across all species, for each disturbance type.
-
-Let's look at changes in PC1, which corresponds most strongly with climatic moisture deficit (CMD) and temperature variables. Shifts in the negative direction on PC1 indicate shifts in the seedling climatic niche to hotter climates, whereas positive shifts would represent shifts in seedling niche to cooler climates.
-
-```{r, warning = FALSE, echo = FALSE, results='hide'}
-##### make function for calculating differences in quantiles of adults vs. seedlings
-#' get_diff
-#'
-#' @param adult_data list of dataframes that are separated by species and agent. Dataframes contain info on climate variables of plots with adults of each species/agent.  
-#' @param seedling_data list of dataframes that are separated by species and agent. Dataframes contain info on climate variables of plots with seedlings of each species/agent. 
-#' @param var name of the desired climate variable for which the difference should be calculated. This can also be a principal component, or any column that exists in every dataframe in the list.  
-#' @param quant The quantile for which you want to calculate the difference between adults and seedlings.
-#'
-#' @return a dataframe with the difference in chosen quantile between adults and seedlings, for the chosen climate variable, under each disturbance agent.  
-#' @export
-#'
-#' @examples
-get_diff <- function(adult_data, seedling_data, var,quant){
-q.table = data.frame()
-for(i in 1:length(names(adult_data))){
-  adult.q<- adult_data %>% 
-    pluck(names(adult_data)[i]) %>% 
-    ungroup() %>% 
-    dplyr::select(!!var) %>% 
-    dplyr::summarise(quantile = quantile(!!var,probs = quant))
-  seed.q<- seedling_data %>% 
-    pluck(names(adult_data)[i]) %>% 
-    ungroup() %>% 
-    dplyr::select(!!var) %>% 
-    dplyr::summarise(quantile = quantile(!!var,probs = quant))
-  adult.95<- adult_data %>% 
-    pluck(names(adult_data)[i]) %>% 
-    ungroup() %>% 
-    dplyr::select(!!var) %>% 
-    dplyr::summarise(quantile = quantile(!!var,probs = 0.95))
-  adult.05 <- adult_data %>% 
-    pluck(names(adult_data)[i]) %>% 
-    ungroup() %>% 
-    dplyr::select(!!var) %>% 
-    dplyr::summarise(quantile = quantile(!!var,probs = 0.05))
-  adult.tolerance <- adult.95 - adult.05
-  q_diff = (seed.q - adult.q)/adult.tolerance
-  q.table <- bind_rows(q.table, data.frame(names(adult_data)[i],q_diff) )
-}
-q.table <- q.table %>% 
-  dplyr::rename(!!paste("quant",quant*100,sep="_") := quantile,
-         uid = names.adult_data..i.)
-return(q.table) 
-}
-```
-
-```{r, echo=FALSE, results='hide'}
-#calculate difference in 5th, 50th and 95th percentiles in PC1 position between adults and seedlings of each species and disturbance type 
-pc1.diffs.table <- data.frame(uid = names(adult_data_pcapts))
-for(i in c(0.05, 0.5, 0.95)){
-diffs <- get_diff(adult_data_pcapts, seedling_data_pcapts, quo(PC1), i) 
-  pc1.diffs.table <- pc1.diffs.table %>% 
-    left_join(diffs, by = "uid")
-}
-
-#get dataframe in order for analysis and plotting
-pc1.diffs.sep <- pc1.diffs.table %>% 
-  separate(uid, c("species","agent"),sep="_",remove=FALSE, extra="drop") %>% 
-  mutate(species = as.numeric(species)) %>% 
-  left_join(species.names,by=c("species" = "species.code")) %>% 
-  filter(!(agent == "fire" & species.name %in% insectonlyspp)) %>% 
-  filter(!(agent == "insect.disease" & species.name %in% fireonlyspp)) %>% 
-  filter(!species.name=="singleleaf pinyon")
-```
-
-
-```{r}
-#spot check diffs
-i = 10
-adult.q<- adult_data_pcapts %>% 
-    pluck(names(adult_data)[i]) %>% 
-    ungroup() %>% 
-    dplyr::select(PC1) %>% 
-    dplyr::summarise(quantile = quantile(PC1,probs = .95))
-  seed.q<- seedling_data_pcapts %>% 
-    pluck(names(adult_data)[i]) %>% 
-    ungroup() %>% 
-    dplyr::select(PC1) %>% 
-    dplyr::summarise(quantile = quantile(PC1,probs = .95))
-  adult.95<- adult_data_pcapts %>% 
-    pluck(names(adult_data)[i]) %>% 
-    ungroup() %>% 
-    dplyr::select(PC1) %>% 
-    dplyr::summarise(quantile = quantile(PC1,probs = 0.95))
-  adult.05 <- adult_data_pcapts %>% 
-    pluck(names(adult_data)[i]) %>% 
-    ungroup() %>% 
-    dplyr::select(PC1) %>% 
-    dplyr::summarise(quantile = quantile(PC1,probs = 0.05))
-  adult.tolerance <- adult.95 - adult.05
-  q_diff = (seed.q - adult.q)/adult.tolerance
-
-```
-
-First I will assess whether the shifts in each quantile and disturbance are normally distributed, in which case a t-test will be used, otherwise a Wilcoxon signed rank test will be used. 
-
-```{r, echo=FALSE, eval=FALSE, results="hide"}
-##checking for normality
-fire.diffs.pc1<- pc1.diffs.sep %>% 
-  filter(agent == "fire") 
-id.diffs.pc1<- pc1.diffs.sep %>% 
-  filter(agent == "insect.disease") 
-none.diffs.pc1<- pc1.diffs.sep %>% 
-  filter(agent == "none")
-
-#fire 5th quantile 
-ggqqplot(fire.diffs.pc1$quant_5)
-shapiro.test(fire.diffs.pc1$quant_5)
-
-#fire 50th quantile
-ggqqplot(fire.diffs.pc1$quant_50)
-shapiro.test(fire.diffs.pc1$quant_50)
-
-#fire 95th quantile 
-ggqqplot(fire.diffs.pc1$quant_95)
-shapiro.test(fire.diffs.pc1$quant_95)
-
-#id 5th quantile
-ggqqplot(id.diffs.pc1$quant_5)
-shapiro.test(id.diffs.pc1$quant_5)
-
-#id 50th quantile
-ggqqplot(id.diffs.pc1$quant_50)
-shapiro.test(id.diffs.pc1$quant_50)
-
-#id 95th quantile
-ggqqplot(id.diffs.pc1$quant_95)
-shapiro.test(id.diffs.pc1$quant_95)
-
-#none 5th quantile -- NOT NORMAL
-ggqqplot(none.diffs.pc1$quant_5)
-shapiro.test(none.diffs.pc1$quant_5)
-
-#none 50th quantile
-ggqqplot(none.diffs.pc1$quant_50)
-shapiro.test(none.diffs.pc1$quant_50)
-
-#none 95th quantile
-ggqqplot(none.diffs.pc1$quant_95)
-shapiro.test(none.diffs.pc1$quant_95)
-
-```
-
-All difference data is normal except 5th qunatile of undisturbed, so we will use a Wilcoxon test for this set and t-tests for the rest.
-
-
-```{r,echo=FALSE, results="hide"}
-#test for significant shifts from zero
-
-#' get_pvalues
-#'
-#' @param pc1.diffs.sep dataframe containing the calculated differences in 5th, 50th and 95th quantiles of one climate variable or principal component for each species/agent 
-#'
-#' @return a dataframe with the results of a T-test, testing if the difference in quantile is significantly different from 0.   
-#' @export
-#'
-#' @examples
-get_pvalues <- function(pc1.diffs.sep){
-agent.list = unique(pc1.diffs.sep$agent)
-quant.list = c(5, 50, 95)
-pc1.p.table = data.frame()
-for(i in 1:length(agent.list)){
-  cat(i, "\n")
-  for(j in 1:length(quant.list)){
-    cat(j, "\n")
-test.temp <- pc1.diffs.sep %>% 
-  filter(agent == agent.list[i]) %>% 
-  pull(!!paste("quant",quant.list[j],sep="_")) %>% 
-  t.test(y = NULL, alternative = "two.sided", mu = 0, paired = FALSE, var.equal = FALSE, conf.level = 0.95)
-    
-p.temp <- test.temp$p.value
-est.temp <- test.temp$estimate
-lower.temp <- test.temp$conf.int[1]
-upper.temp <- test.temp$conf.int[2]
-tvalue.temp <- test.temp$statistic
-df.temp <- test.temp$parameter
-p.df <- data.frame(agent = paste(agent.list[i]), quant = paste("quant",quant.list[j],sep="_"), p.value = p.temp, estimate = est.temp, lowerci = lower.temp, upperci = upper.temp,t=tvalue.temp, df=df.temp)
-pc1.p.table <- bind_rows(pc1.p.table, p.df)
-  }
-}
-  return(pc1.p.table)
-}
-
-#this call to options will tell me where the warnings occur. In this case, for the comparison of medians in the fire plots and harvest plots, the exact p-value cannot be calculated because there are values that are exactly equal to 0 in the data. I think this is ok.  
-options(warn = 1)
-pvalues.pc1 <- get_pvalues(pc1.diffs.sep)
-pvalues.pc1
-pvalues.pc1<- pvalues.pc1 %>% 
-  mutate(wilcoxon = "n")
-
-#need to do Wilcoxon Signed Rank Test for 5th percentile of none because data is not normal 
-none5.test <- pc1.diffs.sep %>%
-  filter(agent == "none") %>%
-  pull("quant_5") %>%
-  wilcox.test(y = NULL, alternative = "two.sided", mu = 0, conf.int = TRUE, conf.level = 0.95)
-
-none5.p.df <- data.frame(agent = "none", quant = "quant_5", p.value = none5.test$p.value, estimate = none5.test$estimate, lowerci = none5.test$conf.int[1], upperci = none5.test$conf.int[2], t=none5.test$statistic, df=NA, wilcoxon="y")
-
-##replace 5th percentile of none with wilcoxon test values
-pvalues.pc1<- pvalues.pc1 %>%
-              rows_update(none5.p.df,by=c("agent","quant"))
-pvalues.pc1
-```
-
-The first plot here shows shifts on the 5th, 50th and 95th percentiles for all species combined, with individual species shifts plotted as dots. The second plot is the result of T-tests and Wilcoxon Signed Rank tests (non-parametric t-test), showing the estimate as a diamond and the 95% confidence interval as lines. Asterisks indicate whether the shift was significantly different from zero (p\<0.05).
-
-```{r, echo=FALSE}
-#make data long for plotting
-pc1.diffs.long <- pc1.diffs.sep %>% 
-  pivot_longer(cols = c(quant_5, quant_50, quant_95), names_to = "quant", values_to = "diff")
-
-ggplot(pc1.diffs.long, aes(x=agent, y=diff))+
-  geom_boxplot(fill="lightgrey")+
-  geom_jitter(height=0,width=0.2, aes(color=species.name))+
-  facet_wrap(~quant)+
-  theme_bw()+
-  theme(axis.text.x = element_text(angle=45, hjust=1))
-
-##dataframe for stars
-pvalues.pc1<- pvalues.pc1 %>% 
-  mutate(sym.pos = ifelse(p.value<0.05,0.14,NA))
-
-quant.labs = c("5th quantile","50th quantile","95th quantile") 
-names(quant.labs)= c("quant_5","quant_50","quant_95")
-
-pc1.shift.plot <- ggplot(pvalues.pc1, aes(x=agent, y=estimate, color = agent, fill=agent))+
-  geom_point(shape = 23, size = 3.5)+
-  geom_errorbar(aes(ymin=lowerci, ymax=upperci),width=0.3, size=1)+
-  #scale_color_manual(values = c("#d7191c", "#fdae61","#2b83ba"))+
-  #scale_fill_manual(values = c("#d7191c", "#fdae61","#2b83ba"))+
-  scale_color_manual(values = disturbance.colors)+
-  scale_fill_manual(values = disturbance.colors)+
-  geom_text(data = subset(pvalues.pc1, !is.na(sym.pos)), aes(x=agent, y=sym.pos), label="*", color="black",size=8)+
-  geom_hline(yintercept=0, color="black", lty=2, size=1)+
-  ylim(c(-0.08,0.16))+
-  coord_flip()+
-facet_wrap(~ quant, labeller = labeller(quant=quant.labs))+
-  ggtitle("Shifts on PC1")+
-  ylab("Difference on PC1")+
-  xlab("")+
-  theme_bw()+
-  theme(axis.text.x = element_text(angle=45, hjust = 1), axis.text = element_text(size=12, color="black"), text = element_text(size=12),legend.text = element_text(size=12),strip.text = element_text(color="black",size=12), legend.position = "none")
-
-```
-
-Here I test for significant differences among disturbance agents in adult vs. seedling differences in the three percentiles of PC1. I only include species in this analysis that had data for all three disturbance types. There are no significant differences between disturbances in shifts on PC1.
-
-```{r, echo=FALSE}
-pc1.diffs.fullset<- pc1.diffs.sep %>% 
-  filter(!species.name %in% c(insectonlyspp,fireonlyspp))
-
-#check for significant differences in 5th percentile by disturbance type
-pc1.mod5 <- lm(quant_5 ~ factor(agent), data=pc1.diffs.fullset)
-par(mfrow=c(2,2))
-plot(pc1.mod5)
-leveneTest(quant_5 ~ factor(agent), data=pc1.diffs.fullset)
-anova(pc1.mod5)
-#check for significant differences in 50th percentile by disturbance type
-pc1.mod50 <- lm(quant_50 ~ factor(agent), data=pc1.diffs.fullset)
-par(mfrow=c(2,2))
-plot(pc1.mod50)
-leveneTest(quant_50 ~ factor(agent), data=pc1.diffs.fullset)
-anova(pc1.mod50)
-#check for significant differences in 95th percentile by disturbance type
-pc1.mod95 <- lm(quant_95 ~ factor(agent), data=pc1.diffs.fullset)
-par(mfrow=c(2,2))
-plot(pc1.mod95)
-leveneTest(quant_95 ~ factor(agent), data=pc1.diffs.fullset)
-anova(pc1.mod95)
-
-par(mfrow=c(1,1))
-```
-
-
-###PC2
-
-And now for PC2, which corresponds most strongly to precipitation variables, with positive shifts representing seedling shifts to wetter climates and negative shifts representing seedling shifts to drier climates.
-
-```{r, echo=FALSE, results='hide'}
-#calculate difference in 5th, 50th and 95th percentiles in pc2 position between adults and seedlings of each species and disturbance type 
-pc2.diffs.table <- data.frame(uid = names(adult_data_pcapts))
-for(i in c(0.05, 0.5, 0.95)){
-diffs <- get_diff(adult_data_pcapts, seedling_data_pcapts, quo(PC2), i) 
-  pc2.diffs.table <- pc2.diffs.table %>% 
-    left_join(diffs, by = "uid")
-}
-pc2.diffs.table
-
-#get dataframe in order for analysis and plotting
-pc2.diffs.sep <- pc2.diffs.table %>% 
-  separate(uid, c("species","agent"),sep="_",remove=FALSE, extra="drop") %>% 
-  mutate(species = as.numeric(species)) %>% 
-  left_join(species.names,by=c("species" = "species.code")) %>% 
-  filter(!(agent == "fire" & species.name %in% insectonlyspp)) %>%
-  filter(!(agent=="insect.disease" & species.name %in% fireonlyspp)) %>% 
-  filter(!species.name=="singleleaf pinyon")
-
-```
-
-Check for normality 
-
-```{r,echo=FALSE,eval=FALSE, results='hide'}
-##checking for normality
-fire.diffs.pc2<- pc2.diffs.sep %>% 
-  filter(agent == "fire") 
-id.diffs.pc2<- pc2.diffs.sep %>% 
-  filter(agent == "insect.disease") 
-none.diffs.pc2<- pc2.diffs.sep %>% 
-  filter(agent == "none")
-
-#fire 5th quantile
-ggqqplot(fire.diffs.pc2$quant_5)
-shapiro.test(fire.diffs.pc2$quant_5)
-
-#fire 50th quantile 
-ggqqplot(fire.diffs.pc2$quant_50)
-shapiro.test(fire.diffs.pc2$quant_50)
-
-#fire 95th quantile
-ggqqplot(fire.diffs.pc2$quant_95)
-shapiro.test(fire.diffs.pc2$quant_95)
-
-#id 5th quantile
-ggqqplot(id.diffs.pc2$quant_5)
-shapiro.test(id.diffs.pc2$quant_5)
-
-#id 50th quantile
-ggqqplot(id.diffs.pc2$quant_50)
-shapiro.test(id.diffs.pc2$quant_50)
-
-#id 95th quantile 
-ggqqplot(id.diffs.pc2$quant_95)
-shapiro.test(id.diffs.pc2$quant_95)
-
-#none 5th quantile -- NOT NORMAL
-ggqqplot(none.diffs.pc2$quant_5)
-shapiro.test(none.diffs.pc2$quant_5)
-
-#none 50th quantile -- NOT NORMAL
-ggqqplot(none.diffs.pc2$quant_50)
-shapiro.test(none.diffs.pc2$quant_50)
-
-#none 95th quantile 
-ggqqplot(none.diffs.pc2$quant_95)
-shapiro.test(none.diffs.pc2$quant_95)
-```
-
-5th & 50th quantile shifts in undisturbed plots are non-normal
-
-```{r,echo=FALSE, results='hide'}
-#perform T-tests
-pvalues.pc2 <- get_pvalues(pc2.diffs.sep)
-pvalues.pc2
-pvalues.pc2<- pvalues.pc2 %>% 
-  mutate(wilcoxon="n")
-
-#perform wilcoxon tests for non-normal data
-#5th none
-pc2.none5.test <- pc2.diffs.sep %>% 
-  filter(agent == "none") %>% 
-  pull("quant_5") %>% 
-  wilcox.test(y = NULL, alternative = "two.sided", mu = 0, conf.int = TRUE, conf.level = 0.95)
-
-pc2.none5.p.df <- data.frame(agent = "none", quant = "quant_5", p.value = pc2.none5.test$p.value, estimate = pc2.none5.test$estimate, lowerci = pc2.none5.test$conf.int[1], upperci = pc2.none5.test$conf.int[2],t=pc2.none5.test$statistic,df=NA,wilcoxon="y")
-
-#50th none
-pc2.none50.test <- pc2.diffs.sep %>% 
-  filter(agent == "none") %>% 
-  pull("quant_50") %>% 
-  wilcox.test(y = NULL, alternative = "two.sided", mu = 0, conf.int = TRUE, conf.level = 0.95)
-
-pc2.none50.p.df <- data.frame(agent = "none", quant = "quant_50", p.value = pc2.none50.test$p.value, estimate = pc2.none50.test$estimate, lowerci = pc2.none50.test$conf.int[1], upperci = pc2.none50.test$conf.int[2],t=pc2.none50.test$statistic,df=NA,wilcoxon="y")
-
-##replace t-test with wilcoxon test values
-pvalues.pc2<- pvalues.pc2 %>% 
-                rows_update(pc2.none5.p.df, by=c("agent","quant")) %>% 
-  rows_update(pc2.none50.p.df, by=c("agent","quant"))
-
-pvalues.pc2
-```
-
-Now plot the differences
-
-```{r, echo=FALSE}
-#make data long for plotting
-pc2.diffs.long <- pc2.diffs.sep %>% 
-  pivot_longer(cols = c(quant_5, quant_50, quant_95), names_to = "quant", values_to = "diff")
-
-ggplot(pc2.diffs.long, aes(x=agent, y=diff))+
-  geom_boxplot(fill="lightgrey")+
-  geom_jitter(height=0,width=0.2, aes(color=species.name))+
-  facet_wrap(~quant)+
-  theme_bw()+
-  theme(axis.text.x = element_text(angle=45, hjust=1))
-
-##dataframe for stars
-pvalues.pc2<- pvalues.pc2 %>% 
-  mutate(sym.pos = ifelse(p.value<0.05,0.14,NA))
-
-quant.labs = c("95th quantile","50th quantile","5th quantile") 
-names(quant.labs)= c("quant_95","quant_50","quant_5")
-
-pc2.shift.plot<- ggplot(pvalues.pc2 %>%  mutate(across(quant,factor,levels=c("quant_95","quant_50","quant_5"))), aes(x=agent, y=estimate, color = agent, fill=agent))+
-  geom_point(shape = 23, size = 3.5)+
-  geom_errorbar(aes(ymin=lowerci, ymax=upperci),width=0.3, size=1)+
-  #scale_color_manual(values = c("tan4", "#fdae61","turquoise"))+
-  #scale_fill_manual(values = c("tan4", "#fdae61","turquoise"))+
-  scale_color_manual(values = disturbance.colors)+
-  scale_fill_manual(values = disturbance.colors)+
-  geom_text(data = subset(pvalues.pc2, !is.na(sym.pos)), aes(x=agent, y=sym.pos), label="*", color="black",size=8)+
-  geom_hline(yintercept=0, color="black", size=1, lty=2)+
-  ylim(c(-0.15,0.16))+
-  facet_grid(~quant, labeller= labeller(quant=quant.labs))+
-  ggtitle("Shifts on PC2")+
-  xlab("")+
-  ylab("Difference on PC2")+
-  theme_bw()+
-  theme(axis.text.x = element_text(angle=45, hjust = 1), axis.text = element_text(color="black",size=12), text = element_text(color="black",size=12), strip.text = element_text(color="black",size=12), legend.position = "none")
-
-```
-
-```{r}
-#combine pc1 and pc2 plots
-
-ggarrange(pc1.shift.plot, pc2.shift.plot, ncol=1)
-
-```
-
-There is a significant positive shift on the 5th quantile in fire plots, representing a contraction away from dry plots in areas that were burned. Conversely, insect/disease and undisturbed plots showed significant contractions on the 95th quantile (wettest plots) away from wet areas, with a significant negative shift in the median of insect/disease plots as well. ANOVAs indicate significant differences between disturbances in shifts on the 5th and 50th quantiles, with the biggest differences between fire and insect/disease plots, with undisturbed plots showing intermediate shifts. 
-
-```{r, echo=FALSE}
-#test for significant differences in the quantiles
-pc2.diffs.fullset<- pc2.diffs.sep %>% 
-  filter(!species.name %in% c(insectonlyspp,fireonlyspp))
-
-
-#check for significant differences in 5th percentile by disturbance type
-pc2.mod5 <- lm(quant_5 ~ factor(agent), data=pc2.diffs.fullset)
-par(mfrow=c(2,2))
-plot(pc2.mod5)
-leveneTest(quant_5 ~ factor(agent), data=pc2.diffs.fullset)
-anova(pc2.mod5)
-TukeyHSD(aov(quant_5 ~ factor(agent), data=pc2.diffs.fullset))
-
-# kruskal.test(quant_5 ~ factor(agent), data=pc2.diffs.fullset)
-# library(FSA)
-# dunnTest(quant_5 ~ factor(agent), data=pc2.diffs.fullset, method = "bonferroni")
-
-#check for significant differences in 50th percentile by disturbance type
-pc2.mod50 <- lm(quant_50 ~ factor(agent), data=pc2.diffs.fullset)
-par(mfrow=c(2,2))
-plot(pc2.mod50)
-leveneTest(quant_50 ~ factor(agent), data=pc2.diffs.fullset) 
-anova(pc2.mod50)
-#TukeyHSD(aov(quant_50 ~ factor(agent), data=pc2.diffs.fullset))
-
-
-#check for significant differences in 95th percentile by disturbance type
-pc2.mod95 <- lm(quant_95 ~ factor(agent), data=pc2.diffs.fullset)
-par(mfrow=c(2,2))
-plot(pc2.mod95) #this doesn't look great, but I think it's ok.
-leveneTest(quant_95 ~ factor(agent), data=pc2.diffs.fullset)
-kruskal.test(quant_95 ~ factor(agent), data=pc2.diffs.fullset)
-library(FSA)
-dunnTest(quant_95 ~ factor(agent), data=pc2.diffs.fullset, method = "bonferroni")
-
-par(mfrow=c(1,1))
-```
 
 ##Species specific range shifts
 
@@ -1179,7 +703,7 @@ shapiro.results.a %>%
 #look at those that failed normality test
 data.names<- data.frame(name = names(adult_data_pcapts),num=seq(1,length(adult_data_pcapts),1))
 
-#this table shows sample size for adult data that didn't pass normality test. Lowest for adults is 65, I think this is reasonably large to still use a t-test. 
+#this table shows sample size for adult data that didn't pass normality test. Lowest for adults is 151, I think this is reasonably large to still use a t-test. 
 shapiro.results.a %>% 
   filter(p<0.05) %>% 
   left_join(data.names, by='num') %>% 
@@ -1198,7 +722,7 @@ head(shapiro.results.s)
 shapiro.results.s %>% 
   filter(p<0.05)
 
-#this table shows sample size for seedling data that didn't pass normality test. Lowest is 71 (singleleaf pinyon in insect.disease) so i think this is big enough to be fine.   
+#this table shows sample size for seedling data that didn't pass normality test. Lowest is 162 so i think this is big enough to be fine.   
 shapiro.results.s %>% 
   filter(p<0.05) %>% 
   left_join(data.names, by='num') %>% 
@@ -1374,7 +898,7 @@ pc2.shapiro.results.a<-rbind(pc2.shapiro.results.a, data.frame(num=i, p=shapiro$
 pc2.shapiro.results.a %>% 
   filter(p<0.05)
 
-#this table shows sample size for adult data that didn't pass normality test. Lowest for adults is 65, I think this is reasonably large to still use a t-test. 
+#this table shows sample size for adult data that didn't pass normality test. Lowest for adults is 195, I think this is reasonably large to still use a t-test. 
 pc2.shapiro.results.a %>% 
   filter(p<0.05) %>% 
   left_join(data.names, by='num') %>% 
@@ -1392,7 +916,7 @@ pc2.shapiro.results.s<-rbind(pc2.shapiro.results.s, data.frame(num=i, p=shapiro$
 pc2.shapiro.results.s %>% 
   filter(p<0.05)
 
-#this table shows sample size for seedling data that didn't pass normality test. Lowest is 31, then 44, 50. I think this is ok for t-test.   
+#this table shows sample size for seedling data that didn't pass normality test. Lowest is 67. I think this is ok for t-test.   
 pc2.shapiro.results.s %>% 
   filter(p<0.05) %>% 
   left_join(data.names, by='num') %>% 
@@ -1619,7 +1143,7 @@ ggplot(niche.areas.long, aes(x=name, y=niche.area, fill=age))+
 # plot.names <-
 #   as.data.frame(names(siber.objs)) %>%
 #   tidyr::separate(col="names(siber.objs)", into=c("species.code","disturbance","extra"), sep="_") %>%
-#     mutate(species.code = as.numeric(species.code)) %>%
+#     #mutate(species.code = as.numeric(species.code)) %>%
 #     left_join(species.names,by="species.code") %>%
 #     dplyr::select(species.name, disturbance) %>%
 #     unite(col="name", c(species.name, disturbance), sep=" ",)
@@ -1717,7 +1241,7 @@ colnames(overlap.table)<-names(overlap.summary[[1]])
 overlap.table<- overlap.table %>% 
   mutate(names = names(overlap.list)) %>% 
   separate(names,into=c("species","disturbance","extra"),sep="_") %>% 
-  #mutate(species = as.numeric(species)) %>% 
+  mutate(species = as.numeric(species)) %>% 
   left_join(species.names,by=c("species"="species.code")) %>% 
   filter(!species.name=="singleleaf pinyon")
 ```
@@ -2193,17 +1717,17 @@ boxplots<- ggarrange(distance.boxplot,angle.boxplot,nrow=2,ncol=1)
 arrowcentroidplot<- ggarrange(arrowsplot1,boxplots, nrow=1,ncol=2, widths=c(3,1))
 arrowcentroidplot
 
-pdf(file="figures/arrowsplot22_subset.pdf",width=15,height=8.75)
-
-arrowcentroidplot
-
-dev.off()
-
-png(file="figures/arrowsplot22_subset.png",width=1200,height=700)
-
-arrowcentroidplot
-
-dev.off()
+# pdf(file="figures/arrowsplot22_subset.pdf",width=15,height=8.75)
+# 
+# arrowcentroidplot
+# 
+# dev.off()
+# 
+# png(file="figures/arrowsplot22_subset.png",width=1200,height=700)
+# 
+# arrowcentroidplot
+# 
+# dev.off()
 ```
 
 ```{r}
@@ -2250,68 +1774,120 @@ ggplot(angles_distances_ave, aes(x=disturbance, y=ave.angles))+
 
 ```{r}
 #look at marginal posterior means
-ellipses.posterior.list
-
-par(mfrow=c(4,3))
-
-for(i in 1:length(ellipses.posterior.list)){
-  for(j in 1:2){
-    for(k in 1:6){
-
-hist(ellipses.posterior.list[[i]][[j]][,k], breaks = 50, main=paste(names(ellipses.posterior.list)[i],j,sep="_"), xlab=colnames(ellipses.posterior.list[[i]][[j]])[k])
-abline(v=mean(ellipses.posterior.list[[i]][[j]][,k]), col="red", lwd=3)
-      
-    }
-  }
-}
-
-par(mfrow=c(3,4))
-for(i in 1:length(ellipses.posterior.list)){
-    for(k in 5:6){
-hist(ellipses.posterior.list[[i]][[1]][,k], breaks = 50, main=paste(names(ellipses.posterior.list)[i]), xlab=colnames(ellipses.posterior.list[[i]][[1]])[k],col=rgb(1,0,0,0.5))
-hist(ellipses.posterior.list[[i]][[2]][,k], breaks = 50,  col=rgb(0,0,1,0.3), add=T)
-abline(v=mean(ellipses.posterior.list[[i]][[1]][,k]), col="red", lwd=3)
-abline(v=mean(ellipses.posterior.list[[i]][[2]][,k]), col="blue", lwd=3)
-    }
-}
-
-posteriorlistcut<- ellipses.posterior.list#[-c(24,25)]
-
-length(posteriorlistcut[grepl("fire", names(posteriorlistcut))])
-
-par(mfrow=c(4,2))
-for(i in 1:length(posteriorlistcut[grepl("fire", names(posteriorlistcut))])
-){
-    for(k in 5:6){
-hist(posteriorlistcut[grepl("fire", names(posteriorlistcut))][[i]][[1]][,k], breaks = 50, main=paste(names(posteriorlistcut[grepl("fire", names(posteriorlistcut))])[i]), xlab=colnames(posteriorlistcut[grepl("fire", names(posteriorlistcut))][[i]][[1]])[k],col=rgb(1,0,0,0.5),xlim=c(min(c(posteriorlistcut[grepl("fire", names(posteriorlistcut))][[i]][[1]][,k],posteriorlistcut[grepl("fire", names(posteriorlistcut))][[i]][[2]][,k])),max(c(posteriorlistcut[grepl("fire", names(posteriorlistcut))][[i]][[1]][,k],posteriorlistcut[grepl("fire", names(posteriorlistcut))][[i]][[2]][,k]))), freq=F)
-hist(posteriorlistcut[grepl("fire", names(posteriorlistcut))][[i]][[2]][,k], breaks = 50,  col=rgb(0,0,1,0.3), freq=F,add=T)
-abline(v=mean(posteriorlistcut[grepl("fire", names(posteriorlistcut))][[i]][[1]][,k]), col="red", lwd=3)
-abline(v=mean(posteriorlistcut[grepl("fire", names(posteriorlistcut))][[i]][[2]][,k]), col="blue", lwd=3)
-    }
-}
-
-
-par(mfrow=c(4,2))
-for(i in 1:length(posteriorlistcut[grepl("insect.disease", names(posteriorlistcut))])
-){
-    for(k in 5:6){
-hist(posteriorlistcut[grepl("insect.disease", names(posteriorlistcut))][[i]][[1]][,k], breaks = 50, main=paste(names(posteriorlistcut[grepl("insect.disease", names(posteriorlistcut))])[i]), xlab=colnames(posteriorlistcut[grepl("insect.disease", names(posteriorlistcut))][[i]][[1]])[k],col=rgb(1,0,0,0.5),xlim=c(min(c(posteriorlistcut[grepl("insect.disease", names(posteriorlistcut))][[i]][[1]][,k],posteriorlistcut[grepl("insect.disease", names(posteriorlistcut))][[i]][[2]][,k])),max(c(posteriorlistcut[grepl("insect.disease", names(posteriorlistcut))][[i]][[1]][,k],posteriorlistcut[grepl("insect.disease", names(posteriorlistcut))][[i]][[2]][,k]))), freq=F)
-hist(posteriorlistcut[grepl("insect.disease", names(posteriorlistcut))][[i]][[2]][,k], breaks = 50,  col=rgb(0,0,1,0.3), freq=F,add=T)
-abline(v=mean(posteriorlistcut[grepl("insect.disease", names(posteriorlistcut))][[i]][[1]][,k]), col="red", lwd=3)
-abline(v=mean(posteriorlistcut[grepl("insect.disease", names(posteriorlistcut))][[i]][[2]][,k]), col="blue", lwd=3)
-    }
-}
-
-par(mfrow=c(4,2))
-for(i in 1:length(posteriorlistcut[grepl("none", names(posteriorlistcut))])
-){
-    for(k in 5:6){
-hist(posteriorlistcut[grepl("none", names(posteriorlistcut))][[i]][[1]][,k], breaks = 50, main=paste(names(posteriorlistcut[grepl("none", names(posteriorlistcut))])[i]), xlab=colnames(posteriorlistcut[grepl("none", names(posteriorlistcut))][[i]][[1]])[k],col=rgb(1,0,0,0.5),xlim=c(min(c(posteriorlistcut[grepl("none", names(posteriorlistcut))][[i]][[1]][,k],posteriorlistcut[grepl("none", names(posteriorlistcut))][[i]][[2]][,k])),max(c(posteriorlistcut[grepl("none", names(posteriorlistcut))][[i]][[1]][,k],posteriorlistcut[grepl("none", names(posteriorlistcut))][[i]][[2]][,k]))), freq=F)
-hist(posteriorlistcut[grepl("none", names(posteriorlistcut))][[i]][[2]][,k], breaks = 50,  col=rgb(0,0,1,0.3), freq=F,add=T)
-abline(v=mean(posteriorlistcut[grepl("none", names(posteriorlistcut))][[i]][[1]][,k]), col="red", lwd=3)
-abline(v=mean(posteriorlistcut[grepl("none", names(posteriorlistcut))][[i]][[2]][,k]), col="blue", lwd=3)
-    }
-}
+# ellipses.posterior.list
+# 
+# par(mfrow=c(4,3))
+# 
+# for(i in 1:length(ellipses.posterior.list)){
+#   for(j in 1:2){
+#     for(k in 1:6){
+# 
+# hist(ellipses.posterior.list[[i]][[j]][,k], breaks = 50, main=paste(names(ellipses.posterior.list)[i],j,sep="_"), xlab=colnames(ellipses.posterior.list[[i]][[j]])[k])
+# abline(v=mean(ellipses.posterior.list[[i]][[j]][,k]), col="red", lwd=3)
+#       
+#     }
+#   }
+# }
+# 
+# par(mfrow=c(3,4))
+# for(i in 1:length(ellipses.posterior.list)){
+#     for(k in 5:6){
+# hist(ellipses.posterior.list[[i]][[1]][,k], breaks = 50, main=paste(names(ellipses.posterior.list)[i]), xlab=colnames(ellipses.posterior.list[[i]][[1]])[k],col=rgb(1,0,0,0.5))
+# hist(ellipses.posterior.list[[i]][[2]][,k], breaks = 50,  col=rgb(0,0,1,0.3), add=T)
+# abline(v=mean(ellipses.posterior.list[[i]][[1]][,k]), col="red", lwd=3)
+# abline(v=mean(ellipses.posterior.list[[i]][[2]][,k]), col="blue", lwd=3)
+#     }
+# }
+# 
+# posteriorlistcut<- ellipses.posterior.list#[-c(24,25)]
+# 
+# length(posteriorlistcut[grepl("fire", names(posteriorlistcut))])
+# names_df <- data.frame(longname = names(posteriorlistcut)) %>% 
+#   separate(longname,into=c("species","disturbance","extra"), sep="_") %>% 
+#   left_join(species.names, by=c("species" = "species.code")) %>% 
+#   mutate(plotnames = paste(species.name,disturbance, sep="_"))
+# 
+# pc_names <- c("PC2","PC1")  
+# 
+# par(mfrow=c(4,2))
+# for(i in 1:length(posteriorlistcut[grepl("fire", names(posteriorlistcut))])
+# ){
+#     for(k in 5:6){
+# png(filename = paste((names_df %>% filter(disturbance=="fire") %>% pull(plotnames))[i],"hist","2022subset",pc_names[7-k],".png",sep="_"))
+# 
+# hist(posteriorlistcut[grepl("fire", names(posteriorlistcut))][[i]][[1]][,k],
+#      breaks = 50, 
+#      main=paste((names_df %>% filter(disturbance=="fire") %>% pull(plotnames))[i]), 
+#      xlab=pc_names[7-k],col=rgb(0,0,0,0.7),
+#      xlim=c(min(c(posteriorlistcut[grepl("fire", names(posteriorlistcut))][[i]][[1]][,k],posteriorlistcut[grepl("fire", names(posteriorlistcut))][[i]][[2]][,k])),max(c(posteriorlistcut[grepl("fire", names(posteriorlistcut))][[i]][[1]][,k],posteriorlistcut[grepl("fire", names(posteriorlistcut))][[i]][[2]][,k]))), freq=F)
+# 
+# hist(posteriorlistcut[grepl("fire", names(posteriorlistcut))][[i]][[2]][,k],
+#      breaks = 50,  
+#      col=rgb(0.6,0,0,0.8), freq=F,add=T)
+# 
+# abline(v=mean(posteriorlistcut[grepl("fire", names(posteriorlistcut))][[i]][[1]][,k]), col="black", lwd=3)
+# abline(v=mean(posteriorlistcut[grepl("fire", names(posteriorlistcut))][[i]][[2]][,k]), col="red", lwd=3)
+# 
+# legend("topright", c("Seedling", "Adult"), col = c("red","black"), lwd=3)
+# 
+# dev.off()
+#     }
+# }
+# 
+# 
+# par(mfrow=c(4,2))
+# for(i in 1:length(posteriorlistcut[grepl("insect.disease", names(posteriorlistcut))])
+# ){
+#     for(k in 5:6){
+# png(filename = paste((names_df %>% filter(disturbance=="insect.disease") %>% pull(plotnames))[i],"hist","2022subset",pc_names[7-k],".png",sep="_"))
+# 
+# hist(posteriorlistcut[grepl("insect.disease", names(posteriorlistcut))][[i]][[1]][,k], 
+#      breaks = 50, 
+#      main=paste((names_df %>% filter(disturbance=="insect.disease") %>% pull(plotnames))[i]), 
+#      xlab=pc_names[7-k],
+#      col=rgb(0,0,0,0.7),
+#      xlim=c(min(c(posteriorlistcut[grepl("insect.disease", names(posteriorlistcut))][[i]][[1]][,k],posteriorlistcut[grepl("insect.disease", names(posteriorlistcut))][[i]][[2]][,k])),max(c(posteriorlistcut[grepl("insect.disease", names(posteriorlistcut))][[i]][[1]][,k],posteriorlistcut[grepl("insect.disease", names(posteriorlistcut))][[i]][[2]][,k]))), freq=F)
+# 
+# hist(posteriorlistcut[grepl("insect.disease", names(posteriorlistcut))][[i]][[2]][,k], 
+#      breaks = 50,  
+#      col=rgb(0.2,0.6,0.8,0.8), 
+#      freq=F,add=T)
+# 
+# abline(v=mean(posteriorlistcut[grepl("insect.disease", names(posteriorlistcut))][[i]][[1]][,k]), col="black", lwd=3)
+# abline(v=mean(posteriorlistcut[grepl("insect.disease", names(posteriorlistcut))][[i]][[2]][,k]), col="blue", lwd=3)
+# 
+# legend("topright", c("Seedling", "Adult"), col = c("blue","black"), lwd=3)
+# 
+# dev.off()
+#     }
+# }
+# 
+# par(mfrow=c(4,2))
+# for(i in 1:length(posteriorlistcut[grepl("none", names(posteriorlistcut))])
+# ){
+#     for(k in 5:6){
+# png(filename = paste((names_df %>% filter(disturbance=="none") %>% pull(plotnames))[i],"hist","2022subset",pc_names[7-k],".png",sep="_"))
+# 
+# hist(posteriorlistcut[grepl("none", names(posteriorlistcut))][[i]][[1]][,k], 
+#      breaks = 50, 
+#      main=paste((names_df %>% filter(disturbance=="none") %>% pull(plotnames))[i]), 
+#      xlab=pc_names[7-k],
+#      col=rgb(0,0,0,0.7),
+#      xlim=c(min(c(posteriorlistcut[grepl("none", names(posteriorlistcut))][[i]][[1]][,k],posteriorlistcut[grepl("none", names(posteriorlistcut))][[i]][[2]][,k])),max(c(posteriorlistcut[grepl("none", names(posteriorlistcut))][[i]][[1]][,k],posteriorlistcut[grepl("none", names(posteriorlistcut))][[i]][[2]][,k]))), freq=F)
+# 
+# hist(posteriorlistcut[grepl("none", names(posteriorlistcut))][[i]][[2]][,k], 
+#      breaks = 50,  
+#      col=rgb(0,0,0,0.3), 
+#      freq=F,add=T)
+# 
+# abline(v=mean(posteriorlistcut[grepl("none", names(posteriorlistcut))][[i]][[1]][,k]), col="black", lwd=3)
+# abline(v=mean(posteriorlistcut[grepl("none", names(posteriorlistcut))][[i]][[2]][,k]), col="black", lwd=3, lty=4)
+# 
+# legend("topright", c("Seedling", "Adult"), col = c("black","black"), lty=c(4,1), lwd=3)
+# 
+# dev.off()
+#     }
+# }
 
 ```
 
@@ -2504,7 +2080,6 @@ plot(pc1.mod2.5)
 leveneTest(pc1diff_2.5 ~ factor(disturbance), data=centroidshifts %>% filter(!species.name %in% c(insectonlyspp,fireonlyspp)))
 anova(pc1.mod2.5)
 #check for significant differences in PC2 2.5th percentile by disturbance type
-##THIS IS SIGNIFICANT
 pc2.mod2.5 <- lm(pc2diff_2.5 ~ factor(disturbance), data=centroidshifts %>% filter(!species.name %in% c(insectonlyspp,fireonlyspp)))
 par(mfrow=c(2,2))
 plot(pc2.mod2.5)
@@ -2590,7 +2165,7 @@ ggplot(percentile.results %>% filter(pc=="pc2"), aes(x=agent, y=estimate, color 
 
 anova.letters.pc1<- data.frame(quant = rep(c("2.5","centroid","97.5"),3), agent=c(rep("fire",3),rep("insect.disease",3),rep("none",3)), letters=c("A","A","A","A","AB","A","A","B","A"))
 
-anova.letters.pc2<- data.frame(quant = rep(c("2.5","centroid","97.5"),3), agent=c(rep("fire",3),rep("insect.disease",3),rep("none",3)), letters=c("AB","AB","A","A","A","A","B","B","A"))
+anova.letters.pc2<- data.frame(quant = rep(c("2.5","centroid","97.5"),3), agent=c(rep("fire",3),rep("insect.disease",3),rep("none",3)), letters=c("A","AB","A","A","A","A","A","B","A"))
 
 pc1nicheshiftsplot<- ggplot(percentile.results %>% filter(pc=="pc1") %>% filter(!quant %in% c("5","95")), aes(x=agent, y=estimate, color = agent, fill=agent))+
   geom_point(shape = 23, size = 3.5)+
@@ -2602,7 +2177,7 @@ pc1nicheshiftsplot<- ggplot(percentile.results %>% filter(pc=="pc1") %>% filter(
   geom_text(data = subset(pvalues.percentileshifts %>% filter(pc=="pc1") %>% filter(!quant %in% c("5","95")), !is.na(sym.pos)), aes(x=agent, y=sym.pos), label="*", color="black",size=8)+
   geom_hline(yintercept=0, color="black", lty=2, size=1)+
   ylim(c(-.2,.2))+
-  coord_flip()+
+  #coord_flip()+
 facet_wrap(~ factor(quant,levels=c("2.5","centroid","97.5")))+
   geom_segment(aes(x=0.8,xend=3.2,y=-.15,yend=-.15),size=1,color="azure4")+
   geom_text(data=anova.letters.pc1, aes(x=agent, y=-0.18,fill=NULL, label=letters), parse=TRUE, col="azure4", size=5)+
@@ -2629,12 +2204,13 @@ pc2nicheshiftsplot<- ggplot(percentile.results %>% filter(pc=="pc2") %>% filter(
   ylab("Difference on PC2")+
   xlab("")+
   theme_bw()+
-  theme(axis.text.x = element_text(angle=45, hjust = 1), axis.text = element_text(size=12, color="black"), text = element_text(size=12),legend.text = element_text(size=12),strip.text = element_text(color="black",size=12),legend.position = 'none', plot.margin=margin(5,5,5,60))
+  theme(axis.text.x = element_text(angle=45, hjust = 1), axis.text = element_text(size=12, color="black"), text = element_text(size=12),legend.text = element_text(size=12),strip.text = element_text(color="black",size=12),legend.position = 'none' #,plot.margin=margin(5,5,5,60)
+        )
 
 #put them together
-# png("percentile_shifts_figure.png", width= 600, height = 500)
+# png("figures/percentile_shifts_figure_080222.png", width= 600, height = 600)
 # 
-#  ggarrange(pc1nicheshiftsplot, pc2nicheshiftsplot, nrow=2, heights=c(0.87,1))
+#  ggarrange(pc1nicheshiftsplot, pc2nicheshiftsplot, nrow=2)
 # 
 # dev.off()
 ```
@@ -3283,6 +2859,484 @@ ggarrange(shade.contr.plot.partial, shade.exp.plot.partial, weight.contr.plot.pa
 
 
 #Other
+
+##Effects of disturbance on range shifts across species 
+
+###PC1
+First I am going to look at whether changes in 5th, 50th and 95th percentiles of positions on both PC1 and PC2 were significantly different from zero across all species, for each disturbance type.
+
+Let's look at changes in PC1, which corresponds most strongly with climatic moisture deficit (CMD) and temperature variables. Shifts in the negative direction on PC1 indicate shifts in the seedling climatic niche to hotter climates, whereas positive shifts would represent shifts in seedling niche to cooler climates.
+
+```{r, warning = FALSE, echo = FALSE, results='hide'}
+##### make function for calculating differences in quantiles of adults vs. seedlings
+#' get_diff
+#'
+#' @param adult_data list of dataframes that are separated by species and agent. Dataframes contain info on climate variables of plots with adults of each species/agent.  
+#' @param seedling_data list of dataframes that are separated by species and agent. Dataframes contain info on climate variables of plots with seedlings of each species/agent. 
+#' @param var name of the desired climate variable for which the difference should be calculated. This can also be a principal component, or any column that exists in every dataframe in the list.  
+#' @param quant The quantile for which you want to calculate the difference between adults and seedlings.
+#'
+#' @return a dataframe with the difference in chosen quantile between adults and seedlings, for the chosen climate variable, under each disturbance agent.  
+#' @export
+#'
+#' @examples
+get_diff <- function(adult_data, seedling_data, var,quant){
+q.table = data.frame()
+for(i in 1:length(names(adult_data))){
+  adult.q<- adult_data %>% 
+    pluck(names(adult_data)[i]) %>% 
+    ungroup() %>% 
+    dplyr::select(!!var) %>% 
+    dplyr::summarise(quantile = quantile(!!var,probs = quant))
+  seed.q<- seedling_data %>% 
+    pluck(names(adult_data)[i]) %>% 
+    ungroup() %>% 
+    dplyr::select(!!var) %>% 
+    dplyr::summarise(quantile = quantile(!!var,probs = quant))
+  adult.95<- adult_data %>% 
+    pluck(names(adult_data)[i]) %>% 
+    ungroup() %>% 
+    dplyr::select(!!var) %>% 
+    dplyr::summarise(quantile = quantile(!!var,probs = 0.95))
+  adult.05 <- adult_data %>% 
+    pluck(names(adult_data)[i]) %>% 
+    ungroup() %>% 
+    dplyr::select(!!var) %>% 
+    dplyr::summarise(quantile = quantile(!!var,probs = 0.05))
+  adult.tolerance <- adult.95 - adult.05
+  q_diff = (seed.q - adult.q)/adult.tolerance
+  q.table <- bind_rows(q.table, data.frame(names(adult_data)[i],q_diff) )
+}
+q.table <- q.table %>% 
+  dplyr::rename(!!paste("quant",quant*100,sep="_") := quantile,
+         uid = names.adult_data..i.)
+return(q.table) 
+}
+```
+
+```{r, echo=FALSE, results='hide'}
+#calculate difference in 5th, 50th and 95th percentiles in PC1 position between adults and seedlings of each species and disturbance type 
+pc1.diffs.table <- data.frame(uid = names(adult_data_pcapts))
+for(i in c(0.05, 0.5, 0.95)){
+diffs <- get_diff(adult_data_pcapts, seedling_data_pcapts, quo(PC1), i) 
+  pc1.diffs.table <- pc1.diffs.table %>% 
+    left_join(diffs, by = "uid")
+}
+
+#get dataframe in order for analysis and plotting
+pc1.diffs.sep <- pc1.diffs.table %>% 
+  separate(uid, c("species","agent"),sep="_",remove=FALSE, extra="drop") %>% 
+  mutate(species = as.numeric(species)) %>% 
+  left_join(species.names,by=c("species" = "species.code")) %>% 
+  filter(!(agent == "fire" & species.name %in% insectonlyspp)) %>% 
+  filter(!(agent == "insect.disease" & species.name %in% fireonlyspp)) %>% 
+  filter(!species.name=="singleleaf pinyon")
+```
+
+
+```{r}
+#spot check diffs
+i = 10
+adult.q<- adult_data_pcapts %>% 
+    pluck(names(adult_data)[i]) %>% 
+    ungroup() %>% 
+    dplyr::select(PC1) %>% 
+    dplyr::summarise(quantile = quantile(PC1,probs = .95))
+  seed.q<- seedling_data_pcapts %>% 
+    pluck(names(adult_data)[i]) %>% 
+    ungroup() %>% 
+    dplyr::select(PC1) %>% 
+    dplyr::summarise(quantile = quantile(PC1,probs = .95))
+  adult.95<- adult_data_pcapts %>% 
+    pluck(names(adult_data)[i]) %>% 
+    ungroup() %>% 
+    dplyr::select(PC1) %>% 
+    dplyr::summarise(quantile = quantile(PC1,probs = 0.95))
+  adult.05 <- adult_data_pcapts %>% 
+    pluck(names(adult_data)[i]) %>% 
+    ungroup() %>% 
+    dplyr::select(PC1) %>% 
+    dplyr::summarise(quantile = quantile(PC1,probs = 0.05))
+  adult.tolerance <- adult.95 - adult.05
+  q_diff = (seed.q - adult.q)/adult.tolerance
+
+```
+
+First I will assess whether the shifts in each quantile and disturbance are normally distributed, in which case a t-test will be used, otherwise a Wilcoxon signed rank test will be used. 
+
+```{r, echo=FALSE, eval=FALSE, results="hide"}
+##checking for normality
+fire.diffs.pc1<- pc1.diffs.sep %>% 
+  filter(agent == "fire") 
+id.diffs.pc1<- pc1.diffs.sep %>% 
+  filter(agent == "insect.disease") 
+none.diffs.pc1<- pc1.diffs.sep %>% 
+  filter(agent == "none")
+
+#fire 5th quantile 
+ggqqplot(fire.diffs.pc1$quant_5)
+shapiro.test(fire.diffs.pc1$quant_5)
+
+#fire 50th quantile
+ggqqplot(fire.diffs.pc1$quant_50)
+shapiro.test(fire.diffs.pc1$quant_50)
+
+#fire 95th quantile 
+ggqqplot(fire.diffs.pc1$quant_95)
+shapiro.test(fire.diffs.pc1$quant_95)
+
+#id 5th quantile
+ggqqplot(id.diffs.pc1$quant_5)
+shapiro.test(id.diffs.pc1$quant_5)
+
+#id 50th quantile
+ggqqplot(id.diffs.pc1$quant_50)
+shapiro.test(id.diffs.pc1$quant_50)
+
+#id 95th quantile
+ggqqplot(id.diffs.pc1$quant_95)
+shapiro.test(id.diffs.pc1$quant_95)
+
+#none 5th quantile -- NOT NORMAL
+ggqqplot(none.diffs.pc1$quant_5)
+shapiro.test(none.diffs.pc1$quant_5)
+
+#none 50th quantile
+ggqqplot(none.diffs.pc1$quant_50)
+shapiro.test(none.diffs.pc1$quant_50)
+
+#none 95th quantile
+ggqqplot(none.diffs.pc1$quant_95)
+shapiro.test(none.diffs.pc1$quant_95)
+
+```
+
+All difference data is normal except 5th qunatile of undisturbed, so we will use a Wilcoxon test for this set and t-tests for the rest.
+
+
+```{r,echo=FALSE, results="hide"}
+#test for significant shifts from zero
+
+#' get_pvalues
+#'
+#' @param pc1.diffs.sep dataframe containing the calculated differences in 5th, 50th and 95th quantiles of one climate variable or principal component for each species/agent 
+#'
+#' @return a dataframe with the results of a T-test, testing if the difference in quantile is significantly different from 0.   
+#' @export
+#'
+#' @examples
+get_pvalues <- function(pc1.diffs.sep){
+agent.list = unique(pc1.diffs.sep$agent)
+quant.list = c(5, 50, 95)
+pc1.p.table = data.frame()
+for(i in 1:length(agent.list)){
+  cat(i, "\n")
+  for(j in 1:length(quant.list)){
+    cat(j, "\n")
+test.temp <- pc1.diffs.sep %>% 
+  filter(agent == agent.list[i]) %>% 
+  pull(!!paste("quant",quant.list[j],sep="_")) %>% 
+  t.test(y = NULL, alternative = "two.sided", mu = 0, paired = FALSE, var.equal = FALSE, conf.level = 0.95)
+    
+p.temp <- test.temp$p.value
+est.temp <- test.temp$estimate
+lower.temp <- test.temp$conf.int[1]
+upper.temp <- test.temp$conf.int[2]
+tvalue.temp <- test.temp$statistic
+df.temp <- test.temp$parameter
+p.df <- data.frame(agent = paste(agent.list[i]), quant = paste("quant",quant.list[j],sep="_"), p.value = p.temp, estimate = est.temp, lowerci = lower.temp, upperci = upper.temp,t=tvalue.temp, df=df.temp)
+pc1.p.table <- bind_rows(pc1.p.table, p.df)
+  }
+}
+  return(pc1.p.table)
+}
+
+#this call to options will tell me where the warnings occur. In this case, for the comparison of medians in the fire plots and harvest plots, the exact p-value cannot be calculated because there are values that are exactly equal to 0 in the data. I think this is ok.  
+options(warn = 1)
+pvalues.pc1 <- get_pvalues(pc1.diffs.sep)
+pvalues.pc1
+pvalues.pc1<- pvalues.pc1 %>% 
+  mutate(wilcoxon = "n")
+
+#need to do Wilcoxon Signed Rank Test for 5th percentile of none because data is not normal 
+none5.test <- pc1.diffs.sep %>%
+  filter(agent == "none") %>%
+  pull("quant_5") %>%
+  wilcox.test(y = NULL, alternative = "two.sided", mu = 0, conf.int = TRUE, conf.level = 0.95)
+
+none5.p.df <- data.frame(agent = "none", quant = "quant_5", p.value = none5.test$p.value, estimate = none5.test$estimate, lowerci = none5.test$conf.int[1], upperci = none5.test$conf.int[2], t=none5.test$statistic, df=NA, wilcoxon="y")
+
+##replace 5th percentile of none with wilcoxon test values
+pvalues.pc1<- pvalues.pc1 %>%
+              rows_update(none5.p.df,by=c("agent","quant"))
+pvalues.pc1
+```
+
+The first plot here shows shifts on the 5th, 50th and 95th percentiles for all species combined, with individual species shifts plotted as dots. The second plot is the result of T-tests and Wilcoxon Signed Rank tests (non-parametric t-test), showing the estimate as a diamond and the 95% confidence interval as lines. Asterisks indicate whether the shift was significantly different from zero (p\<0.05).
+
+```{r, echo=FALSE}
+#make data long for plotting
+pc1.diffs.long <- pc1.diffs.sep %>% 
+  pivot_longer(cols = c(quant_5, quant_50, quant_95), names_to = "quant", values_to = "diff")
+
+ggplot(pc1.diffs.long, aes(x=agent, y=diff))+
+  geom_boxplot(fill="lightgrey")+
+  geom_jitter(height=0,width=0.2, aes(color=species.name))+
+  facet_wrap(~quant)+
+  theme_bw()+
+  theme(axis.text.x = element_text(angle=45, hjust=1))
+
+##dataframe for stars
+pvalues.pc1<- pvalues.pc1 %>% 
+  mutate(sym.pos = ifelse(p.value<0.05,0.14,NA))
+
+quant.labs = c("5th quantile","50th quantile","95th quantile") 
+names(quant.labs)= c("quant_5","quant_50","quant_95")
+
+pc1.shift.plot <- ggplot(pvalues.pc1, aes(x=agent, y=estimate, color = agent, fill=agent))+
+  geom_point(shape = 23, size = 3.5)+
+  geom_errorbar(aes(ymin=lowerci, ymax=upperci),width=0.3, size=1)+
+  #scale_color_manual(values = c("#d7191c", "#fdae61","#2b83ba"))+
+  #scale_fill_manual(values = c("#d7191c", "#fdae61","#2b83ba"))+
+  scale_color_manual(values = disturbance.colors)+
+  scale_fill_manual(values = disturbance.colors)+
+  geom_text(data = subset(pvalues.pc1, !is.na(sym.pos)), aes(x=agent, y=sym.pos), label="*", color="black",size=8)+
+  geom_hline(yintercept=0, color="black", lty=2, size=1)+
+  ylim(c(-0.08,0.16))+
+  coord_flip()+
+facet_wrap(~ quant, labeller = labeller(quant=quant.labs))+
+  ggtitle("Shifts on PC1")+
+  ylab("Difference on PC1")+
+  xlab("")+
+  theme_bw()+
+  theme(axis.text.x = element_text(angle=45, hjust = 1), axis.text = element_text(size=12, color="black"), text = element_text(size=12),legend.text = element_text(size=12),strip.text = element_text(color="black",size=12), legend.position = "none")
+
+```
+
+Here I test for significant differences among disturbance agents in adult vs. seedling differences in the three percentiles of PC1. I only include species in this analysis that had data for all three disturbance types. There are no significant differences between disturbances in shifts on PC1.
+
+```{r, echo=FALSE}
+pc1.diffs.fullset<- pc1.diffs.sep %>% 
+  filter(!species.name %in% c(insectonlyspp,fireonlyspp))
+
+#check for significant differences in 5th percentile by disturbance type
+pc1.mod5 <- lm(quant_5 ~ factor(agent), data=pc1.diffs.fullset)
+par(mfrow=c(2,2))
+plot(pc1.mod5)
+leveneTest(quant_5 ~ factor(agent), data=pc1.diffs.fullset)
+anova(pc1.mod5)
+#check for significant differences in 50th percentile by disturbance type
+pc1.mod50 <- lm(quant_50 ~ factor(agent), data=pc1.diffs.fullset)
+par(mfrow=c(2,2))
+plot(pc1.mod50)
+leveneTest(quant_50 ~ factor(agent), data=pc1.diffs.fullset)
+anova(pc1.mod50)
+#check for significant differences in 95th percentile by disturbance type
+pc1.mod95 <- lm(quant_95 ~ factor(agent), data=pc1.diffs.fullset)
+par(mfrow=c(2,2))
+plot(pc1.mod95)
+leveneTest(quant_95 ~ factor(agent), data=pc1.diffs.fullset)
+anova(pc1.mod95)
+
+par(mfrow=c(1,1))
+```
+
+
+###PC2
+
+And now for PC2, which corresponds most strongly to precipitation variables, with positive shifts representing seedling shifts to wetter climates and negative shifts representing seedling shifts to drier climates.
+
+```{r, echo=FALSE, results='hide'}
+#calculate difference in 5th, 50th and 95th percentiles in pc2 position between adults and seedlings of each species and disturbance type 
+pc2.diffs.table <- data.frame(uid = names(adult_data_pcapts))
+for(i in c(0.05, 0.5, 0.95)){
+diffs <- get_diff(adult_data_pcapts, seedling_data_pcapts, quo(PC2), i) 
+  pc2.diffs.table <- pc2.diffs.table %>% 
+    left_join(diffs, by = "uid")
+}
+pc2.diffs.table
+
+#get dataframe in order for analysis and plotting
+pc2.diffs.sep <- pc2.diffs.table %>% 
+  separate(uid, c("species","agent"),sep="_",remove=FALSE, extra="drop") %>% 
+  mutate(species = as.numeric(species)) %>% 
+  left_join(species.names,by=c("species" = "species.code")) %>% 
+  filter(!(agent == "fire" & species.name %in% insectonlyspp)) %>%
+  filter(!(agent=="insect.disease" & species.name %in% fireonlyspp)) %>% 
+  filter(!species.name=="singleleaf pinyon")
+
+```
+
+Check for normality 
+
+```{r,echo=FALSE,eval=FALSE, results='hide'}
+##checking for normality
+fire.diffs.pc2<- pc2.diffs.sep %>% 
+  filter(agent == "fire") 
+id.diffs.pc2<- pc2.diffs.sep %>% 
+  filter(agent == "insect.disease") 
+none.diffs.pc2<- pc2.diffs.sep %>% 
+  filter(agent == "none")
+
+#fire 5th quantile
+ggqqplot(fire.diffs.pc2$quant_5)
+shapiro.test(fire.diffs.pc2$quant_5)
+
+#fire 50th quantile 
+ggqqplot(fire.diffs.pc2$quant_50)
+shapiro.test(fire.diffs.pc2$quant_50)
+
+#fire 95th quantile
+ggqqplot(fire.diffs.pc2$quant_95)
+shapiro.test(fire.diffs.pc2$quant_95)
+
+#id 5th quantile
+ggqqplot(id.diffs.pc2$quant_5)
+shapiro.test(id.diffs.pc2$quant_5)
+
+#id 50th quantile
+ggqqplot(id.diffs.pc2$quant_50)
+shapiro.test(id.diffs.pc2$quant_50)
+
+#id 95th quantile 
+ggqqplot(id.diffs.pc2$quant_95)
+shapiro.test(id.diffs.pc2$quant_95)
+
+#none 5th quantile -- NOT NORMAL
+ggqqplot(none.diffs.pc2$quant_5)
+shapiro.test(none.diffs.pc2$quant_5)
+
+#none 50th quantile -- NOT NORMAL
+ggqqplot(none.diffs.pc2$quant_50)
+shapiro.test(none.diffs.pc2$quant_50)
+
+#none 95th quantile 
+ggqqplot(none.diffs.pc2$quant_95)
+shapiro.test(none.diffs.pc2$quant_95)
+```
+
+5th & 50th quantile shifts in undisturbed plots are non-normal
+
+```{r,echo=FALSE, results='hide'}
+#perform T-tests
+pvalues.pc2 <- get_pvalues(pc2.diffs.sep)
+pvalues.pc2
+pvalues.pc2<- pvalues.pc2 %>% 
+  mutate(wilcoxon="n")
+
+#perform wilcoxon tests for non-normal data
+#5th none
+pc2.none5.test <- pc2.diffs.sep %>% 
+  filter(agent == "none") %>% 
+  pull("quant_5") %>% 
+  wilcox.test(y = NULL, alternative = "two.sided", mu = 0, conf.int = TRUE, conf.level = 0.95)
+
+pc2.none5.p.df <- data.frame(agent = "none", quant = "quant_5", p.value = pc2.none5.test$p.value, estimate = pc2.none5.test$estimate, lowerci = pc2.none5.test$conf.int[1], upperci = pc2.none5.test$conf.int[2],t=pc2.none5.test$statistic,df=NA,wilcoxon="y")
+
+#50th none
+pc2.none50.test <- pc2.diffs.sep %>% 
+  filter(agent == "none") %>% 
+  pull("quant_50") %>% 
+  wilcox.test(y = NULL, alternative = "two.sided", mu = 0, conf.int = TRUE, conf.level = 0.95)
+
+pc2.none50.p.df <- data.frame(agent = "none", quant = "quant_50", p.value = pc2.none50.test$p.value, estimate = pc2.none50.test$estimate, lowerci = pc2.none50.test$conf.int[1], upperci = pc2.none50.test$conf.int[2],t=pc2.none50.test$statistic,df=NA,wilcoxon="y")
+
+##replace t-test with wilcoxon test values
+pvalues.pc2<- pvalues.pc2 %>% 
+                rows_update(pc2.none5.p.df, by=c("agent","quant")) %>% 
+  rows_update(pc2.none50.p.df, by=c("agent","quant"))
+
+pvalues.pc2
+```
+
+Now plot the differences
+
+```{r, echo=FALSE}
+#make data long for plotting
+pc2.diffs.long <- pc2.diffs.sep %>% 
+  pivot_longer(cols = c(quant_5, quant_50, quant_95), names_to = "quant", values_to = "diff")
+
+ggplot(pc2.diffs.long, aes(x=agent, y=diff))+
+  geom_boxplot(fill="lightgrey")+
+  geom_jitter(height=0,width=0.2, aes(color=species.name))+
+  facet_wrap(~quant)+
+  theme_bw()+
+  theme(axis.text.x = element_text(angle=45, hjust=1))
+
+##dataframe for stars
+pvalues.pc2<- pvalues.pc2 %>% 
+  mutate(sym.pos = ifelse(p.value<0.05,0.14,NA))
+
+quant.labs = c("95th quantile","50th quantile","5th quantile") 
+names(quant.labs)= c("quant_95","quant_50","quant_5")
+
+pc2.shift.plot<- ggplot(pvalues.pc2 %>%  mutate(across(quant,factor,levels=c("quant_95","quant_50","quant_5"))), aes(x=agent, y=estimate, color = agent, fill=agent))+
+  geom_point(shape = 23, size = 3.5)+
+  geom_errorbar(aes(ymin=lowerci, ymax=upperci),width=0.3, size=1)+
+  #scale_color_manual(values = c("tan4", "#fdae61","turquoise"))+
+  #scale_fill_manual(values = c("tan4", "#fdae61","turquoise"))+
+  scale_color_manual(values = disturbance.colors)+
+  scale_fill_manual(values = disturbance.colors)+
+  geom_text(data = subset(pvalues.pc2, !is.na(sym.pos)), aes(x=agent, y=sym.pos), label="*", color="black",size=8)+
+  geom_hline(yintercept=0, color="black", size=1, lty=2)+
+  ylim(c(-0.15,0.16))+
+  facet_grid(~quant, labeller= labeller(quant=quant.labs))+
+  ggtitle("Shifts on PC2")+
+  xlab("")+
+  ylab("Difference on PC2")+
+  theme_bw()+
+  theme(axis.text.x = element_text(angle=45, hjust = 1), axis.text = element_text(color="black",size=12), text = element_text(color="black",size=12), strip.text = element_text(color="black",size=12), legend.position = "none")
+
+```
+
+```{r}
+#combine pc1 and pc2 plots
+
+ggarrange(pc1.shift.plot, pc2.shift.plot, ncol=1)
+
+```
+
+There is a significant positive shift on the 5th quantile in fire plots, representing a contraction away from dry plots in areas that were burned. Conversely, insect/disease and undisturbed plots showed significant contractions on the 95th quantile (wettest plots) away from wet areas, with a significant negative shift in the median of insect/disease plots as well. ANOVAs indicate significant differences between disturbances in shifts on the 5th and 50th quantiles, with the biggest differences between fire and insect/disease plots, with undisturbed plots showing intermediate shifts. 
+
+```{r, echo=FALSE}
+#test for significant differences in the quantiles
+pc2.diffs.fullset<- pc2.diffs.sep %>% 
+  filter(!species.name %in% c(insectonlyspp,fireonlyspp))
+
+
+#check for significant differences in 5th percentile by disturbance type
+pc2.mod5 <- lm(quant_5 ~ factor(agent), data=pc2.diffs.fullset)
+par(mfrow=c(2,2))
+plot(pc2.mod5)
+leveneTest(quant_5 ~ factor(agent), data=pc2.diffs.fullset)
+anova(pc2.mod5)
+TukeyHSD(aov(quant_5 ~ factor(agent), data=pc2.diffs.fullset))
+
+# kruskal.test(quant_5 ~ factor(agent), data=pc2.diffs.fullset)
+# library(FSA)
+# dunnTest(quant_5 ~ factor(agent), data=pc2.diffs.fullset, method = "bonferroni")
+
+#check for significant differences in 50th percentile by disturbance type
+pc2.mod50 <- lm(quant_50 ~ factor(agent), data=pc2.diffs.fullset)
+par(mfrow=c(2,2))
+plot(pc2.mod50)
+leveneTest(quant_50 ~ factor(agent), data=pc2.diffs.fullset) 
+anova(pc2.mod50)
+#TukeyHSD(aov(quant_50 ~ factor(agent), data=pc2.diffs.fullset))
+
+
+#check for significant differences in 95th percentile by disturbance type
+pc2.mod95 <- lm(quant_95 ~ factor(agent), data=pc2.diffs.fullset)
+par(mfrow=c(2,2))
+plot(pc2.mod95) #this doesn't look great, but I think it's ok.
+leveneTest(quant_95 ~ factor(agent), data=pc2.diffs.fullset)
+kruskal.test(quant_95 ~ factor(agent), data=pc2.diffs.fullset)
+library(FSA)
+dunnTest(quant_95 ~ factor(agent), data=pc2.diffs.fullset, method = "bonferroni")
+
+par(mfrow=c(1,1))
+```
+
 
 ## Old percentile calculations
 
