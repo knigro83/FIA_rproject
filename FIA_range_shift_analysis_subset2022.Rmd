@@ -1183,6 +1183,43 @@ ggplot(niche.areas.long, aes(x=name, y=niche.area, fill=age))+
 # }
 ```
 
+```{r}
+par(mfrow=c(1,1))
+plot(x=unlist(c(siber.objs[[31]]$original.data %>% filter(group==1) %>% dplyr::select(iso1))),
+     y=unlist(c(siber.objs[[31]]$original.data %>% filter(group==1)%>% dplyr::select(iso2))),col="black", xlim=c(-4,6),ylim=c(-4,3),pch=16, xlab="PC1",ylab="PC2",main="Douglas-fir Fire",cex=1.2)
+
+plot(x=unlist(c(siber.objs[[31]]$original.data %>% filter(group==2) %>% dplyr::select(iso1))),
+     y=unlist(c(siber.objs[[31]]$original.data %>% filter(group==2)%>% dplyr::select(iso2))),col=disturbance.colors[1], xlim=c(-4,6),ylim=c(-4,3),pch=16, xlab="PC1",ylab="PC2",main="Douglas-fir Fire",cex=1.2)
+
+plot(x=unlist(c(siber.objs[[31]]$original.data %>% filter(group==1) %>% dplyr::select(iso1))),
+     y=unlist(c(siber.objs[[31]]$original.data %>% filter(group==1)%>% dplyr::select(iso2))),col="black", xlim=c(-4,6),ylim=c(-4,3),pch=16, xlab="PC1",ylab="PC2",main="Douglas-fir Fire",cex=1.2)+
+points(x=unlist(c(siber.objs[[31]]$original.data %>% filter(group==2) %>% dplyr::select(iso1))),
+     y=unlist(c(siber.objs[[31]]$original.data %>% filter(group==2)%>% dplyr::select(iso2))),col=alpha(disturbance.colors[1],0.6),pch=16)+
+points(x=mean(unlist(c(siber.objs[[31]]$original.data %>% filter(group==1) %>% dplyr::select(iso1)))), y = mean(unlist(c(siber.objs[[31]]$original.data %>% filter(group==1)%>% dplyr::select(iso2)))), col = "grey", pch = 18, cex=1.5)+
+points(x=mean(unlist(c(siber.objs[[31]]$original.data %>% filter(group==2) %>% dplyr::select(iso1)))), y = mean(unlist(c(siber.objs[[31]]$original.data %>% filter(group==2)%>% dplyr::select(iso2)))), col = "gold1", pch = 18, cex = 1.5)
+addEllipse(siber.objs[[31]]$ML.mu[[1]][ , , 1],
+                     siber.objs[[31]]$ML.cov[[1]][ , , 1],
+                     m = NULL,
+                     n = 100,
+                     p.interval = 0.95,
+                     ci.mean = FALSE,
+                     col = "black",
+                     lty = 1,
+                     lwd = 2)
+addEllipse(siber.objs[[31]]$ML.mu[[1]][ , , 2],
+                     siber.objs[[31]]$ML.cov[[1]][ , , 2],
+                     m = NULL,
+                     n = 100,
+                     p.interval = 0.95,
+                     ci.mean = FALSE,
+                     col = disturbance.colors[1],
+                     lty = 1,
+                     lwd = 2)
+
+
+```
+
+
 ### Niche Overlap
 
 
@@ -2176,11 +2213,11 @@ pc1nicheshiftsplot<- ggplot(percentile.results %>% filter(pc=="pc1") %>% filter(
   scale_fill_manual(values = disturbance.colors)+
   geom_text(data = subset(pvalues.percentileshifts %>% filter(pc=="pc1") %>% filter(!quant %in% c("5","95")), !is.na(sym.pos)), aes(x=agent, y=sym.pos), label="*", color="black",size=8)+
   geom_hline(yintercept=0, color="black", lty=2, size=1)+
-  ylim(c(-.2,.2))+
-  #coord_flip()+
+  ylim(c(-.21,.2))+
+  coord_flip()+
 facet_wrap(~ factor(quant,levels=c("2.5","centroid","97.5")))+
-  geom_segment(aes(x=0.8,xend=3.2,y=-.15,yend=-.15),size=1,color="azure4")+
-  geom_text(data=anova.letters.pc1, aes(x=agent, y=-0.18,fill=NULL, label=letters), parse=TRUE, col="azure4", size=5)+
+  #geom_segment(aes(x=0.8,xend=3.2,y=-.15,yend=-.15),size=1,color="azure4")+
+  #geom_text(data=anova.letters.pc1, aes(x=agent, y=-0.19,fill=NULL, label=letters), parse=TRUE, col="azure4", size=5)+
   ggtitle("Shifts on PC1")+
   ylab("Difference on PC1")+
   xlab("")+
@@ -2196,10 +2233,11 @@ pc2nicheshiftsplot<- ggplot(percentile.results %>% filter(pc=="pc2") %>% filter(
   scale_fill_manual(values = disturbance.colors)+
   geom_text(data = subset(pvalues.percentileshifts %>% filter(pc=="pc2") %>% filter(!quant %in% c("5","95")), !is.na(sym.pos)), aes(x=agent, y=sym.pos), label="*", color="black",size=8)+
   geom_hline(yintercept=0, color="black", lty=2, size=1)+
-  ylim(c(-.11,.17))+
+  ylim(c(-.135,.17))+
   facet_wrap(~ factor(quant,levels=c("2.5","centroid","97.5")))+
-  geom_segment(aes(x=0.8,xend=3.2,y=-.09,yend=-.09),size=1,color="azure4")+
-  geom_text(data=anova.letters.pc2, aes(x=agent, y=-0.1,fill=NULL, label=letters), parse=TRUE, col="azure4", size=5)+
+  #geom_segment(aes(x=0.8,xend=3.2,y=-.09,yend=-.09),size=1,color="azure4")+
+  #geom_text(data=anova.letters.pc2, aes(x=agent, y=-0.12,fill=NULL, label=letters), parse=TRUE, col="azure4", size=5)+
+  coord_flip()+
   ggtitle("Shifts on PC2")+
   ylab("Difference on PC2")+
   xlab("")+
@@ -2260,11 +2298,6 @@ trait.data<- trait.data %>%
   left_join(seed.weight.summary, by="species.name") %>% 
   filter(!species.name == "singleleaf pinyon")
 
-##add trait data to diffs dataframe
-pc1.diffs.traits <- pc1.diffs.sep %>% 
-  left_join(trait.data, by="species.name")
-pc2.diffs.traits <- pc2.diffs.sep %>% 
-  left_join(trait.data, by="species.name")
 ```
 
 Let's look at the correlations between trait data.
@@ -2332,6 +2365,7 @@ niche.shift.trait.table<-
 ##include sample size as effect
 #looking at sample size 
 sample.append<- niche.shift.trait.table %>% 
+  mutate(species = as.character(species)) %>% 
   left_join(sample_size %>% 
               mutate(SPCD = as.character(SPCD)), by = c("species"="SPCD","disturbance"="Agent")) %>% 
   left_join(niche.areas %>% 
