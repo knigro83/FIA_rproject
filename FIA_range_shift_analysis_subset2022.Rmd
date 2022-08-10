@@ -2383,7 +2383,14 @@ Anova(dist.exp.anova2, type='3')
 
 AICc(dist.exp.anova, dist.exp.anova2)
 
-dist.contr.anova2<- lm(log(mean.contr.prop.adult)~factor(disturbance)*n.adult, data=sample.append)
+ggplot(sample.append, aes(x=n.seed,y=log(mean.exp.prop.adult)))+
+  geom_point()+
+  geom_smooth(method="lm")+
+  facet_wrap(~disturbance)
+  
+         
+
+dist.contr.anova2<- lm(log(mean.contr.prop.adult)~factor(disturbance)*n.seed, data=sample.append)
 plot(dist.contr.anova2)
 summary(dist.contr.anova2)
 Anova(dist.contr.anova2, type= '3')
