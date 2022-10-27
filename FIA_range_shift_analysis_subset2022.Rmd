@@ -505,6 +505,26 @@ par(mfrow=c(1,1))
 plot(clim_pca,type="l")
 ```
 
+```{r}
+#try varimax rotation
+library(psych)
+
+set.seed(83)
+clim_pca_rotated <- principal(env_vars_cut_trans,cor=TRUE,nfactors=2,rotate="varimax", scores=TRUE)
+head(clim_pca_rotated$scores)
+
+l.x = clim_pca_rotated$loadings[,1]
+l.y = clim_pca_rotated$loadings[,2]
+loadings.rotated = data.frame(rc1 = l.x, rc2 = l.y, names=names(l.x))
+
+ggplot(data=clim_pca_rotated$scores, aes(x=RC1, y=RC2))+
+  geom_point(col="gray")+
+  xlab("RC1 (54%)")+
+  ylab("RC2 (37%)")+
+  geom_segment(data = loadings.rotated, aes(x=0, y=0, xend=rc1*1.5, yend=rc2*1.5),arrow = arrow(type = "open", length = unit(0.2, "cm")), size=1)+
+  geom_text(data=loadings.rotated, aes(x=rc1,y=rc2,label=names),col="red",vjust=c(-1,1,1,-2,3,-2,-1,2.5))
+```
+
 The variables most strongly correlated with PC1 are climate moisture deficit (CMD), precipitation as snow (PAS), number of frost free degree days (NFFD), degree days below zero (DD_0), and mean temperature of the coldest month (MCMT). The variables most strongly correlated with PC2 are mean summer precipitation (MSP), winter precipitation (PPT_wt), and summer heat moisture index (SHM_log). So, PC1 seems to be a temperature related axis, while PC2 corresponds to precipitation.
 
 ```{r, echo=FALSE}
@@ -591,6 +611,38 @@ names(seedling_data_pcapts) <- names(seedling_data)
 
 ```
 
+```{r, echo = FALSE}
+################  ALTERNATE FOR VARIMAX ROTATION  ################
+# #make dataframe with PCA coordinates of all plots 
+# clim_pca_points <- as.data.frame(clim_pca_rotated$scores)
+# clim_pca_points <- clim_pca_points %>% 
+#   bind_cols(plot = env_vars$PLT_CN) %>% 
+#   dplyr::rename(PC1=RC1, PC2=RC2)
+# 
+# #left join the positions on the PCA for adults and seedlings in all disturbance types by their plot ID #s
+# adult_data_pcapts <-
+#   map2( .x = seq_along( along.with = adult_data )
+#         , .y = adult_data
+#         , .f = function( i, j )
+#           {
+#           left_join( x = j, 
+#                      y = clim_pca_points, 
+#                      by=c("PLT_CN" = "plot") )
+#           })
+# names(adult_data_pcapts)<- names(adult_data)
+# 
+# seedling_data_pcapts <-
+#   map2( .x = seq_along( along.with = seedling_data )
+#         , .y = seedling_data
+#         , .f = function( i, j )
+#           {
+#           left_join( x = j, 
+#                      y = clim_pca_points, 
+#                      by=c("PLT_CN" = "plot") )
+#           })
+# names(seedling_data_pcapts) <- names(seedling_data)
+
+```
 These boxplots display the range of PC1 and PC2 coordinates that plots within each disturbance category occupy. The disturbances are pretty evenly distributed across climate space, with insect/disease plots occupying slightly higher values on PC1 and PC2, which correspond to cooler and wetter climates, and fire plots occupying slightly lower values on PC1 and PC2, corresponding to warmer and drier climates, with undisturbed plots having a median climate even hotter and drier than the other two disturbance categories (but also with the most variation). ANOVAs indicate that these three disturbances are all significantly different from each other in their positions on both PC1 and PC2, likely in part due to the extremely high sample size. 
 
 ```{r, echo=FALSE}
@@ -1030,10 +1082,10 @@ allspp_pc2<- ggplot(pc2.ttest.pvalues.sep, aes(x = agent, y = diff.means, fill =
 #   siber.objs[[i]]<- temp.obj
 # }
 # names(siber.objs)<-names(adult_data_pcapts)
-# # 
+# #
 # # #remove species*disturbance without enough data
 # siber.objs[which(names(siber.objs) %in% c("15_fire_cvars","66_fire_cvars","106_fire_cvars","113_fire_cvars","133_fire_cvars","242_fire_cvars","73_insect.disease_cvars"))]<-NULL
-# # 
+# #
 #  names(siber.objs)
 ```
 
@@ -1054,9 +1106,9 @@ allspp_pc2<- ggplot(pc2.ttest.pvalues.sep, aes(x = agent, y = diff.means, fill =
 # priors$R <- 1 * diag(2)
 # priors$k <- 2
 # priors$tau.mu <- 1.0E-3
-
-# fit the ellipses which uses an Inverse Wishart prior on the covariance matrix Sigma, and a vague normal prior on the means. Fitting is via the JAGS method.
-
+# 
+# # fit the ellipses which uses an Inverse Wishart prior on the covariance matrix Sigma, and a vague normal prior on the means. Fitting is via the JAGS method.
+# 
 # ellipses.posterior.list <- list()
 # for(i in 1:length(siber.objs)){
 #   temp.mvn <- siberMVN(siber.objs[[i]], parms, priors)
@@ -1081,12 +1133,30 @@ allspp_pc2<- ggplot(pc2.ttest.pvalues.sep, aes(x = agent, y = diff.means, fill =
  # saveRDS(SEA.B.list, file="SEA.B.list.2022_subset.rds")
 ```
 
+```{r, echo=FALSE}
+##################### ALTERNATE FOR VARIMAX ROTATION #######################
+# #save model output
+#  saveRDS(iso_data, file="iso_data.varimax.rds")
+#  saveRDS(siber.objs, file="siber.objs.varimax.rds")
+#  saveRDS(ellipses.posterior.list, file="ellipses.posterior.list.varimax.rds")
+#  saveRDS(SEA.B.list, file="SEA.B.list.varimax.rds")
+```
+
 ```{r}
 #read in siber files
 iso_data <- readRDS("iso_data.2022_subset.rds")
 siber.objs <- readRDS("siber.objs.2022_subset.rds")
 ellipses.posterior.list<- readRDS("ellipses.posterior.list.2022_subset.rds")
 SEA.B.list <- readRDS("SEA.B.list.2022_subset.rds")
+```
+
+```{r}
+##################### ALTERNATE FOR VARIMAX ROTATION #######################
+#read in siber files
+# iso_data <- readRDS("iso_data.varimax.rds")
+# siber.objs <- readRDS("siber.objs.varimax.rds")
+# ellipses.posterior.list<- readRDS("ellipses.posterior.list.varimax.rds")
+# SEA.B.list <- readRDS("SEA.B.list.varimax.rds")
 ```
 
 ```{r}
@@ -1143,22 +1213,21 @@ ggplot(niche.areas.long, aes(x=name, y=niche.area, fill=age))+
 # plot.names <-
 #   as.data.frame(names(siber.objs)) %>%
 #   tidyr::separate(col="names(siber.objs)", into=c("species.code","disturbance","extra"), sep="_") %>%
-#     #mutate(species.code = as.numeric(species.code)) %>%
+#     mutate(species.code = as.numeric(species.code)) %>%
 #     left_join(species.names,by="species.code") %>%
 #     dplyr::select(species.name, disturbance) %>%
 #     unite(col="name", c(species.name, disturbance), sep=" ",)
 # 
 # disturbance.colors
 # color.list = c(disturbance.colors[c(2:3,1:3,1:3,2:3,1,3,1:3,1:3,2:3,1:3,2:3,1:3,2:3,1:3,2:3,1:3,1:3)])
-# "C:/Users/Katie/Google Drive/FIA project/FIA_rproject/siberplots/"
 # 
 # par(mfrow=c(1,1))
 # for(i in 1:length(siber.objs)){
-#   png(filename = paste(names(siber.objs)[i],"2022subset",".png",sep=""))
+#   png(filename = paste(names(siber.objs)[i],"varimax",".png",sep=""))
 # plot(x=unlist(c(siber.objs[[i]]$original.data %>% filter(group==1) %>% dplyr::select(iso1))),
-#      y=unlist(c(siber.objs[[i]]$original.data %>% filter(group==1)%>% dplyr::select(iso2))),col="black", xlim=c(-6,6),ylim=c(-3,4),pch=16, xlab="PC1",ylab="PC2",main=paste(plot.names$name[i]),cex=1.2)+
+#      y=unlist(c(siber.objs[[i]]$original.data %>% filter(group==1)%>% dplyr::select(iso2))),col="black", xlim=c(-4,6),ylim=c(-4,6),pch=16, xlab="PC1",ylab="PC2",main=paste(plot.names$name[i]),cex=1.2)+
 # points(x=unlist(c(siber.objs[[i]]$original.data %>% filter(group==2) %>% dplyr::select(iso1))),
-#      y=unlist(c(siber.objs[[i]]$original.data %>% filter(group==2)%>% dplyr::select(iso2))),col=alpha(color.list[i],0.6),pch=16)
+#      y=unlist(c(siber.objs[[i]]$original.data %>% filter(group==2)%>% dplyr::select(iso2))),col=color.list[i],pch=16)
 # addEllipse(siber.objs[[i]]$ML.mu[[1]][ , , 1],
 #                      siber.objs[[i]]$ML.cov[[1]][ , , 1],
 #                      m = NULL,
@@ -1177,7 +1246,7 @@ ggplot(niche.areas.long, aes(x=name, y=niche.area, fill=age))+
 #                      col = color.list[i],
 #                      lty = 1,
 #                      lwd = 2)
-# legend(-6,-1.5,legend=c("Adult","Seedling"),col=c("black",alpha(color.list[i],0.6)), pch=16, lty=1, lwd=2,cex=1.2)
+# legend(-6,-1.5,legend=c("Adult","Seedling"),col=c("black",color.list[i]), pch=16, lty=1, lwd=2,cex=1.2)
 # 
 # dev.off()
 # }
@@ -1186,10 +1255,10 @@ ggplot(niche.areas.long, aes(x=name, y=niche.area, fill=age))+
 ```{r}
 par(mfrow=c(1,1))
 plot(x=unlist(c(siber.objs[[31]]$original.data %>% filter(group==1) %>% dplyr::select(iso1))),
-     y=unlist(c(siber.objs[[31]]$original.data %>% filter(group==1)%>% dplyr::select(iso2))),col="black", xlim=c(-4,6),ylim=c(-4,3),pch=16, xlab="PC1",ylab="PC2",main="Douglas-fir Fire",cex=1.2)
+     y=unlist(c(siber.objs[[31]]$original.data %>% filter(group==1)%>% dplyr::select(iso2))),col="black", xlim=c(-4,6),ylim=c(-4,6),pch=16, xlab="PC1",ylab="PC2",main="Douglas-fir Fire",cex=1.2)
 
 plot(x=unlist(c(siber.objs[[31]]$original.data %>% filter(group==2) %>% dplyr::select(iso1))),
-     y=unlist(c(siber.objs[[31]]$original.data %>% filter(group==2)%>% dplyr::select(iso2))),col=disturbance.colors[1], xlim=c(-4,6),ylim=c(-4,3),pch=16, xlab="PC1",ylab="PC2",main="Douglas-fir Fire",cex=1.2)
+     y=unlist(c(siber.objs[[31]]$original.data %>% filter(group==2)%>% dplyr::select(iso2))),col=disturbance.colors[1], xlim=c(-4,6),ylim=c(-4,6),pch=16, xlab="PC1",ylab="PC2",main="Douglas-fir Fire",cex=1.2)
 
 plot(x=unlist(c(siber.objs[[31]]$original.data %>% filter(group==1) %>% dplyr::select(iso1))),
      y=unlist(c(siber.objs[[31]]$original.data %>% filter(group==1)%>% dplyr::select(iso2))),col="black", xlim=c(-4,6),ylim=c(-4,3),pch=16, xlab="PC1",ylab="PC2",main="Douglas-fir Fire",cex=1.2)+
@@ -1709,6 +1778,43 @@ blank_arrows_plot <- ggplot(cart_positions.all, aes(x,y)) +
 ```
 
 ```{r}
+###################### VARIMAX PLOT ################################
+
+arrowsplot_varimax<- ggplot(cart_positions.all, aes(x,y)) +
+  geom_polygon(data=df.top.triangle, aes(x,y),fill=rect.colors[4],alpha=0.5)+
+  geom_polygon(data=df.right.triangle, aes(x,y),fill=rect.colors[1],alpha=0.5)+
+  geom_polygon(data=df.bottom.triangle, aes(x,y),fill=rect.colors[2],alpha=0.5)+
+  geom_polygon(data=df.left.triangle, aes(x,y),fill=rect.colors[3],alpha=0.5)+
+  #geom_bin2d(bins = 50, fill="white", aes(alpha= ..density..)) +
+  #scale_alpha(range=c(0.1,1)) +
+  #coord_cartesian(xlim = c(-.4, +.4), ylim = c(-.4, +.43)) +
+  facet_wrap( ~ factor(disturbance, levels=c("fire","insect.disease","none"), labels=c("fire","insect/disease","none")), scales = "fixed", ncol=3) + 
+  theme_classic() +
+  geom_hline(yintercept=0)+geom_vline(xintercept=0)+
+  geom_abline(intercept=0, slope = 1, linetype="dashed")+
+  geom_abline(intercept=0, slope = -1, linetype="dashed")+
+  geom_path(data = for_arrows.all, aes(col=species.name),
+            arrow = arrow(type = "open", length = unit(0.2, "cm")),
+            alpha = 0.7, size=1) +
+  scale_color_manual(values=rep("black",15),labels=NULL,name=NULL)+
+  #scale_color_manual(values=c("#d55f90","#5aa554","#ad74d6","#9ab13f","#6070d5","#cd9337","#563686","#45c097","#8b2965","#9b8a40","#ca71c0","#b95336","#628ed6","#ba4758"))+
+  geom_text(data=for_arrows.all %>% filter(!y==0),aes(label=species.number,x=x,y=y),size=5,hjust=-.4,vjust=.4,col="darkred")+
+  annotate("text",x=0.13,y=0.47,label="wet",size=5)+
+  annotate(geom="text",x=0.39,y=-0.02,label="hot",size=5)+
+  annotate(geom="text",x=0.1,y=-0.47,label="dry",size=5)+
+  annotate(geom="text",x=-0.4,y= -0.02,label="cold",size=5)+
+  ylab("PC2") +
+  xlab("PC1") + 
+  scale_y_continuous(limits=c(-.5,.5),expand=c(0,0))+
+  scale_x_continuous(limits=c(-.5,.5),expand=c(0,0))+
+  theme(text = element_text(size=20,color="black"),legend.position = "none",
+        plot.margin = unit(c(5.5,7,70,5.5),"points"), axis.text.x = element_text(angle = 45, hjust = 1, vjust= 1, color="black"), axis.text.y = element_text(color="black"),panel.spacing.x = unit(20, "points"))
+
+
+```
+
+
+```{r}
 #stats on median vectors
 for(i in 1:length(median_vectors.list)){
 median_vectors.list[[i]]$comparison <- names(median_vectors.list)[i]
@@ -2183,7 +2289,9 @@ percentile.results<- ttest.results %>%
   mutate(estimate=as.numeric(estimate),
          upperci = as.numeric(upperci),
          lowerci = as.numeric(lowerci)) %>% 
-  bind_rows(centroid.results.pc1,centroid.results.pc2) %>%  #add in centroids
+  bind_rows(centroid.results.pc1,centroid.results.pc2 %>% mutate(estimate=as.numeric(estimate),
+         upperci = as.numeric(upperci),
+         lowerci = as.numeric(lowerci))) %>%  #add in centroids
   mutate(quant = factor(quant, levels=c("2.5","5","centroid","95","97.5")))
 ```
 
@@ -2294,10 +2402,10 @@ pc1nicheshiftsplot<- ggplot(percentile.results %>% filter(pc=="pc1") %>% filter(
   geom_text(data = subset(pvalues.percentileshifts %>% filter(pc=="pc1") %>% filter(!quant %in% c("5","95")), !is.na(sym.pos)), aes(x=agent, y=sym.pos), label="*", color="black",size=8)+
   geom_hline(yintercept=0, color="black", lty=2, size=1)+
   ylim(c(-.21,.2))+
-  coord_flip()+
-facet_wrap(~ factor(quant,levels=c("2.5","centroid","97.5")))+
-  #geom_segment(aes(x=0.8,xend=3.2,y=-.15,yend=-.15),size=1,color="azure4")+
-  #geom_text(data=anova.letters.pc1, aes(x=agent, y=-0.19,fill=NULL, label=letters), parse=TRUE, col="azure4", size=5)+
+  #coord_flip()+
+facet_wrap(~ factor(quant,levels=c("2.5","centroid","97.5"),labels=c("hot/dry edge (2.5)", "centroid", "cold/wet edge (97.5)")))+
+  geom_segment(aes(x=0.8,xend=3.2,y=-.15,yend=-.15),size=1,color="azure4")+
+  geom_text(data=anova.letters.pc1, aes(x=agent, y=-0.19,fill=NULL, label=letters), parse=TRUE, col="azure4", size=5)+
   ggtitle("Shifts on PC1")+
   ylab("Difference on PC1")+
   xlab("")+
@@ -2337,10 +2445,10 @@ pc2nicheshiftsplot<- ggplot(percentile.results %>% filter(pc=="pc2") %>% filter(
   geom_text(data = subset(pvalues.percentileshifts %>% filter(pc=="pc2") %>% filter(!quant %in% c("5","95")), !is.na(sym.pos)), aes(x=agent, y=sym.pos), label="*", color="black",size=8)+
   geom_hline(yintercept=0, color="black", lty=2, size=1)+
   ylim(c(-.135,.17))+
-  facet_wrap(~ factor(quant,levels=c("2.5","centroid","97.5")))+
-  #geom_segment(aes(x=0.8,xend=3.2,y=-.09,yend=-.09),size=1,color="azure4")+
-  #geom_text(data=anova.letters.pc2, aes(x=agent, y=-0.12,fill=NULL, label=letters), parse=TRUE, col="azure4", size=5)+
-  coord_flip()+
+  facet_wrap(~ factor(quant,levels=c("2.5","centroid","97.5"),labels=c("hot/wet edge (2.5)", "centroid", "cold/dry edge (97.5)")))+
+  geom_segment(aes(x=0.8,xend=3.2,y=-.09,yend=-.09),size=1,color="azure4")+
+  geom_text(data=anova.letters.pc2, aes(x=agent, y=-0.12,fill=NULL, label=letters), parse=TRUE, col="azure4", size=5)+
+  #coord_flip()+
   ggtitle("Shifts on PC2")+
   ylab("Difference on PC2")+
   xlab("")+
@@ -2370,11 +2478,11 @@ ggplot(percentile.results_blank %>% filter(pc=="pc2") %>% filter(!quant %in% c("
         )
 
 #put them together
-# png("figures/percentile_shifts_figure_080222.png", width= 600, height = 600)
-# 
-#  ggarrange(pc1nicheshiftsplot, pc2nicheshiftsplot, nrow=2)
-# 
-# dev.off()
+png("figures/percentile_shifts_figure_102722.png", width= 600, height = 600)
+
+ ggarrange(pc1nicheshiftsplot, pc2nicheshiftsplot, nrow=2)
+
+dev.off()
 ```
 
 
