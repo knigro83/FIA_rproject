@@ -34,8 +34,9 @@ library(logspline)
 library(SIBER)
 library(emmeans)
 library(MASS)
-library(rjags)
+#library(rjags)
 library(MuMIn)
+library(stringr)
 ```
 
 Let's first read in the data.
@@ -333,24 +334,24 @@ View(sample_size %>%
 
 The histograms below show the distribution of recent (blue) and previous (green) measurement years for the plots where adults and seedlings of each species were found.  
 ```{r, echo=FALSE}
-spp_hist_data <- species.sum.long %>% 
-  left_join(plot, by=c("PREV_PLT_CN" = "CN")) %>% 
-  dplyr::select(c(PREV_PLT_CN:SPCD,MEASYEAR.y)) %>% 
-  dplyr::rename("Prev.MEASYEAR" = "MEASYEAR.y","MEASYEAR"="MEASYEAR.x") 
-par(mfrow=c(5,3))
-for(i in 1:length(species.names$species.code)){
-hist(spp_hist_data[spp_hist_data$SPCD==species.names$species.code[i],]$MEASYEAR, col=rgb(0,0,1,0.5), breaks=(max(spp_hist_data[which(spp_hist_data$SPCD==species.names$species.code[i] & !is.na(spp_hist_data$MEASYEAR)),]$MEASYEAR) - min(spp_hist_data[which(spp_hist_data$SPCD==species.names$species.code[i] & !is.na(spp_hist_data$MEASYEAR)),]$MEASYEAR))+1, main=paste("Histogram for",species.names$species.name[i],"adults",sep=" "),xlab="Measurement Year")
-hist(spp_hist_data[spp_hist_data$SPCD==species.names$species.code[i],]$Prev.MEASYEAR, col=rgb(0,1,0,0.3), breaks=(max(spp_hist_data[which(spp_hist_data$SPCD==species.names$species.code[i] & !is.na(spp_hist_data$Prev.MEASYEAR)),]$Prev.MEASYEAR) - min(spp_hist_data[which(spp_hist_data$SPCD==species.names$species.code[i] & !is.na(spp_hist_data$Prev.MEASYEAR)),]$Prev.MEASYEAR))+1, add=TRUE)
-}
+# spp_hist_data <- species.sum.long %>% 
+#   left_join(plot, by=c("PREV_PLT_CN" = "CN")) %>% 
+#   dplyr::select(c(PREV_PLT_CN:SPCD,MEASYEAR.y)) %>% 
+#   dplyr::rename("Prev.MEASYEAR" = "MEASYEAR.y","MEASYEAR"="MEASYEAR.x") 
+# par(mfrow=c(5,3))
+# for(i in 1:length(species.names$species.code)){
+# hist(spp_hist_data[spp_hist_data$SPCD==species.names$species.code[i],]$MEASYEAR, col=rgb(0,0,1,0.5), breaks=(max(spp_hist_data[which(spp_hist_data$SPCD==species.names$species.code[i] & !is.na(spp_hist_data$MEASYEAR)),]$MEASYEAR) - min(spp_hist_data[which(spp_hist_data$SPCD==species.names$species.code[i] & !is.na(spp_hist_data$MEASYEAR)),]$MEASYEAR))+1, main=paste("Histogram for",species.names$species.name[i],"adults",sep=" "),xlab="Measurement Year")
+# hist(spp_hist_data[spp_hist_data$SPCD==species.names$species.code[i],]$Prev.MEASYEAR, col=rgb(0,1,0,0.3), breaks=(max(spp_hist_data[which(spp_hist_data$SPCD==species.names$species.code[i] & !is.na(spp_hist_data$Prev.MEASYEAR)),]$Prev.MEASYEAR) - min(spp_hist_data[which(spp_hist_data$SPCD==species.names$species.code[i] & !is.na(spp_hist_data$Prev.MEASYEAR)),]$Prev.MEASYEAR))+1, add=TRUE)
+# }
 
 ```
 
 ```{r, echo=FALSE}
 #seedling histograms
-par(mfrow=c(5,3))
-for(i in 1:length(species.names$species.code)){
-hist(dist_seeds_joined[dist_seeds_joined$SPCD == species.names$species.code[i],]$MEASYEAR, col=rgb(0,0,1,0.5), breaks=(max(dist_seeds_joined[which(dist_seeds_joined$SPCD==species.names$species.code[i] & !is.na(dist_seeds_joined$MEASYEAR)),]$MEASYEAR) - min(dist_seeds_joined[which(dist_seeds_joined$SPCD==species.names$species.code[i] & !is.na(dist_seeds_joined$MEASYEAR)),]$MEASYEAR))+1,  main=paste("Histogram for",species.names$species.name[i],"seedlings",sep=" "),xlab="Measurement Year")
-}
+# par(mfrow=c(5,3))
+# for(i in 1:length(species.names$species.code)){
+# hist(dist_seeds_joined[dist_seeds_joined$SPCD == species.names$species.code[i],]$MEASYEAR, col=rgb(0,0,1,0.5), breaks=(max(dist_seeds_joined[which(dist_seeds_joined$SPCD==species.names$species.code[i] & !is.na(dist_seeds_joined$MEASYEAR)),]$MEASYEAR) - min(dist_seeds_joined[which(dist_seeds_joined$SPCD==species.names$species.code[i] & !is.na(dist_seeds_joined$MEASYEAR)),]$MEASYEAR))+1,  main=paste("Histogram for",species.names$species.name[i],"seedlings",sep=" "),xlab="Measurement Year")
+# }
 ```
 
 ```{r, echo=FALSE}
@@ -542,12 +543,12 @@ as.data.frame(clim_pca$rotation[,1:3]) %>%
 ```{r, echo=FALSE}
 #plot pca and climate variable loadings
 
-#png("figures/FIA_pca22_subset.png", width = 700, height = 400)
+# png("figures/FIA_pca22_subset_realnames.png", width = 700, height = 400)
 
 #make climate variables real words
 
 loadings.df<- as.data.frame(clim_pca$rotation) %>% 
-  mutate(x=c(-2.5,-2.5,-2.7,2,-2,2.5,2.7,2.5), y=c(-3,-1.5,0,-3.9,2.5,-2,1.3,2.4), names = c(str_wrap("mean temp coldest month", width=16),str_wrap("# frost free degree days",width=16), str_wrap("climate moisture  deficit", width=16),str_wrap("log(mean summer precip)",width=16), str_wrap( "log(summer heat moisture index)",width=16),str_wrap("log(winter precip)",width=16),str_wrap("log(precip  as snow)",width=16), str_wrap("log(degree days below 0)",width=16)))
+  mutate(x=c(-1,-3.4,-3.2,2,-3.2,2.3,3.2,2.5), y=c(-2,-1.5,0,-4,1.9,-1.5,1,2.5), names = c(str_wrap("mean temp coldest month", width=14),str_wrap("# frost free degree days",width=14), str_wrap("climate moisture  deficit", width=14),str_wrap("log(mean summer precip)",width=14), str_wrap( "log(summer heat moisture index)",width=14),str_wrap("log(winter precip)",width=14),str_wrap("log(precip  as snow)",width=14), str_wrap("log(degree days below 0)",width=14)))
 
 
 autoplot(clim_pca,x=1,y=2,colour="grey",loadings.colour="red", loadings=T, loadings.label=F, loadings.label.colour="black", scale=0, loadings.label.vjust=c(.5,-.3,-.5,-.3,-.4,-.05,1.4,0), loadings.label.hjust=c(1.1,1,0,-.1,1.1,-.05,0,-.1), loadings.label.size=6, alpha=0.5)+
@@ -562,11 +563,11 @@ autoplot(clim_pca,x=1,y=2,colour="grey",loadings.colour="red", loadings=T, loadi
   annotate(geom="text",x=5,y= -4.5,label="wet",size=6, angle=-45)+
   annotate(geom="text",x=-5,y= -4.5,label="hot",size=6, angle=45)+
   annotate(geom="text",x=-3.2,y= 3.7,label="dry",size=6, angle=-45)+
-  annotate(geom="text", x=loadings.df$x,y=loadings.df$y, label=loadings.df$names) +
+  annotate(geom="text", x=loadings.df$x,y=loadings.df$y, label=loadings.df$names, size=4.5) +
   theme_bw()+
   theme(axis.text = element_text(color="black",size=18),text = element_text(size=18, lineheight = 0.1),legend.text = element_text(size=18))
 
-#dev.off()
+# dev.off()
 ```
 
 ```{r}
@@ -1260,37 +1261,37 @@ ggplot(niche.areas.long, aes(x=name, y=niche.area, fill=age))+
 ```
 
 ```{r}
-par(mfrow=c(1,1))
-plot(x=unlist(c(siber.objs[[31]]$original.data %>% filter(group==1) %>% dplyr::select(iso1))),
-     y=unlist(c(siber.objs[[31]]$original.data %>% filter(group==1)%>% dplyr::select(iso2))),col="black", xlim=c(-4,6),ylim=c(-4,6),pch=16, xlab="PC1",ylab="PC2",main="Douglas-fir Fire",cex=1.2)
-
-plot(x=unlist(c(siber.objs[[31]]$original.data %>% filter(group==2) %>% dplyr::select(iso1))),
-     y=unlist(c(siber.objs[[31]]$original.data %>% filter(group==2)%>% dplyr::select(iso2))),col=disturbance.colors[1], xlim=c(-4,6),ylim=c(-4,6),pch=16, xlab="PC1",ylab="PC2",main="Douglas-fir Fire",cex=1.2)
-
-plot(x=unlist(c(siber.objs[[31]]$original.data %>% filter(group==1) %>% dplyr::select(iso1))),
-     y=unlist(c(siber.objs[[31]]$original.data %>% filter(group==1)%>% dplyr::select(iso2))),col="black", xlim=c(-4,6),ylim=c(-4,3),pch=16, xlab="PC1",ylab="PC2",main="Douglas-fir Fire",cex=1.2)+
-points(x=unlist(c(siber.objs[[31]]$original.data %>% filter(group==2) %>% dplyr::select(iso1))),
-     y=unlist(c(siber.objs[[31]]$original.data %>% filter(group==2)%>% dplyr::select(iso2))),col=alpha(disturbance.colors[1],0.6),pch=16)+
-points(x=mean(unlist(c(siber.objs[[31]]$original.data %>% filter(group==1) %>% dplyr::select(iso1)))), y = mean(unlist(c(siber.objs[[31]]$original.data %>% filter(group==1)%>% dplyr::select(iso2)))), col = "grey", pch = 18, cex=1.5)+
-points(x=mean(unlist(c(siber.objs[[31]]$original.data %>% filter(group==2) %>% dplyr::select(iso1)))), y = mean(unlist(c(siber.objs[[31]]$original.data %>% filter(group==2)%>% dplyr::select(iso2)))), col = "gold1", pch = 18, cex = 1.5)
-addEllipse(siber.objs[[31]]$ML.mu[[1]][ , , 1],
-                     siber.objs[[31]]$ML.cov[[1]][ , , 1],
-                     m = NULL,
-                     n = 100,
-                     p.interval = 0.95,
-                     ci.mean = FALSE,
-                     col = "black",
-                     lty = 1,
-                     lwd = 2)
-addEllipse(siber.objs[[31]]$ML.mu[[1]][ , , 2],
-                     siber.objs[[31]]$ML.cov[[1]][ , , 2],
-                     m = NULL,
-                     n = 100,
-                     p.interval = 0.95,
-                     ci.mean = FALSE,
-                     col = disturbance.colors[1],
-                     lty = 1,
-                     lwd = 2)
+# par(mfrow=c(1,1))
+# plot(x=unlist(c(siber.objs[[31]]$original.data %>% filter(group==1) %>% dplyr::select(iso1))),
+#      y=unlist(c(siber.objs[[31]]$original.data %>% filter(group==1)%>% dplyr::select(iso2))),col="black", xlim=c(-4,6),ylim=c(-4,6),pch=16, xlab="PC1",ylab="PC2",main="Douglas-fir Fire",cex=1.2)
+# 
+# plot(x=unlist(c(siber.objs[[31]]$original.data %>% filter(group==2) %>% dplyr::select(iso1))),
+#      y=unlist(c(siber.objs[[31]]$original.data %>% filter(group==2)%>% dplyr::select(iso2))),col=disturbance.colors[1], xlim=c(-4,6),ylim=c(-4,6),pch=16, xlab="PC1",ylab="PC2",main="Douglas-fir Fire",cex=1.2)
+# 
+# plot(x=unlist(c(siber.objs[[31]]$original.data %>% filter(group==1) %>% dplyr::select(iso1))),
+#      y=unlist(c(siber.objs[[31]]$original.data %>% filter(group==1)%>% dplyr::select(iso2))),col="black", xlim=c(-4,6),ylim=c(-4,3),pch=16, xlab="PC1",ylab="PC2",main="Douglas-fir Fire",cex=1.2)+
+# points(x=unlist(c(siber.objs[[31]]$original.data %>% filter(group==2) %>% dplyr::select(iso1))),
+#      y=unlist(c(siber.objs[[31]]$original.data %>% filter(group==2)%>% dplyr::select(iso2))),col=alpha(disturbance.colors[1],0.6),pch=16)+
+# points(x=mean(unlist(c(siber.objs[[31]]$original.data %>% filter(group==1) %>% dplyr::select(iso1)))), y = mean(unlist(c(siber.objs[[31]]$original.data %>% filter(group==1)%>% dplyr::select(iso2)))), col = "grey", pch = 18, cex=1.5)+
+# points(x=mean(unlist(c(siber.objs[[31]]$original.data %>% filter(group==2) %>% dplyr::select(iso1)))), y = mean(unlist(c(siber.objs[[31]]$original.data %>% filter(group==2)%>% dplyr::select(iso2)))), col = "gold1", pch = 18, cex = 1.5)
+# addEllipse(siber.objs[[31]]$ML.mu[[1]][ , , 1],
+#                      siber.objs[[31]]$ML.cov[[1]][ , , 1],
+#                      m = NULL,
+#                      n = 100,
+#                      p.interval = 0.95,
+#                      ci.mean = FALSE,
+#                      col = "black",
+#                      lty = 1,
+#                      lwd = 2)
+# addEllipse(siber.objs[[31]]$ML.mu[[1]][ , , 2],
+#                      siber.objs[[31]]$ML.cov[[1]][ , , 2],
+#                      m = NULL,
+#                      n = 100,
+#                      p.interval = 0.95,
+#                      ci.mean = FALSE,
+#                      col = disturbance.colors[1],
+#                      lty = 1,
+#                      lwd = 2)
 
 
 ```
@@ -1707,7 +1708,7 @@ arrowsplot1<- ggplot(cart_positions.all, aes(x,y)) +
   #geom_bin2d(bins = 50, fill="white", aes(alpha= ..density..)) +
   #scale_alpha(range=c(0.1,1)) +
   #coord_cartesian(xlim = c(-.4, +.4), ylim = c(-.4, +.43)) +
-  facet_wrap( ~ factor(disturbance, levels=c("fire","insect.disease","none"), labels=c("fire","insect/disease","none")), scales = "fixed", ncol=3) + 
+  facet_wrap( ~ factor(disturbance, levels=c("fire","insect.disease","none"), labels=c("fire","insect/disease","none")), scales = "fixed", ncol=2) + 
   theme_classic() +
   geom_hline(yintercept=0)+geom_vline(xintercept=0)+
   geom_abline(intercept=0, slope = 1, linetype="dashed")+
@@ -1722,12 +1723,108 @@ arrowsplot1<- ggplot(cart_positions.all, aes(x,y)) +
   annotate(geom="text",x=0.39,y=-0.02,label="cold/wet",size=5)+
   annotate(geom="text",x=0.1,y=-0.47,label="hot/wet",size=5)+
   annotate(geom="text",x=-0.4,y= -0.02,label="hot/dry",size=5)+
-  ylab("PC2") +
-  xlab("PC1") + 
+  ylab("PC2 (16.09%)") +
+  xlab("PC1 (74.4%)") + 
   scale_y_continuous(limits=c(-.5,.5),expand=c(0,0))+
   scale_x_continuous(limits=c(-.5,.5),expand=c(0,0))+
   theme(text = element_text(size=20,color="black"),legend.position = "none",
-        plot.margin = unit(c(5.5,7,70,5.5),"points"), axis.text.x = element_text(angle = 45, hjust = 1, vjust= 1, color="black"), axis.text.y = element_text(color="black"),panel.spacing.x = unit(20, "points"))
+   axis.text.x = element_text(angle = 45, hjust = 1, vjust= 1, color="black"), axis.text.y = element_text(color="black"),panel.spacing.x = unit(25, "points"))
+
+#separate panels of arrows plot
+arrowsplot_fire<- ggplot(cart_positions.all %>% filter(disturbance=="fire"), aes(x,y)) +
+  geom_polygon(data=df.top.triangle, aes(x,y),fill=rect.colors[3],alpha=0.5)+
+  geom_polygon(data=df.right.triangle, aes(x,y),fill=rect.colors[4],alpha=0.5)+
+  geom_polygon(data=df.bottom.triangle, aes(x,y),fill=rect.colors[1],alpha=0.5)+
+  geom_polygon(data=df.left.triangle, aes(x,y),fill=rect.colors[2],alpha=0.5)+
+  #geom_bin2d(bins = 50, fill="white", aes(alpha= ..density..)) +
+  #scale_alpha(range=c(0.1,1)) +
+  #coord_cartesian(xlim = c(-.4, +.4), ylim = c(-.4, +.43)) +
+  #facet_wrap( ~ factor(disturbance, levels=c("fire","insect.disease","none"), labels=c("fire","insect/disease","none")), scales = "fixed", ncol=2) + 
+  theme_classic() +
+  geom_hline(yintercept=0)+geom_vline(xintercept=0)+
+  geom_abline(intercept=0, slope = 1, linetype="dashed")+
+  geom_abline(intercept=0, slope = -1, linetype="dashed")+
+  geom_path(data = for_arrows.all %>% filter(disturbance=="fire"), aes(col=species.name),
+            arrow = arrow(type = "open", length = unit(0.2, "cm")),
+            alpha = 0.7, size=1) +
+  scale_color_manual(values=rep("black",15),labels=NULL,name=NULL)+
+  #scale_color_manual(values=c("#d55f90","#5aa554","#ad74d6","#9ab13f","#6070d5","#cd9337","#563686","#45c097","#8b2965","#9b8a40","#ca71c0","#b95336","#628ed6","#ba4758"))+
+  geom_text(data=for_arrows.all %>% filter(!y==0) %>% filter(disturbance=="fire"),aes(label=species.number,x=x,y=y),size=5,hjust=-.4,vjust=.4,col="darkred")+
+  annotate("text",x=0.13,y=0.47,label="cold/dry",size=5)+
+  annotate(geom="text",x=0.39,y=-0.02,label="cold/wet",size=5)+
+  annotate(geom="text",x=0.1,y=-0.47,label="hot/wet",size=5)+
+  annotate(geom="text",x=-0.4,y= -0.02,label="hot/dry",size=5)+
+  ylab("PC2 (16.09%)") +
+  xlab("PC1 (74.4%)") + 
+  labs(title="Fire")+
+  scale_y_continuous(limits=c(-.5,.5),expand=c(0,0))+
+  scale_x_continuous(limits=c(-.5,.5),expand=c(0,0))+
+  theme(text = element_text(size=20,color="black"),legend.position = "none", plot.title = element_text(hjust = 0.5),
+   axis.text.x = element_text(angle = 45, hjust = 1, vjust= 1, color="black"), axis.text.y = element_text(color="black"),panel.spacing.x = unit(25, "points"))
+
+arrowsplot_insect.disease<- ggplot(cart_positions.all %>% filter(disturbance=="insect.disease"), aes(x,y)) +
+  geom_polygon(data=df.top.triangle, aes(x,y),fill=rect.colors[3],alpha=0.5)+
+  geom_polygon(data=df.right.triangle, aes(x,y),fill=rect.colors[4],alpha=0.5)+
+  geom_polygon(data=df.bottom.triangle, aes(x,y),fill=rect.colors[1],alpha=0.5)+
+  geom_polygon(data=df.left.triangle, aes(x,y),fill=rect.colors[2],alpha=0.5)+
+  #geom_bin2d(bins = 50, fill="white", aes(alpha= ..density..)) +
+  #scale_alpha(range=c(0.1,1)) +
+  #coord_cartesian(xlim = c(-.4, +.4), ylim = c(-.4, +.43)) +
+  #facet_wrap( ~ factor(disturbance, levels=c("insect.disease","insect.disease","none"), labels=c("insect.disease","insect/disease","none")), scales = "fixed", ncol=2) + 
+  theme_classic() +
+  geom_hline(yintercept=0)+geom_vline(xintercept=0)+
+  geom_abline(intercept=0, slope = 1, linetype="dashed")+
+  geom_abline(intercept=0, slope = -1, linetype="dashed")+
+  geom_path(data = for_arrows.all %>% filter(disturbance=="insect.disease"), aes(col=species.name),
+            arrow = arrow(type = "open", length = unit(0.2, "cm")),
+            alpha = 0.7, size=1) +
+  scale_color_manual(values=rep("black",15),labels=NULL,name=NULL)+
+  #scale_color_manual(values=c("#d55f90","#5aa554","#ad74d6","#9ab13f","#6070d5","#cd9337","#563686","#45c097","#8b2965","#9b8a40","#ca71c0","#b95336","#628ed6","#ba4758"))+
+  geom_text(data=for_arrows.all %>% filter(!y==0) %>% filter(disturbance=="insect.disease"),aes(label=species.number,x=x,y=y),size=5,hjust=-.4,vjust=.4,col="darkred")+
+  annotate("text",x=0.13,y=0.47,label="cold/dry",size=5)+
+  annotate(geom="text",x=0.39,y=-0.02,label="cold/wet",size=5)+
+  annotate(geom="text",x=0.1,y=-0.47,label="hot/wet",size=5)+
+  annotate(geom="text",x=-0.4,y= -0.02,label="hot/dry",size=5)+
+  ylab("PC2 (16.09%)") +
+  xlab("PC1 (74.4%)") + 
+    labs(title="Insect/Disease")+
+  scale_y_continuous(limits=c(-.5,.5),expand=c(0,0))+
+  scale_x_continuous(limits=c(-.5,.5),expand=c(0,0))+
+  theme(text = element_text(size=20,color="black"),legend.position = "none",plot.title = element_text(hjust = 0.5),
+   axis.text.x = element_text(angle = 45, hjust = 1, vjust= 1, color="black"), axis.text.y = element_text(color="black"),panel.spacing.x = unit(25, "points"))
+
+arrowsplot_none<- ggplot(cart_positions.all %>% filter(disturbance=="none"), aes(x,y)) +
+  geom_polygon(data=df.top.triangle, aes(x,y),fill=rect.colors[3],alpha=0.5)+
+  geom_polygon(data=df.right.triangle, aes(x,y),fill=rect.colors[4],alpha=0.5)+
+  geom_polygon(data=df.bottom.triangle, aes(x,y),fill=rect.colors[1],alpha=0.5)+
+  geom_polygon(data=df.left.triangle, aes(x,y),fill=rect.colors[2],alpha=0.5)+
+  #geom_bin2d(bins = 50, fill="white", aes(alpha= ..density..)) +
+  #scale_alpha(range=c(0.1,1)) +
+  #coord_cartesian(xlim = c(-.4, +.4), ylim = c(-.4, +.43)) +
+  #facet_wrap( ~ factor(disturbance, levels=c("none","insect.disease","none"), labels=c("none","insect/disease","none")), scales = "fixed", ncol=2) + 
+  theme_classic() +
+  geom_hline(yintercept=0)+geom_vline(xintercept=0)+
+  geom_abline(intercept=0, slope = 1, linetype="dashed")+
+  geom_abline(intercept=0, slope = -1, linetype="dashed")+
+  geom_path(data = for_arrows.all %>% filter(disturbance=="none"), aes(col=species.name),
+            arrow = arrow(type = "open", length = unit(0.2, "cm")),
+            alpha = 0.7, size=1) +
+  scale_color_manual(values=rep("black",15),labels=NULL,name=NULL)+
+  #scale_color_manual(values=c("#d55f90","#5aa554","#ad74d6","#9ab13f","#6070d5","#cd9337","#563686","#45c097","#8b2965","#9b8a40","#ca71c0","#b95336","#628ed6","#ba4758"))+
+  geom_text(data=for_arrows.all %>% filter(!y==0) %>% filter(disturbance=="none"),aes(label=species.number,x=x,y=y),size=5,hjust=-.4,vjust=.4,col="darkred")+
+  annotate("text",x=0.13,y=0.47,label="cold/dry",size=5)+
+  annotate(geom="text",x=0.39,y=-0.02,label="cold/wet",size=5)+
+  annotate(geom="text",x=0.1,y=-0.47,label="hot/wet",size=5)+
+  annotate(geom="text",x=-0.4,y= -0.02,label="hot/dry",size=5)+
+  ylab("PC2 (16.09%)") +
+  xlab("PC1 (74.4%)") + 
+    labs(title="None")+
+  scale_y_continuous(limits=c(-.5,.5),expand=c(0,0))+
+  scale_x_continuous(limits=c(-.5,.5),expand=c(0,0))+
+  theme(text = element_text(size=20,color="black"),legend.position = "none", plot.title = element_text(hjust = 0.5),
+   axis.text.x = element_text(angle = 45, hjust = 1, vjust= 1, color="black"), axis.text.y = element_text(color="black"),panel.spacing.x = unit(25, "points"))
+
+#plot.margin = unit(c(5.5,7,70,5.5),"points"),
 
 blank_arrows_plot <- ggplot(cart_positions.all, aes(x,y)) +
   geom_polygon(data=df.top.triangle, aes(x,y),fill=rect.colors[3],alpha=0.5)+
@@ -1752,8 +1849,8 @@ blank_arrows_plot <- ggplot(cart_positions.all, aes(x,y)) +
   annotate(geom="text",x=0.39,y=-0.02,label="cold/wet",size=5)+
   annotate(geom="text",x=0.1,y=-0.47,label="hot/wet",size=5)+
   annotate(geom="text",x=-0.4,y= -0.02,label="hot/dry",size=5)+
-  ylab("PC2") +
-  xlab("PC1") + 
+  ylab("PC2 (16.09%)") +
+  xlab("PC1 (74.4%)") + 
   scale_y_continuous(limits=c(-.5,.5),expand=c(0,0))+
   scale_x_continuous(limits=c(-.5,.5),expand=c(0,0))+
   theme(text = element_text(size=20,color="black"),legend.position = "none",
@@ -1890,6 +1987,7 @@ angle.boxplot<- ggplot(median_vectors_all2, aes(x=factor(disturbance, levels=c("
   annotate("rect",xmin = -Inf, xmax = Inf, ymin=-2.35, ymax = -0.79, fill=rect.colors[1], alpha = 0.5)+
   annotate("rect",xmin = -Inf, xmax = Inf, ymin=-3.14, ymax = -2.35, fill=rect.colors[2], alpha = 0.5)+
   annotate("rect",xmin = -Inf, xmax = Inf, ymin=2.35, ymax = 3.14, fill=rect.colors[2], alpha = 0.5)+
+  annotate("text",x="fire",y=-3, label="p = 0.15", hjust=1, size=5)+
   geom_text(aes(x="x",y=2.745),label="hot/dry",size=5)+
   geom_text(aes(x="x",y=1.7),label="cold/dry",size=5)+
   geom_text(aes(x="x",y=0.1),label="cold/wet",size=5)+
@@ -1899,9 +1997,10 @@ angle.boxplot<- ggplot(median_vectors_all2, aes(x=factor(disturbance, levels=c("
   geom_jitter(data=median_vectors_all,aes(x=factor(disturbance, levels=c("fire","insect.disease","none"),labels=c("fire","insect/\ndisease","none")), y=medAngle),width=0.1,height=0.1)+
   ylab("Median angle (radians)")+
   xlab("")+
+  labs(title="")+
   ylim(c(-3.14,3.14))+
   scale_fill_manual(values=c("lightgray","darkgray","white","white"))+
-  geom_text(data= anova.stats.medang, aes(x=factor(disturbance, levels=c("fire","insect.disease","none"),labels=c("fire","insect/\ndisease","none")),y=y,label=letter),size=5)+
+  #geom_text(data= anova.stats.medang, aes(x=factor(disturbance, levels=c("fire","insect.disease","none"),labels=c("fire","insect/\ndisease","none")),y=y,label=letter),size=5)+
   theme_bw()+
   theme(text=element_text(size=20, color="black"),axis.text = element_text(size=20,color="black"),legend.position = "none",axis.text.x = element_text(color=c(rep("black",3),"white"),size=16))
 
@@ -1932,29 +2031,36 @@ angle.boxplot_blank<- ggplot(median_vectors_all2_blank, aes(x=factor(disturbance
 
 ```{r}
 #combine plots
-boxplots<- ggarrange(distance.boxplot,angle.boxplot,nrow=2,ncol=1)
-arrowcentroidplot<- ggarrange(arrowsplot1,boxplots, nrow=1,ncol=2, widths=c(3,1))
+boxplots<- ggarrange(distance.boxplot,angle.boxplot,nrow=1,ncol=2, labels=c("B","C"), font.label = list(size=20))
+arrowcentroidplot<- ggarrange(arrowsplot1,boxplots, nrow=2,ncol=1, heights = c(2,1), labels=c("A",""), font.label = list(size=20))
 arrowcentroidplot
 
 boxplots_blank <- ggarrange(distance.boxplot_blank,angle.boxplot_blank,nrow=2,ncol=1)
 arrowcentroidplot_blank<- ggarrange(blank_arrows_plot,boxplots_blank, nrow=1,ncol=2, widths=c(2.6,1))
 
+ggarrange(arrowsplot_fire,arrowsplot_insect.disease,arrowsplot_none, angle.boxplot,nrow=2,ncol=2,labels = c("A","B","C","D"),font.label = list(size=20))
 
-# pdf(file="figures/arrowsplot22_subset.pdf",width=15,height=8.75)
+# pdf(file="figures/arrowsplot22_subset_box.pdf",width=13,height=15)
 # 
 # arrowcentroidplot
 # 
 # dev.off()
-# 
+
 # png(file="figures/arrowsplot22_subset.png",width=1200,height=700)
 # 
 # arrowcentroidplot
 # 
 # dev.off()
 
-png(file="figures/arrowsplot22_blank.png",width=1200,height=500)
+# png(file="figures/arrowsplot22_blank.png",width=1200,height=500)
+# 
+# arrowcentroidplot_blank
+# 
+# dev.off()
 
-arrowcentroidplot_blank
+pdf(file="figures/arrowsplot22_subset_nodist.pdf",width=15,height=13)
+
+ggarrange(arrowsplot_fire,arrowsplot_insect.disease,arrowsplot_none, angle.boxplot,nrow=2,ncol=2,labels = c("A","B","C","D"),font.label = list(size=26))
 
 dev.off()
 
@@ -2152,10 +2258,12 @@ pc1quants <- data.frame()
 pc2quants <- data.frame()
 
 for(i in 1:nrow(posteriormeans)){
+set.seed(583)
 quants1<- quantile(mvrnorm(n=5000,mu=as.vector(c(posteriormeans[i,]$mu.1.,posteriormeans[i,]$mu.2.)), Sigma = matrix(as.vector(unlist(posteriormeans[i,1:4])),nrow=2,ncol=2, byrow = FALSE))[,1],c(0.025,0.05,0.95,0.975))
 
 pc1quants <- rbind(pc1quants, quants1)
 
+set.seed(583)
 quants2<- quantile(mvrnorm(n=5000,mu=as.vector(c(posteriormeans[i,]$mu.1.,posteriormeans[i,]$mu.2.)), Sigma = matrix(as.vector(unlist(posteriormeans[i,1:4])),nrow=2,ncol=2, byrow = FALSE))[,2],c(0.025,0.05,0.95,0.975))
 
 pc2quants <- rbind(pc2quants, quants2)
@@ -2260,6 +2368,11 @@ test<- shapiro.test(centroidshifts %>% filter(disturbance == disturbance.list[i]
 cenpvalues2 <- rbind(cenpvalues2,c(test$p,paste(disturbance.list[i])))
 }
 cenpvalues2
+
+#filter data to those that have non-normal data
+shapirotest_nonnormal <- rbind(cenpvalues1 %>% dplyr::rename(pvalue = colnames(cenpvalues1)[1], disturbance = colnames(cenpvalues1)[2]),cenpvalues2 %>%  dplyr::rename(pvalue = colnames(cenpvalues2)[1], disturbance = colnames(cenpvalues2)[2])) %>% mutate(pc = c(rep("pc1",3),rep("pc2",3))) %>% 
+  filter(pvalue < 0.05)
+
 ##pc2 none is not normal
 
 centroid.results.pc1<- data.frame(agent = NA,pc=NA, quant = NA, p.value = NA, estimate = NA, lowerci = NA, upperci = NA, t=NA, df=NA, wilcoxon=NA)
@@ -2276,27 +2389,26 @@ test<- t.test(centroidshifts %>% filter(disturbance == disturbance.list[i]) %>% 
   centroid.results.pc2[i,]<- c(agent = disturbance.list[i],pc="pc2", quant = "centroid", p.value = test$p.value, estimate = test$estimate, lowerci = test$conf.int[1], upperci = test$conf.int[2], t=test$statistic, df=test$parameter, wilcoxon="n")}
 
 ### do wilcoxen test for pc2 none centroid because data was nonnormal
-centroid.test.pc2none <- wilcox.test(centroidshifts %>% filter(disturbance == "none") %>% pull(pc2centroiddiff), y=NULL, alternative="two.sided", mu=0, conf.int = TRUE, conf.level= 0.95)
-centroid.results.pc2none <- data.frame(agent = "none",pc="pc2", quant = "centroid", p.value = centroid.test.pc2none$p.value, estimate = centroid.test.pc2none$estimate, lowerci = centroid.test.pc2none$conf.int[1], upperci = centroid.test.pc2none$conf.int[2], t=centroid.test.pc2none$statistic, df=NA, wilcoxon="y")
+wilcox.results.centroid<-data.frame(agent = NA,pc=NA, quant = NA, p.value = NA, estimate = NA, lowerci = NA, upperci = NA, t=NA, df=NA, wilcoxon=NA)
+for(i in 1:length(shapirotest_nonnormal$disturbance)){
+test<- wilcox.test(centroidshifts %>% filter(disturbance == shapirotest_nonnormal$disturbance[i]) %>% pull(pc2centroiddiff), y=NULL, alternative="two.sided", mu=0, conf.int = TRUE, conf.level= 0.95)
+
+wilcox.results.centroid[i,]<- c(agent = shapirotest_nonnormal$disturbance[i],pc=shapirotest_nonnormal$pc[i], quant = "centroid",p.value = test$p.value, estimate = test$estimate, lowerci = test$conf.int[1], upperci = test$conf.int[2], t=test$statistic, df=NA, wilcoxon="y")}
 
 centroid.results.pc1<- centroid.results.pc1 %>% 
+  rows_update(wilcox.results.centroid, by=c("agent","pc","quant"),unmatched = "ignore") %>% 
 mutate(estimate=as.numeric(estimate),
          upperci = as.numeric(upperci),
          lowerci = as.numeric(lowerci),
          p.value = as.numeric(p.value),
          t = as.numeric(t))
 centroid.results.pc2<- centroid.results.pc2 %>% 
+  rows_update(wilcox.results.centroid, by=c("agent","pc","quant"),unmatched = "ignore") %>% 
 mutate(estimate=as.numeric(estimate),
          upperci = as.numeric(upperci),
          lowerci = as.numeric(lowerci),
          p.value = as.numeric(p.value),
          t = as.numeric(t))
-
-centroid.results.pc2<- centroid.results.pc2 %>% 
-  rows_update(centroid.results.pc2none, by=c("agent","pc","quant")) %>%
-mutate(estimate=as.numeric(estimate),
-         upperci = as.numeric(upperci),
-         lowerci = as.numeric(lowerci))
 
 percentile.results<- ttest.results %>% 
   separate(quant,into=c("pc","quant"),sep="_") %>% 
@@ -2918,6 +3030,7 @@ niche.areas %>%
   
 
 area.append<- niche.shift.trait.table %>% 
+  mutate(species = as.character(species)) %>% 
   left_join( niche.areas %>% 
   separate(col= name, into=c("species","disturbance","extra"), sep="_",remove = TRUE), by=c("species","disturbance","extra"))
 
@@ -3218,7 +3331,7 @@ diffs <- get_diff(adult_data_pcapts, seedling_data_pcapts, quo(PC1), i)
 #get dataframe in order for analysis and plotting
 pc1.diffs.sep <- pc1.diffs.table %>% 
   separate(uid, c("species","agent"),sep="_",remove=FALSE, extra="drop") %>% 
-  mutate(species = as.numeric(species)) %>% 
+  #mutate(species = as.numeric(species)) %>% 
   left_join(species.names,by=c("species" = "species.code")) %>% 
   filter(!(agent == "fire" & species.name %in% insectonlyspp)) %>% 
   filter(!(agent == "insect.disease" & species.name %in% fireonlyspp)) %>% 
@@ -3451,7 +3564,7 @@ pc2.diffs.table
 #get dataframe in order for analysis and plotting
 pc2.diffs.sep <- pc2.diffs.table %>% 
   separate(uid, c("species","agent"),sep="_",remove=FALSE, extra="drop") %>% 
-  mutate(species = as.numeric(species)) %>% 
+  #mutate(species = as.numeric(species)) %>% 
   left_join(species.names,by=c("species" = "species.code")) %>% 
   filter(!(agent == "fire" & species.name %in% insectonlyspp)) %>%
   filter(!(agent=="insect.disease" & species.name %in% fireonlyspp)) %>% 
