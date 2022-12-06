@@ -2916,6 +2916,7 @@ pc1.exp.plot_new <- ggplot(data= sample.append)+
   geom_point(size=2.5,aes(x=pc1speciesmean,y=log(mean.exp.prop.adult),color=disturbance))+
   geom_ribbon(data=pc1exp_preddat, aes(ymin = lwr, ymax = upr, x=pc1speciesmean, fill=disturbance), alpha = .15) +
   geom_line(data=pc1exp_preddat, aes(x = pc1speciesmean, y=fit, color=disturbance), size=1)+
+  geom_text(aes(x=pc1speciesmean,y=log(mean.exp.prop.adult),label=species))+
   theme_bw()+
   xlab("PC1 Mean Score")+ ylab("Log(Expansion)")+
   scale_color_manual(values=disturbance.colors)+
@@ -3520,6 +3521,102 @@ pc1.contr.plot_new_all <- ggplot(data= niche.shift.trait.table.all)+
 
 ```
 
+
+####Percentile shifts ~ Traits
+
+```{r}
+comb_table <- sample.append %>% 
+  mutate(species = as.character(species)) %>% 
+  left_join(quants_wide)
+
+colnames(comb_table)
+
+#shade tolerance
+shade.pc1.2.5mod <- lm(pc1diff_2.5 ~ shade.tolerance*disturbance + n.adult*disturbance, data=comb_table)
+par(mfrow=c(2,2))
+plot(shade.pc1.2.5mod)
+Anova(shade.pc1.2.5mod,type="3")#sample size significant
+summary(shade.pc1.2.5mod)
+
+ggplot(comb_table, aes(x=n.adult, y=pc1diff_2.5,color=disturbance))+
+  geom_point()+
+  geom_smooth(method="lm")
+
+shade.pc1.97.5mod <- lm(pc1diff_97.5 ~ shade.tolerance*disturbance + n.adult*disturbance, data=comb_table)
+par(mfrow=c(2,2))
+plot(shade.pc1.97.5mod)
+Anova(shade.pc1.97.5mod,type="3")#nothing significant
+
+shade.pc2.2.5mod <- lm(pc2diff_2.5 ~ shade.tolerance*disturbance + n.adult*disturbance, data=comb_table)
+par(mfrow=c(2,2))
+plot(shade.pc2.2.5mod)
+Anova(shade.pc2.2.5mod,type="3")#nothing significant
+
+shade.pc2.97.5mod <- lm(pc2diff_97.5 ~ shade.tolerance*disturbance + n.adult*disturbance, data=comb_table)
+par(mfrow=c(2,2))
+plot(shade.pc2.97.5mod)
+Anova(shade.pc2.97.5mod,type="3")#nothing significant
+
+#dispersal
+disp.pc1.2.5mod <- lm(pc1diff_2.5 ~ dispersal*disturbance + n.adult*disturbance, data=comb_table)
+par(mfrow=c(2,2))
+plot(disp.pc1.2.5mod)
+Anova(disp.pc1.2.5mod,type="3")#sample size significant
+summary(disp.pc1.2.5mod)
+
+disp.pc1.97.5mod <- lm(pc1diff_97.5 ~ dispersal*disturbance + n.adult*disturbance, data=comb_table)
+par(mfrow=c(2,2))
+plot(disp.pc1.97.5mod)
+Anova(disp.pc1.97.5mod,type="3")#nothing significant
+
+disp.pc2.2.5mod <- lm(pc2diff_2.5 ~ dispersal*disturbance + n.adult*disturbance, data=comb_table)
+par(mfrow=c(2,2))
+plot(disp.pc2.2.5mod)
+Anova(disp.pc2.2.5mod,type="3")#nothing significant
+
+disp.pc2.97.5mod <- lm(pc2diff_97.5 ~ dispersal*disturbance + n.adult*disturbance, data=comb_table)
+par(mfrow=c(2,2))
+plot(disp.pc2.97.5mod)
+Anova(disp.pc2.97.5mod,type="3")#nothing significant
+
+#pc1meanscore
+
+score.pc1.2.5mod <- lm(pc1diff_2.5 ~ pc1speciesmean*disturbance + n.adult*disturbance, data=comb_table)
+par(mfrow=c(2,2))
+plot(score.pc1.2.5mod)
+Anova(score.pc1.2.5mod,type="3")#sample size & disturbance significant
+summary(score.pc1.2.5mod)
+
+ggplot(comb_table, aes(x=pc1speciesmean, y=pc1diff_2.5,color=disturbance))+
+  geom_point()+
+  geom_smooth(method="lm")
+
+ggplot(comb_table, aes(x=disturbance, y=pc1diff_2.5))+
+  geom_boxplot()
+
+score.pc1.97.5mod <- lm(pc1diff_97.5 ~ pc1speciesmean*disturbance + n.adult*disturbance, data=comb_table)
+par(mfrow=c(2,2))
+plot(score.pc1.97.5mod)
+Anova(score.pc1.97.5mod,type="3")#disturbance significant
+summary(score.pc1.97.5mod)
+
+ggplot(comb_table, aes(x=disturbance, y=pc1diff_97.5))+
+  geom_boxplot()
+
+score.pc2.2.5mod <- lm(pc2diff_2.5 ~ pc1speciesmean*disturbance + n.adult*disturbance, data=comb_table)
+par(mfrow=c(2,2))
+plot(score.pc2.2.5mod)
+Anova(score.pc2.2.5mod,type="3")#nothing significant
+
+score.pc2.97.5mod <- lm(pc2diff_97.5 ~ pc1speciesmean*disturbance + n.adult*disturbance, data=comb_table)
+par(mfrow=c(2,2))
+plot(score.pc2.97.5mod)
+Anova(score.pc2.97.5mod,type="3")#nothing significant
+
+ggplot(comb_table, aes(x=pc1speciesmean, y=pc2diff_97.5,color=disturbance))+
+  geom_point()+
+  geom_smooth(method="lm")
+```
 
 
 
