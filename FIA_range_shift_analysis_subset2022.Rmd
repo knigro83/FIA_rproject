@@ -1358,7 +1358,7 @@ colnames(overlap.table)<-names(overlap.summary[[1]])
 overlap.table<- overlap.table %>% 
   mutate(names = names(overlap.list)) %>% 
   separate(names,into=c("species","disturbance","extra"),sep="_") %>% 
-  #mutate(species = as.numeric(species)) %>% 
+  mutate(species = as.numeric(species)) %>% 
   left_join(species.names,by=c("species"="species.code")) %>% 
   filter(!species.name=="singleleaf pinyon")
 ```
