@@ -2764,11 +2764,14 @@ sample.append<- niche.shift.trait.table %>%
 
 ```{r}
 #overall expansion and contraction by disturbance type WITH sample size
+
+#expansion
 dist.exp.anova2 <- lm(log(mean.exp.prop.adult)~factor(disturbance)*n.adult,data=sample.append)
 par(mfrow=c(2,2))
 plot(dist.exp.anova)
-summary(dist.exp.anova2)
-Anova(dist.exp.anova2, type='3')
+anova(dist.exp.anova2)#no significant interaction
+dist.exp.anova2_noint <- lm(log(mean.exp.prop.adult)~factor(disturbance)+n.adult,data=sample.append)
+Anova(dist.exp.anova2_noint, type='2')
 
 AICc(dist.exp.anova, dist.exp.anova2)
 
@@ -2777,12 +2780,12 @@ ggplot(sample.append, aes(x=n.seed,y=log(mean.exp.prop.adult)))+
   geom_smooth(method="lm")+
   facet_wrap(~disturbance)
   
-         
-
+#contraction
 dist.contr.anova2<- lm(log(mean.contr.prop.adult)~factor(disturbance)*n.seed, data=sample.append)
 plot(dist.contr.anova2)
-summary(dist.contr.anova2)
-Anova(dist.contr.anova2, type= '3')
+anova(dist.contr.anova2)#no significant interaction
+dist.contr.anova2_noint<- lm(log(mean.contr.prop.adult)~factor(disturbance)+n.seed, data=sample.append)
+Anova(dist.contr.anova2_noint, type= '2')
 
 AICc(dist.contr.anova,dist.contr.anova2)
 ```
@@ -2800,18 +2803,17 @@ summary(exp.shade.mod)
 exp.shade.mod2<- lm(log(mean.exp.prop.adult)~shade.tolerance*disturbance + shade.tolerance*n.adult,data=sample.append)
 par(mfrow=c(2,2))
 plot(exp.shade.mod2)
-Anova(exp.shade.mod2, type='3')
-summary(exp.shade.mod2)
+anova(exp.shade.mod2)#no effect of interactions
+exp.shade.mod2_noint<- lm(log(mean.exp.prop.adult)~shade.tolerance + disturbance + n.adult,data=sample.append)
+Anova(exp.shade.mod2_noint, type='2')
 
 ###shade tolerance as quadratic effect
 shade.tolerance2 <- sample.append$shade.tolerance^2
 
-exp.shade.mod3 <- lm(log(mean.exp.prop.adult)~shade.tolerance*disturbance+ shade.tolerance2,data=sample.append)
+exp.shade.mod3 <- lm(log(mean.exp.prop.adult)~shade.tolerance+disturbance+ shade.tolerance2+n.adult,data=sample.append)
 par(mfrow=c(2,2))
 plot(exp.shade.mod3)
-Anova(exp.shade.mod3, type='3')
-summary(exp.shade.mod3)
-
+Anova(exp.shade.mod3, type='2')
 
 AICc(exp.shade.mod,exp.shade.mod2) #model 2 is lower
 
@@ -2847,59 +2849,56 @@ shade.exp.plot_new <- ggplot(data= sample.append)+
   theme(axis.text = element_text(size=24),axis.title = element_text(size=24),legend.text = element_text(size=24),legend.title = element_text(size=24),plot.margin = unit(c(0.5, 0.5, 0, 0.5), "cm"))
 
 
-#seed weight
-#take out animal dispersed trees
-#ponderosa is still a bit of an outlier here
-exp.weight.mod<- lm(log(mean.exp.prop.adult)~mean.weight.mg*disturbance,data=niche.shift.trait.table %>% filter(!dispersal == "animal"))
-par(mfrow=c(2,2))
-plot(exp.weight.mod)
-Anova(exp.weight.mod, type='3')
-summary(exp.weight.mod)
-
-ggplot(data=niche.shift.trait.table %>% filter(!dispersal == "animal"),aes(x=mean.weight.mg,y=mean.exp.prop.adult))+
-  geom_point()+
-  geom_smooth(method = "lm", se = FALSE, fullrange = T, size=1)+
-  facet_wrap(~disturbance)
-
 #dispersal mode
 exp.disp.mod<- lm(log(mean.exp.prop.adult)~dispersal*disturbance,data=niche.shift.trait.table)
-par(mfrow=c(2,2))
-plot(exp.disp.mod)
-Anova(exp.disp.mod, type='3')
-summary(exp.disp.mod)
 
 ##sample size as effect
 exp.disp.mod2<- lm(log(mean.exp.prop.adult)~dispersal*disturbance + dispersal*n.adult,data=sample.append)
+
+AICc(exp.disp.mod,exp.disp.mod2) #mod2 is lower
+
 par(mfrow=c(2,2))
 plot(exp.disp.mod2)
-Anova(exp.disp.mod2, type="3")
-summary(exp.disp.mod2)
-
-AICc(exp.disp.mod,exp.disp.mod2) #both models are within 2 AICc
+anova(exp.disp.mod2) #no significant interactions
+exp.disp.mod2_noint<- lm(log(mean.exp.prop.adult)~dispersal+disturbance + n.adult,data=sample.append)
+Anova(exp.disp.mod2_noint, type="2")
 
 ggplot(data=niche.shift.trait.table,aes(x=dispersal,y=mean.exp.prop.adult))+
   geom_boxplot()+
   facet_wrap(~disturbance)
 
-
-
 #average PC1 score 
 pc1.exp.mod <- lm(log(mean.exp.prop.adult)~ pc1speciesmean*disturbance, data=niche.shift.trait.table)
-plot(pc1.exp.mod)
-Anova(pc1.exp.mod, type='3')
-summary(pc1.exp.mod)
-emtrends(pc1.exp.mod, pairwise ~ disturbance, var = "pc1speciesmean")
 
 ##sample size as effect
-pc1.exp.mod2 <- lm(log(mean.exp.prop.adult)~ pc1speciesmean*disturbance + pc1speciesmean*n.adult, data=sample.append)
-par(mfrow=c(2,2))
-plot(pc1.exp.mod2)
-Anova(pc1.exp.mod2, type="3")
-summary(pc1.exp.mod2)
-cor.test(sample.append$pc1speciesmean, sample.append$n.adult)
-contrasts(factor(sample.append$disturbance))
+pc1.exp.mod2 <- lm(log(mean.exp.prop.adult)~ pc1speciesmean*disturbance + n.adult*disturbance, data=sample.append)
 
 AICc(pc1.exp.mod,pc1.exp.mod2) #second model has lower AIC
+
+Anova(pc1.exp.mod2, type="3")
+summary(pc1.exp.mod2)
+
+par(mfrow=c(2,2))
+plot(pc1.exp.mod2)
+anova(pc1.exp.mod2)#significant pc1score:disturbance interaction
+
+pc1.exp.mod2_sigint <- lm(log(mean.exp.prop.adult)~ n.adult+ disturbance*pc1speciesmean , data=sample.append)
+anova(pc1.exp.mod2_sigint)
+emtrends(pc1.exp.mod2_sigint, pairwise ~ disturbance, var = "pc1speciesmean")
+emtrends(pc1.exp.mod2_sigint, "n.adult", va="n.adult")
+summary(pc1.exp.mod2_sigint)
+
+pc1.exp.mod2_noint <- lm(log(mean.exp.prop.adult)~ n.adult+ disturbance + pc1speciesmean , data=sample.append)
+Anova(pc1.exp.mod2_noint, type="2")
+
+pc1.exp.mod2_fire <- lm(log(mean.exp.prop.adult)~n.adult+pc1speciesmean, data=sample.append %>% filter(disturbance=="fire"))
+Anova(pc1.exp.mod2_fire, type="2")
+pc1.exp.mod2_ID <- lm(log(mean.exp.prop.adult)~n.adult+pc1speciesmean, data=sample.append %>% filter(disturbance=="insect.disease"))
+Anova(pc1.exp.mod2_ID, type="2")
+pc1.exp.mod2_none <- lm(log(mean.exp.prop.adult)~n.adult+pc1speciesmean, data=sample.append %>% filter(disturbance=="none"))
+Anova(pc1.exp.mod2_none, type="2")
+
+##Results summary: There was a significant interaction between disturbance type and pc1 mean score in predicting the amount of niche expansion (ANOVA, F = 4.19, P = 0.03). In burned areas, species from cooler and wetter (lower CWD) habitats expanded less than those from hotter and drier habitats (slope CI = [-1.5, -0.3]), whereas there were no significant trends detected in insect/disease affected areas and undisturbed areas.   
 
 ##get data for plotting
 pc1exp_preddat = expand.grid(pc1speciesmean = seq(min(sample.append$pc1speciesmean), max(sample.append$pc1speciesmean)+.05, by = .1),
@@ -2916,16 +2915,16 @@ pc1.exp.plot_new <- ggplot(data= sample.append)+
   geom_point(size=2.5,aes(x=pc1speciesmean,y=log(mean.exp.prop.adult),color=disturbance))+
   geom_ribbon(data=pc1exp_preddat, aes(ymin = lwr, ymax = upr, x=pc1speciesmean, fill=disturbance), alpha = .15) +
   geom_line(data=pc1exp_preddat, aes(x = pc1speciesmean, y=fit, color=disturbance), size=1)+
-  geom_text(aes(x=pc1speciesmean,y=log(mean.exp.prop.adult),label=species))+
+  #geom_text(aes(x=pc1speciesmean,y=log(mean.exp.prop.adult),label=species))+
   theme_bw()+
   xlab("PC1 Mean Score")+ ylab("Log(Expansion)")+
   scale_color_manual(values=disturbance.colors)+
   scale_fill_manual(values=disturbance.colors)+
   #ylim(c(-10,0))+
-  annotate("text", label=("bold(PC1score~~italic(p) == 0.04)"),parse=TRUE, x=-0.7, y=-7,size=8,hjust=0)+
+  #annotate("text", label=("bold(PC1score~~italic(p) == 0.04)"),parse=TRUE, x=-0.7, y=-7,size=8,hjust=0)+
     #annotate("text", label=("disturbance ~~italic(p) == 0.5"), x=-0.5, y=-6.3,parse=TRUE,  size=8,hjust=0)+
     #annotate("text", label=("samplesize ~~italic(p) == 0.2"), x=-0.5, y=-6.6,parse=TRUE,  size=8,hjust=0)+
-    #annotate("text", label=("PC1score~x~disturbance ~~italic(p) == 0.09"), x=-0.5, y=-6.9,parse=TRUE,  size=8,hjust=0)+
+    annotate("text", label=("bold(PC1score~x~dist ~~italic(p) == 0.03)"), x=-0.7, y=-7.3,parse=TRUE,  size=8,hjust=0)+
     #annotate("text", label=("PC1score~x~samplesize ~~italic(p) == 0.9"), x=-0.5, y=-7.2,parse=TRUE,  size=8,hjust=0)+
   theme(axis.text = element_text(size=24),axis.title = element_text(size=24),legend.text = element_text(size=24),legend.title = element_text(size=24),plot.margin = unit(c(0.5, 0.5, 0, 0.5), "cm"))
 
@@ -2944,11 +2943,15 @@ Anova(contr.shade.mod, type='3')
 summary(contr.shade.mod)
 
 ##sample size as effect
-contr.shade.mod2<- lm(log(mean.contr.prop.adult)~shade.tolerance*disturbance + shade.tolerance*n.adult,data=sample.append)
+contr.shade.mod2<- lm(log(mean.contr.prop.adult)~shade.tolerance*disturbance + disturbance*n.adult,data=sample.append)
 par(mfrow=c(2,2))
 plot(contr.shade.mod2)
-Anova(contr.shade.mod2, type="3")
-summary(contr.shade.mod2)
+anova(contr.shade.mod2)#no significant interactions
+
+contr.shade.mod2_noint<- lm(log(mean.contr.prop.adult)~shade.tolerance+ disturbance+n.adult,data=sample.append)
+plot(contr.shade.mod2_noint)
+Anova(contr.shade.mod2_noint, type="2")
+summary(contr.shade.mod2_noint)
 
 ##shade tolerance as quadratic effect
 contr.shade.mod2<- lm(log(mean.contr.prop.adult)~shade.tolerance*disturbance  + shade.tolerance2,data=sample.append)
@@ -2988,17 +2991,6 @@ shade.contr.plot_new<- ggplot(data=niche.shift.trait.table)+
     # annotate("text", label=("shadetol~x~disturbance ~~italic(p) == 0.5"), x=1, y=-5.2,parse=TRUE,  size=8,hjust=0)+
   theme(axis.text = element_text(size=24),axis.title = element_text(size=24),legend.text = element_text(size=24),legend.title = element_text(size=24),plot.margin = unit(c(0.5, 0.5, 0, 0.5), "cm"))
 
-
-#seed weight
-#take out animal dispersed trees
-#ponderosa is still a bit of an outlier here - this is what's driving significant results
-contr.weight.mod<- lm(log(mean.contr.prop.adult)~mean.weight.mg*factor(disturbance),data=niche.shift.trait.table %>% filter(!dispersal == "animal") %>% filter(!species.name == "ponderosa pine"))
-par(mfrow=c(2,2))
-plot(contr.weight.mod)
-Anova(contr.weight.mod, type='3')
-summary(contr.weight.mod)
-emtrends(contr.weight.mod, pairwise ~ disturbance, var = "mean.weight.mg")
-
 #dispersal mode
 contr.disp.mod<- lm(log(mean.contr.prop.adult)~dispersal*disturbance,data=niche.shift.trait.table)
 par(mfrow=c(2,2))
@@ -3007,11 +2999,14 @@ Anova(contr.disp.mod, type='3')
 summary(contr.disp.mod)
 
 ##sample size as effect
-contr.disp.mod2<- lm(log(mean.contr.prop.adult)~dispersal*disturbance+dispersal*n.adult,data=sample.append)
+contr.disp.mod2<- lm(log(mean.contr.prop.adult)~dispersal*disturbance+disturbance*n.adult,data=sample.append)
 par(mfrow=c(2,2))
 plot(contr.disp.mod2)
-Anova(contr.disp.mod2, type="3")
-summary(contr.disp.mod2)
+anova(contr.disp.mod2)#no significant interactions
+
+contr.disp.mod2_noint<- lm(log(mean.contr.prop.adult)~dispersal+disturbance+n.adult,data=sample.append)
+Anova(contr.disp.mod2_noint, type="2")
+summary(contr.disp.mod2_noint)
 
 AICc(contr.disp.mod,contr.disp.mod2) #first model has lower AIC
 
@@ -3028,14 +3023,19 @@ summary(pc1.contr.mod)
 emtrends(pc1.contr.mod, pairwise ~ disturbance, var = "pc1speciesmean")
 
 ##sample size as effect
-pc1.contr.mod2 <- lm(log(mean.contr.prop.adult)~ pc1speciesmean*disturbance+ pc1speciesmean*n.adult, data=sample.append)
+pc1.contr.mod2 <- lm(log(mean.contr.prop.adult)~ pc1speciesmean*disturbance+ disturbance*n.adult, data=sample.append)
 par(mfrow=c(2,2))
 plot(pc1.contr.mod2)
-Anova(pc1.contr.mod2, type="3")
-summary(pc1.contr.mod2)
+anova(pc1.contr.mod2)#significant pc1 score:disturbance interaction
 
-AICc(pc1.contr.mod,pc1.contr.mod2) #first model stil has lower AIC, even though sample size is marginally significant. But the effect size of n.adult is super small so it's probably not that impactful
+pc1.contr.mod2_sigint <-  lm(log(mean.contr.prop.adult)~ pc1speciesmean*disturbance+ n.adult, data=sample.append)
+anova(pc1.contr.mod2_sigint)
+emtrends(pc1.contr.mod2_sigint, pairwise ~ disturbance, var = "pc1speciesmean")
 
+pc1.contr.mod2_noint <-  lm(log(mean.contr.prop.adult)~ pc1speciesmean+disturbance+ n.adult, data=sample.append)
+Anova(pc1.contr.mod2_noint, type="2")
+
+#Results: There was a significant interaction between disturbance and pc1 score in predicting the amount of contraction (F = 6.9, P = 0.005). In burned areas, species from cooler and wetter (lower CWD) habitats contracted more than those from hotter and drier habitats (slope CI = [0.26, 0.88]), whereas there were no significant trends detected in insect/disease affected areas and undisturbed areas.   
 
 ##get data for plotting
 pc1contr_preddat = expand.grid(pc1speciesmean = seq(min(sample.append$pc1speciesmean), max(sample.append$pc1speciesmean)+0.05, by = .1),
@@ -3054,9 +3054,9 @@ pc1.contr.plot_new<- ggplot(data=niche.shift.trait.table)+
   scale_color_manual(values=disturbance.colors)+
   scale_fill_manual(values=disturbance.colors)+
   #ylim(c(-10,0))+
-    annotate("text", label=("bold(PC1score~~italic(p) == 0.001)"),parse=TRUE, x=-0.8, y=-4.8,size=8,hjust=0)+
+    #annotate("text", label=("bold(PC1score~~italic(p) == 0.001)"),parse=TRUE, x=-0.8, y=-4.8,size=8,hjust=0)+
     #annotate("text", label=("disturbance ~~italic(p) == 0.06"), x=-0.8, y=-5.2,parse=TRUE,  size=8,hjust=0)+
-    annotate("text", label=("bold(PC1score~x~dist ~~italic(p) == 0.01)"), x=-0.8, y=-5.4,parse=TRUE,  size=8,hjust=0)+
+    annotate("text", label=("bold(PC1score~x~dist ~~italic(p) == 0.005)"), x=-0.8, y=-4.8,parse=TRUE,  size=8,hjust=0)+
   theme(axis.text = element_text(size=24),axis.title = element_text(size=24),legend.text = element_text(size=24),legend.title = element_text(size=24),plot.margin = unit(c(0.5, 0.5, 0, 0.5), "cm"))
 
 
@@ -3071,25 +3071,6 @@ AICc(contr.shade.mod,contr.disp.mod,pc1.contr.mod)
 
 ```{r}
 #plots
-
-weight.contr.plot <- ggplot(data=niche.shift.trait.table %>% filter(!dispersal == "animal"),aes(x=mean.weight.mg,y=log(mean.contr.prop.adult),color=disturbance))+
-  geom_point(size=2.5)+
-  geom_smooth(method = "lm", se = FALSE, fullrange = T, size=1.5)+
-  theme_bw()+
-  xlab("Mean Seed Weight (mg)")+ ylab("Log(Contraction)")+
-    scale_color_manual(values=disturbance.colors)+
-  #ylim(c(-10,0))+
-  theme(axis.text = element_text(size=24),axis.title = element_text(size=24),legend.text = element_text(size=24),legend.title = element_text(size=24),plot.margin = unit(c(0.5, 0.5, 0, 0.5), "cm"))
-
-weight.exp.plot <- ggplot(data=niche.shift.trait.table %>% filter(!dispersal == "animal"),aes(x=mean.weight.mg,y=log(mean.exp.prop.adult),color=disturbance))+
-  geom_point(size=2.5)+
-  geom_smooth(method = "lm", se = FALSE, fullrange = T, size=1.5)+
-  theme_bw()+
-  xlab("Mean Seed Weight (mg)")+ ylab("Log(Expansion)")+
-    scale_color_manual(values=disturbance.colors)+
-  #ylim(c(-10,0))+
-  theme(axis.text = element_text(size=24),axis.title = element_text(size=24),legend.text = element_text(size=24),legend.title = element_text(size=24),plot.margin = unit(c(0.5, 0.5, 0, 0.5), "cm"))
-
 shade.contr.plot <- ggplot(data=niche.shift.trait.table,aes(x=shade.tolerance,y=log(mean.contr.prop.adult),color=disturbance))+
   geom_point(size=2.5)+
   geom_smooth(method = "lm", se = FALSE, fullrange = T, size=1.5)+
@@ -3159,10 +3140,10 @@ pc1.exp.plot <- ggplot(data=niche.shift.trait.table,aes(x=pc1speciesmean,y=log(m
 ```{r}
 traits.plot8 <- ggarrange(shade.exp.plot,shade.contr.plot , pc1.exp.plot, pc1.contr.plot, nrow=4, ncol=2, disp.exp.plot,disp.contr.plot,  common.legend = TRUE, labels= c("a","","b","","c","","d"), font.label = list(size=24))
 
-traits.plot8_new <- ggarrange(shade.exp.plot_new,shade.contr.plot_new , pc1.exp.plot_new, pc1.contr.plot_new, nrow=4, ncol=2, disp.exp.plot,disp.contr.plot,  common.legend = TRUE, labels= c("A","","B","","C","","D"), font.label = list(size=24))
+traits.plot8_new <- ggarrange(shade.exp.plot_new,shade.contr.plot_new , pc1.exp.plot_new, pc1.contr.plot_new, nrow=4, ncol=2, disp.exp.plot,disp.contr.plot,  common.legend = TRUE, labels= c("a","","b","","c","","d"), font.label = list(size=24))
 
 
-ggarrange(diff.plot,traits.plot8_new,ncol=1,nrow=2,heights=c(0.8,3),labels=c("A",""),font.label = list(size=24))
+ggarrange(diff.plot,traits.plot8_new,ncol=1,nrow=2,heights=c(0.8,3),labels=c("a",""),font.label = list(size=24))
 
 # 
 # png("traitplot22.subset.png", width = 800, height = 1600)
