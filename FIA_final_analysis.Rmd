@@ -21,6 +21,139 @@ knitr::opts_chunk$set(echo = TRUE)
 ### plot is in one owner group, had one or fewer diturbances/treatments
 ### across it. 
 
+## Subsets plots for FIA analysis including plots with multiple conditions
+## as long as they don't have multiple owner groups or multiple disturbance conditions
+
+## adapted from FIA_data_extraction_master.R
+## created: 3.11.22
+
+
+#load packages
+library(readr)
+library(dplyr)
+library(ggplot2)
+
+## Subset data into public plots with one condition
+#FIA data for AZ, CO, NM, NV, ID, UT, WY, MT
+
+plot<- read_csv("compiled_data_annual2020/annual_plots2020.csv")
+cond<- read_csv("compiled_data_annual2020/COND.csv")
+
+tree <- read_csv("compiled_data_annual2020/TREE.csv")
+seedling<- read_csv("compiled_data_annual2020/SEEDLING.csv")
+
+####################
+#goal = obtain all plots that are completely within public land & accessible (COND_STATUS_CD < 3)
+public.plots<- plot %>% 
+  dplyr::filter(!CN %in% c(cond %>% 
+  dplyr::filter(OWNCD > 40 | COND_STATUS_CD > 2) %>% 
+  pull(PLT_CN))
+  )
+
+#check that there are no private owners in here
+View(cond %>% 
+  dplyr::filter(PLT_CN %in% public.plots$CN))
+#there aren't
+####################
+
+####################
+#goal = dplyr::filter public plots down to those that only had one disturbance/treatment condition across all subplots
+disturbance.summary<- cond %>% 
+  dplyr::filter(PLT_CN %in% public.plots$CN) %>% 
+  group_by(PLT_CN) %>% 
+  dplyr::summarise(d1 = n_distinct(DSTRBCD1,na.rm=TRUE),
+                   d2 = n_distinct(DSTRBCD2,na.rm=TRUE),
+                   d3 = n_distinct(DSTRBCD3,na.rm=TRUE),
+                   t1 = n_distinct(TRTCD3,na.rm=TRUE),
+                   t2 = n_distinct(TRTCD3,na.rm=TRUE),
+                   t3 = n_distinct(TRTCD3,na.rm=TRUE),
+                   p2a_d1 = n_distinct(DSTRBCD1_P2A,na.rm=TRUE),
+                   p2a_d2 = n_distinct(DSTRBCD2_P2A,na.rm=TRUE),
+                   p2a_d3 = n_distinct(DSTRBCD3_P2A,na.rm=TRUE),
+                   p2a_t1 = n_distinct(TRTCD1_P2A,na.rm=TRUE),
+                   p2a_t2 = n_distinct(TRTCD2_P2A,na.rm=TRUE),
+                   p2a_t3 = n_distinct(TRTCD3_P2A,na.rm=TRUE),
+                   )
+
+public.onedist.plots<- public.plots %>% 
+  dplyr::filter(! CN %in% c(
+disturbance.summary %>% 
+  dplyr::filter(if_any(.cols=d1:p2a_t3,.fns = ~.>1)) %>% 
+  pull(PLT_CN) #these are plots that have different disturbances in different subplots
+)
+)
+
+nrow(public.onedist.plots)
+######################
+
+#######################
+#now do the same thing for the previously sampled plot
+
+plot %>% 
+  dplyr::filter(CN %in% plot$PREV_PLT_CN) %>% 
+  dplyr::filter(!is.na(PREV_PLT_CN)) #there are no plots survyed more than two times
+
+
+
+public.plots2<- public.onedist.plots %>% 
+  dplyr::filter(!PREV_PLT_CN %in% c(cond %>% 
+                      dplyr::filter(OWNCD > 40 | COND_STATUS_CD > 2) %>% 
+                      pull(PLT_CN))
+  )
+public.onedist.plots2<- public.plots2 %>% 
+  dplyr::filter(! PREV_PLT_CN %in% c(
+    disturbance.summary %>% 
+      dplyr::filter(if_any(.cols=d1:p2a_t3,.fns = ~.>1)) %>% 
+      pull(PLT_CN) #these are plots that have different disturbances in different subplots
+  )
+  )
+
+nrow(public.onedist.plots2)
+
+#######################
+#eliminate plots with documented artificial regen or stand origin from artificial regen
+no.artregen.plots<- public.onedist.plots2 %>% 
+  dplyr::filter(!CN %in% c(cond %>% 
+  dplyr::filter(TRTCD1 == 30 | TRTCD2 == 30 | TRTCD3 == 30 |
+          TRTCD1_P2A == 30 | TRTCD2_P2A == 30 | TRTCD3_P2A == 30 | 
+            STDORGCD ==1 ) %>% 
+  pull(PLT_CN) %>% 
+    unique())
+  )
+no.artregen.plots2<- no.artregen.plots %>% 
+  dplyr::filter(!PREV_PLT_CN %in% c(cond %>% 
+                      dplyr::filter(TRTCD1 == 30 | TRTCD2 == 30 | TRTCD3 == 30 |
+                               TRTCD1_P2A == 30 | TRTCD2_P2A == 30 | TRTCD3_P2A == 30 | 
+                               STDORGCD ==1 ) %>% 
+                      pull(PLT_CN) %>% 
+                      unique())
+  )
+
+#################
+
+################
+#summary of final plots
+
+no.artregen.plots2 %>% 
+  group_by(KINDCD) %>% 
+  dplyr::summarise(n=n(), minyear = min(MEASYEAR), maxyear=max(MEASYEAR)) #no periodic inventory plots here
+
+no.artregen.plots2 %>% 
+  dplyr::filter(KINDCD == 2) %>% 
+  group_by(STATECD) %>% 
+  dplyr::summarise(n=n())
+
+cond %>% 
+  dplyr::filter(PLT_CN %in% no.artregen.plots2$CN) %>% 
+  group_by(PLT_CN) %>% 
+  dplyr::summarise(conds = n_distinct(CONDID)) %>% 
+  group_by(conds) %>% 
+  dplyr::summarise(n=n())
+
+##reduce to just the unique plot locations
+unique_plots<- no.artregen.plots2 %>% 
+  dplyr::filter(!CN %in% no.artregen.plots2$PREV_PLT_CN) #64,286 plot locations
+
 library(raster)
 library(foreign)
 library(sf)
@@ -879,6 +1012,8 @@ undis<- read_csv("undisturbed.plots2022.csv")
 
 dist <- bind_rows(fire,ID,harvest,other,wind,undis)%>% 
   filter(PLT_CN %in% plot_subset$CN)
+
+write.csv(dist, "FIA_plot_disturbance_data.csv")
 ```
 
 ```{r,echo=FALSE,eval=FALSE}
@@ -2058,17 +2193,17 @@ diff.plot_all<- ggplot(overlap.table,aes(x=disturbance,y=mean.net.expansion,colo
   scale_shape_manual(values=c(16,1),labels=c("no","yes"),name="95% CI overlaps 0")+
   facet_wrap(~species.name, nrow=3, labeller = labeller(species.name = label_wrap_gen(20)))+
   #scale_x_discrete(position='top',name="")+
-  ylab("Net Expansion")+
+  ylab("Net expansion")+
   # annotate("text",x=8.5,y=0.3,label="expansion",size=7)+
   # annotate("text",x=8.5,y=-0.4,label="contraction",size=7)+
   theme_bw()+
   theme(axis.text = element_text(size=24),legend.text = element_text(size=24),legend.title = element_text(size=24),legend.position = 'bottom',axis.title = element_text(size=24),plot.margin=margin(0,0.5,.6,.1,"cm"), axis.text.x=element_blank(), axis.ticks.x=element_blank(),axis.title.x = element_blank(),strip.text = element_text(size=16,color="black"))
 
-# png("figures/diffplot.png", width = 1000, height = 600)
-# 
-# diff.plot_all
-# 
-# dev.off()
+png("figures/diffplot.png", width = 1000, height = 600)
+
+diff.plot_all
+
+dev.off()
 
 
 expansion.plot <- ggplot(overlap.table %>% filter(!(disturbance == "fire" & species.name %in% insectonlyspp)) %>% filter(!(disturbance=="insect.disease" & species.name %in% fireonlyspp)),aes(x=disturbance,y=mean.exp.prop.adult))+
@@ -2664,14 +2799,14 @@ angle.boxplot_blank<- ggplot(median_vectors_all2_blank, aes(x=factor(disturbance
 
 ```{r}
 #combine plots
-boxplots<- ggarrange(angle.boxplot,distance.boxplot,nrow=1,ncol=2, labels=c("B","C"), font.label = list(size=20))
-arrowcentroidplot<- ggarrange(arrowsplot1,boxplots, nrow=2,ncol=1, heights = c(2,1), labels=c("A",""), font.label = list(size=20))
+boxplots<- ggarrange(angle.boxplot,distance.boxplot,nrow=1,ncol=2, labels=c("b","c"), font.label = list(size=20))
+arrowcentroidplot<- ggarrange(arrowsplot1,boxplots, nrow=2,ncol=1, heights = c(2,1), labels=c("a",""), font.label = list(size=20))
 arrowcentroidplot
 
 boxplots_blank <- ggarrange(distance.boxplot_blank,angle.boxplot_blank,nrow=2,ncol=1)
 arrowcentroidplot_blank<- ggarrange(blank_arrows_plot,boxplots_blank, nrow=1,ncol=2, widths=c(2.6,1))
 
-ggarrange(arrowsplot_fire,arrowsplot_insect.disease,arrowsplot_none, angle.boxplot,nrow=2,ncol=2,labels = c("A","B","C","D"),font.label = list(size=20))
+ggarrange(arrowsplot_fire,arrowsplot_insect.disease,arrowsplot_none, angle.boxplot,nrow=2,ncol=2,labels = c("a","b","c","d"),font.label = list(size=20))
 
 #pdf(file="figures/arrowsplot22_subset_box.pdf",width=13,height=15)
 
@@ -3251,7 +3386,7 @@ Now I will look at the effect of species traits on the amount of expansion/contr
 ```{r, echo=FALSE, message=FALSE, results='hide'}
 #first, make trait dataframe
 
-#make shade tolerance dataframe from https://figshare.com/collections/TOLERANCE_TO_SHADE_DROUGHT_AND_WATERLOGGING_OF_TEMPERATE_NORTHERN_HEMISPHERE_TREES_AND_SHRUBS/3309258
+#make Shade tolerance dataframe from https://figshare.com/collections/TOLERANCE_TO_SHADE_DROUGHT_AND_WATERLOGGING_OF_TEMPERATE_NORTHERN_HEMISPHERE_TREES_AND_SHRUBS/3309258
 
 trait.data <- data.frame(species.name = species.names$species.name,
                          shade.tolerance=c(4.33,4.01,4.83,1.48,1.35,4.53,1,1.44,1.48,1.56,1.64,1.17,2.78,4.73,1.21,2.09),
@@ -3297,12 +3432,12 @@ ggplot(trait.data,aes(x=shade.tolerance,y=mean.weight.mg))+
   geom_point()+
   geom_smooth(method="lm")
 cor.test(trait.data$shade.tolerance,trait.data$mean.weight.mg)
-#shade tolerance and mean weight are not significantly correlated.
+#Shade tolerance and mean weight are not significantly correlated.
 ```
 
-My hypotheses are that shade tolerance and seed weight will significantly affect shift magnitude and that they will interact with disturbance type to produce different magnitude shifts. For example, I expect greater magnitude shifts for species with low shade tolerance in plots that have been burned or harvested, and to a lesser degree in plots that have been impacted by insects or disease. In contrast I expect that species with low shade tolerance will show lower magnitude shifts in areas that have not been disturbed compared to those with high shade tolerance. I expect seed weight to have a negative relationship with shift magnitude for all disturbance types, but I expect this relationship to be more pronounced in plots that have been burned or harvested. 
+My hypotheses are that Shade tolerance and seed weight will significantly affect shift magnitude and that they will interact with disturbance type to produce different magnitude shifts. For example, I expect greater magnitude shifts for species with low Shade tolerance in plots that have been burned or harvested, and to a lesser degree in plots that have been impacted by insects or disease. In contrast I expect that species with low Shade tolerance will show lower magnitude shifts in areas that have not been disturbed compared to those with high Shade tolerance. I expect seed weight to have a negative relationship with shift magnitude for all disturbance types, but I expect this relationship to be more pronounced in plots that have been burned or harvested. 
 
-In order to test these hypotheses, I will model the amount of expansion and contraction for each species in each disturbance type as a function of either shade tolerance or seed weight, disturbance, and the interaction between the trait and disturbance category.
+In order to test these hypotheses, I will model the amount of expansion and contraction for each species in each disturbance type as a function of either Shade tolerance or seed weight, disturbance, and the interaction between the trait and disturbance category.
 
 ####All disturbances
 
@@ -3391,7 +3526,7 @@ AICc(dist.contr.anova,dist.contr.anova2)
 
 ```{r}
 #models for expansion
-#shade tolerance
+#Shade tolerance
 exp.shade.mod<- lm(log(mean.exp.prop.adult)~shade.tolerance*disturbance,data=niche.shift.trait.table)
 par(mfrow=c(2,2))
 plot(exp.shade.mod)
@@ -3405,7 +3540,7 @@ anova(exp.shade.mod2)#no effect of interactions
 exp.shade.mod2_noint<- lm(log(mean.exp.prop.adult)~shade.tolerance + disturbance + n.adult,data=sample.append)
 Anova(exp.shade.mod2_noint, type='2')
 
-###shade tolerance as quadratic effect
+###Shade tolerance as quadratic effect
 shade.tolerance2 <- sample.append$shade.tolerance^2
 
 exp.shade.mod3 <- lm(log(mean.exp.prop.adult)~shade.tolerance+disturbance+ shade.tolerance2+n.adult,data=sample.append)
@@ -3429,13 +3564,13 @@ shadeexppred <- predict(exp.shade.mod2, newdata = shadeexp_preddat, interval = "
 
 shadeexp_preddat = cbind(shadeexp_preddat, shadeexppred)
 
-#plot holding sample size at it's mean with lines and CI's predicting expansion based on pc1 mean score and disturbance category.  
+#plot holding sample size at it's mean with lines and CI's predicting expansion based on PC1 mean score and disturbance category.  
 shade.exp.plot_new <- ggplot(data= sample.append)+
   geom_point(size=2.5,aes(x=shade.tolerance,y=log(mean.exp.prop.adult),color=disturbance))+
   geom_ribbon(data=shadeexp_preddat, aes(ymin = lwr, ymax = upr, x=shade.tolerance, fill=disturbance), alpha = .15) +
   geom_line(data=shadeexp_preddat, aes(x = shade.tolerance, y=fit, color=disturbance), size=1)+
   theme_bw()+
-  xlab("Shade Tolerance")+ ylab("Log(Expansion)")+
+  xlab("Shade tolerance")+ ylab("Log(expansion)")+
   scale_color_manual(values=disturbance.colors)+
   scale_fill_manual(values=disturbance.colors)+
   #ylim(c(-10,0))+
@@ -3447,7 +3582,7 @@ shade.exp.plot_new <- ggplot(data= sample.append)+
   theme(axis.text = element_text(size=24),axis.title = element_text(size=24),legend.text = element_text(size=24),legend.title = element_text(size=24),plot.margin = unit(c(0.5, 0.5, 0, 0.5), "cm"))
 
 
-#dispersal mode
+#Dispersal mode
 exp.disp.mod<- lm(log(mean.exp.prop.adult)~dispersal*disturbance,data=niche.shift.trait.table)
 
 ##sample size as effect
@@ -3496,7 +3631,7 @@ Anova(pc1.exp.mod2_ID, type="2")
 pc1.exp.mod2_none <- lm(log(mean.exp.prop.adult)~n.adult+pc1speciesmean, data=sample.append %>% filter(disturbance=="none"))
 Anova(pc1.exp.mod2_none, type="2")
 
-##Results summary: There was a significant interaction between disturbance type and pc1 mean score in predicting the amount of niche expansion (ANOVA, F = 4.19, P = 0.03). In burned areas, species from cooler and wetter (lower CWD) habitats expanded less than those from hotter and drier habitats (slope CI = [-1.5, -0.3]), whereas there were no significant trends detected in insect/disease affected areas and undisturbed areas.   
+##Results summary: There was a significant interaction between disturbance type and PC1 mean score in predicting the amount of niche expansion (ANOVA, F = 4.19, P = 0.03). In burned areas, species from cooler and wetter (lower CWD) habitats expanded less than those from hotter and drier habitats (slope CI = [-1.5, -0.3]), whereas there were no significant trends detected in insect/disease affected areas and undisturbed areas.   
 
 ##get data for plotting
 pc1exp_preddat = expand.grid(pc1speciesmean = seq(min(sample.append$pc1speciesmean), max(sample.append$pc1speciesmean)+.05, by = .1),
@@ -3508,14 +3643,14 @@ pc1exppred <- predict(pc1.exp.mod2, newdata = pc1exp_preddat, interval = "confid
 pc1exp_preddat = cbind(pc1exp_preddat, pc1exppred)
 
 
-#plot holding sample size at it's mean with lines and CI's predicting expansion based on pc1 mean score and disturbance category.  
+#plot holding sample size at it's mean with lines and CI's predicting expansion based on PC1 mean score and disturbance category.  
 pc1.exp.plot_new <- ggplot(data= sample.append)+
   geom_point(size=2.5,aes(x=pc1speciesmean,y=log(mean.exp.prop.adult),color=disturbance))+
   geom_ribbon(data=pc1exp_preddat, aes(ymin = lwr, ymax = upr, x=pc1speciesmean, fill=disturbance), alpha = .15) +
   geom_line(data=pc1exp_preddat, aes(x = pc1speciesmean, y=fit, color=disturbance), size=1)+
   #geom_text(aes(x=pc1speciesmean,y=log(mean.exp.prop.adult),label=species))+
   theme_bw()+
-  xlab("PC1 Mean Score")+ ylab("Log(Expansion)")+
+  xlab("PC1 mean score")+ ylab("Log(expansion)")+
   scale_color_manual(values=disturbance.colors)+
   scale_fill_manual(values=disturbance.colors)+
   #ylim(c(-10,0))+
@@ -3533,7 +3668,7 @@ AICc(exp.shade.mod2,exp.disp.mod2,pc1.exp.mod2)
 ```{r}
 #models for contraction
 
-#shade tolerance
+#Shade tolerance
 contr.shade.mod<- lm(log(mean.contr.prop.adult)~shade.tolerance*disturbance,data=niche.shift.trait.table)
 par(mfrow=c(2,2))
 plot(contr.shade.mod)
@@ -3551,7 +3686,7 @@ plot(contr.shade.mod2_noint)
 Anova(contr.shade.mod2_noint, type="2")
 summary(contr.shade.mod2_noint)
 
-##shade tolerance as quadratic effect
+##Shade tolerance as quadratic effect
 contr.shade.mod2<- lm(log(mean.contr.prop.adult)~shade.tolerance*disturbance  + shade.tolerance2,data=sample.append)
 par(mfrow=c(2,2))
 plot(contr.shade.mod2)
@@ -3580,7 +3715,7 @@ shade.contr.plot_new<- ggplot(data=niche.shift.trait.table)+
   geom_ribbon(data=shadecontr_preddat, aes(ymin = lwr, ymax = upr, x=shade.tolerance,  fill=disturbance), alpha = .15) +
   geom_line(data=shadecontr_preddat, aes(x = shade.tolerance, y=fit, color=disturbance), size=1)+
   theme_bw()+
-  xlab("Shade Tolerance")+ ylab("Log(Contraction)")+
+  xlab("Shade tolerance")+ ylab("Log(contraction)")+
   scale_color_manual(values=disturbance.colors)+
   scale_fill_manual(values=disturbance.colors)+
   #ylim(c(-10,0))+
@@ -3589,7 +3724,7 @@ shade.contr.plot_new<- ggplot(data=niche.shift.trait.table)+
     # annotate("text", label=("shadetol~x~disturbance ~~italic(p) == 0.5"), x=1, y=-5.2,parse=TRUE,  size=8,hjust=0)+
   theme(axis.text = element_text(size=24),axis.title = element_text(size=24),legend.text = element_text(size=24),legend.title = element_text(size=24),plot.margin = unit(c(0.5, 0.5, 0, 0.5), "cm"))
 
-#dispersal mode
+#Dispersal mode
 contr.disp.mod<- lm(log(mean.contr.prop.adult)~dispersal*disturbance,data=niche.shift.trait.table)
 par(mfrow=c(2,2))
 plot(contr.disp.mod)
@@ -3613,7 +3748,7 @@ ggplot(data=niche.shift.trait.table,aes(x=dispersal,y=mean.contr.prop.adult))+
   geom_boxplot()+
   facet_wrap(~disturbance)
 
-#pc1 mean score
+#PC1 mean score
 pc1.contr.mod <- lm(log(mean.contr.prop.adult)~ pc1speciesmean*disturbance, data=niche.shift.trait.table)
 plot(pc1.contr.mod)
 Anova(pc1.contr.mod, type='3')
@@ -3648,7 +3783,7 @@ pc1.contr.plot_new<- ggplot(data=niche.shift.trait.table)+
   geom_ribbon(data=pc1contr_preddat, aes(ymin = lwr, ymax = upr, x=pc1speciesmean,  fill=disturbance), alpha = .15) +
   geom_line(data=pc1contr_preddat, aes(x = pc1speciesmean, y=fit, color=disturbance), size=1)+
   theme_bw()+
-  xlab("PC1 Mean Score")+ ylab("Log(Contraction)")+
+  xlab("PC1 mean score")+ ylab("Log(contraction)")+
   scale_color_manual(values=disturbance.colors)+
   scale_fill_manual(values=disturbance.colors)+
   #ylim(c(-10,0))+
@@ -3673,7 +3808,7 @@ shade.contr.plot <- ggplot(data=niche.shift.trait.table,aes(x=shade.tolerance,y=
   geom_point(size=2.5)+
   geom_smooth(method = "lm", se = FALSE, fullrange = T, size=1.5)+
   theme_bw()+
-  xlab("Shade Tolerance")+ ylab("Log(Contraction)")+
+  xlab("Shade tolerance")+ ylab("Log(contraction)")+
     scale_color_manual(values=disturbance.colors)+
   #ylim(c(-10,0))+
   theme(axis.text = element_text(size=24),axis.title = element_text(size=24),legend.text = element_text(size=24),legend.title = element_text(size=24),plot.margin = unit(c(0.5, 0.5, 0, 0.5), "cm"))
@@ -3682,7 +3817,7 @@ shade.exp.plot <- ggplot(data=niche.shift.trait.table,aes(x=shade.tolerance,y=lo
   geom_point(size=2.5)+
   geom_smooth(method = "lm", se = FALSE, fullrange = T, size=1.5)+
   theme_bw()+
-  xlab("Shade Tolerance")+ ylab("Log(Expansion)")+
+  xlab("Shade tolerance")+ ylab("Log(expansion)")+
   scale_color_manual(values=disturbance.colors)+
   #ylim(c(-10,0))+
   theme(axis.text = element_text(size=24),axis.title = element_text(size=24),legend.text = element_text(size=24),legend.title = element_text(size=24),plot.margin = unit(c(0.5, 0.5, 0, 0.5), "cm"))
@@ -3690,7 +3825,7 @@ shade.exp.plot <- ggplot(data=niche.shift.trait.table,aes(x=shade.tolerance,y=lo
 
 disp.exp.plot <- ggplot(data=niche.shift.trait.table, aes(x=dispersal,y=log(mean.exp.prop.adult),fill=disturbance))+
   geom_boxplot()+
-  xlab("Dispersal Mode")+ ylab("Log(Expansion)")+
+  xlab("Dispersal mode")+ ylab("Log(expansion)")+
   scale_fill_manual(values=disturbance.colors)+
   # annotate("text", label=("dispersal~~italic(p) == 0.8"),parse=TRUE, x=0.5, y=-6,size=8,hjust=0)+
   # annotate("text", label=("disturbance ~~italic(p) == 1.0"), x=0.5, y=-6.3,parse=TRUE,  size=8,hjust=0)+
@@ -3702,7 +3837,7 @@ disp.exp.plot <- ggplot(data=niche.shift.trait.table, aes(x=dispersal,y=log(mean
   
 disp.contr.plot <- ggplot(data=niche.shift.trait.table, aes(x=dispersal,y=log(mean.contr.prop.adult),fill=disturbance))+
   geom_boxplot()+
-  xlab("Dispersal Mode")+ ylab("Log(Contraction)")+
+  xlab("Dispersal mode")+ ylab("Log(contraction)")+
   scale_fill_manual(values=disturbance.colors)+
   #   annotate("text", label=("dispersal~~italic(p) == 0.06"),parse=TRUE, x=0.5, y=-4.5,size=8,hjust=0)+
   # annotate("text", label=("disturbance ~~italic(p) == 0.4"), x=0.5, y=-4.8,parse=TRUE,  size=8,hjust=0)+
@@ -3714,7 +3849,7 @@ pc1.contr.plot<- ggplot(data=niche.shift.trait.table,aes(x=pc1speciesmean,y=log(
   geom_point(size=2.5)+
   geom_smooth(method = "lm", se = TRUE, fullrange = T, size=1.5)+
   theme_bw()+
-  xlab("PC1 Mean Score")+ ylab("Log(Contraction)")+
+  xlab("PC1 mean score")+ ylab("Log(contraction)")+
   scale_color_manual(values=disturbance.colors)+
   scale_fill_manual(values=disturbance.colors)+
   #ylim(c(-10,0))+
@@ -3725,7 +3860,7 @@ pc1.exp.plot <- ggplot(data=niche.shift.trait.table,aes(x=pc1speciesmean,y=log(m
   geom_point(size=2.5)+
   geom_smooth(method = "lm", se = FALSE, fullrange = T, size=1.5)+
   theme_bw()+
-  xlab("PC1 Mean Score")+ ylab("Log(Expansion)")+
+  xlab("PC1 mean score")+ ylab("Log(expansion)")+
   scale_color_manual(values=disturbance.colors)+
   #ylim(c(-10,0))+
   theme(axis.text = element_text(size=24),axis.title = element_text(size=24),legend.text = element_text(size=24),legend.title = element_text(size=24),plot.margin = unit(c(0.5, 0.5, 0, 0.5), "cm"))
@@ -3748,9 +3883,9 @@ ggarrange(diff.plot,traits.plot8_new,ncol=1,nrow=2,heights=c(0.8,3),labels=c("a"
 # 
 # dev.off()
 
-#png("figures/traitplot22.subset_CIs.png", width = 900, height = 1500)
-traits.plot8_new
-#dev.off()
+# png("figures/traitplot22.subset_CIs.png", width = 900, height = 1500)
+# traits.plot8_new
+# dev.off()
 ```
 
 ```{r}
@@ -3834,7 +3969,7 @@ niche.shift.trait.table.all <- overlap.table.partialset %>%
 
 
 #models for expansion
-#shade tolerance
+#Shade tolerance
 exp.shade.mod.all<- lm(log(mean.exp.prop.adult)~shade.tolerance*disturbance,data=niche.shift.trait.table.all)
 par(mfrow=c(2,2))
 plot(exp.shade.mod.all)
@@ -3860,13 +3995,13 @@ shadeexp_pred <- predict(exp.shade.mod.all2, newdata = shadeexp_preddat_all, int
 shadeexp_preddat_all = cbind(shadeexp_preddat_all, shadeexp_pred)
 
 
-#plot holding sample size at it's mean with lines and CI's predicting expansion based on pc1 mean score and disturbance category.  
+#plot holding sample size at it's mean with lines and CI's predicting expansion based on PC1 mean score and disturbance category.  
 shade.exp.plot_new_all <- ggplot(data= niche.shift.trait.table.all)+
   geom_point(size=2.5,aes(x=shade.tolerance,y=log(mean.exp.prop.adult),color=factor(disturbance,levels=c("fire","insect.disease","none"))))+
   geom_ribbon(data=shadeexp_preddat_all, aes(ymin = lwr, ymax = upr, x=shade.tolerance, fill=factor(disturbance,levels=c("fire","insect.disease","none"))), alpha = .15) +
   geom_line(data=shadeexp_preddat_all, aes(x = shade.tolerance, y=fit, color=factor(disturbance,levels=c("fire","insect.disease","none"))), size=1)+
   theme_bw()+
-  xlab("Shade Tolerance")+ ylab("Log(Expansion)")+
+  xlab("Shade tolerance")+ ylab("Log(expansion)")+
   scale_color_manual(values=disturbance.colors,name="Disturbance")+
   scale_fill_manual(values=disturbance.colors,name="Disturbance")+
   #ylim(c(-10,0))+
@@ -3893,7 +4028,7 @@ shade.exp.plot_new_all2 <- ggplot(data= niche.shift.trait.table.all)+
   geom_ribbon(data=shadeexp_preddat_all2, aes(ymin = lwr, ymax = upr, x=n.adult, fill=factor(disturbance,levels=c("fire","insect.disease","none"))), alpha = .15) +
   geom_line(data=shadeexp_preddat_all2, aes(x = n.adult, y=fit, color=factor(disturbance,levels=c("fire","insect.disease","none"))), size=1)+
   theme_bw()+
-  xlab("Sample Size")+ ylab("Log(Expansion)")+
+  xlab("Sample Size")+ ylab("Log(expansion)")+
   scale_color_manual(values=disturbance.colors,name="Disturbance")+
   scale_fill_manual(values=disturbance.colors,name="Disturbance")+
   #ylim(c(-10,0))+
@@ -3905,7 +4040,7 @@ shade.exp.plot_new_all2 <- ggplot(data= niche.shift.trait.table.all)+
   theme(axis.text = element_text(size=24),axis.title = element_text(size=24),legend.text = element_text(size=24),legend.title = element_text(size=24),plot.margin = unit(c(0.5, 0.5, 0, 0.5), "cm"))
 
 
-#dispersal mode
+#Dispersal mode
 exp.disp.mod.all<- lm(log(mean.exp.prop.adult)~dispersal*disturbance,data=niche.shift.trait.table.all)
 par(mfrow=c(2,2))
 plot(exp.disp.mod.all)
@@ -3926,7 +4061,7 @@ AICc(exp.disp.mod.all,exp.disp.mod.all2)
 disp.exp.plot_new_all <- ggplot(data= niche.shift.trait.table.all)+
   geom_boxplot(aes(x=dispersal,y=log(mean.exp.prop.adult),fill=factor(disturbance,levels=c("fire","insect.disease","none"))))+
   theme_bw()+
-  xlab("Dispersal Mode")+ ylab("Log(Expansion)")+
+  xlab("Dispersal mode")+ ylab("Log(expansion)")+
   scale_fill_manual(values=disturbance.colors,name="Disturbance")+
   #ylim(c(-10,0))+
   # annotate("text", label=("shadetol~~italic(p) == 0.6"),parse=TRUE, x=1, y=-7,size=8,hjust=0)+
@@ -3959,13 +4094,13 @@ pc1exp_pred_all <- predict(pc1.exp.mod.all2, newdata = pc1exp_preddat_all, inter
 pc1exp_preddat_all = cbind(pc1exp_preddat_all, pc1exp_pred_all)
 
 
-#plot holding sample size at it's mean with lines and CI's predicting expansion based on pc1 mean score and disturbance category.  
+#plot holding sample size at it's mean with lines and CI's predicting expansion based on PC1 mean score and disturbance category.  
 pc1.exp.plot_new_all <- ggplot(data= niche.shift.trait.table.all)+
   geom_point(size=2.5,aes(x=pc1speciesmean,y=log(mean.exp.prop.adult),color=factor(disturbance,levels=c("fire","insect.disease","none"))))+
   geom_ribbon(data=pc1exp_preddat_all, aes(ymin = lwr, ymax = upr, x=pc1speciesmean, fill=factor(disturbance,levels=c("fire","insect.disease","none"))), alpha = .15) +
   geom_line(data=pc1exp_preddat_all, aes(x = pc1speciesmean, y=fit, color=factor(disturbance,levels=c("fire","insect.disease","none"))), size=1)+
   theme_bw()+
-  xlab("PC1 Mean Score")+ ylab("Log(Expansion)")+
+  xlab("PC1 mean score")+ ylab("Log(expansion)")+
   scale_color_manual(values=disturbance.colors,name="Disturbance")+
   scale_fill_manual(values=disturbance.colors,name="Disturbance")+
   #ylim(c(-10,0))+
@@ -3980,7 +4115,7 @@ pc1.exp.plot_new_all <- ggplot(data= niche.shift.trait.table.all)+
 
 ```{r}
 #models for contraction
-#shade tolerance
+#Shade tolerance
 contr.shade.mod.all<- lm(log(mean.contr.prop.adult)~shade.tolerance*disturbance,data=niche.shift.trait.table.all)
 par(mfrow=c(2,2))
 plot(contr.shade.mod.all)
@@ -4006,13 +4141,13 @@ shadecontr_pred <- predict(contr.shade.mod.all, newdata = shadecontr_preddat_all
 shadecontr_preddat_all = cbind(shadecontr_preddat_all, shadecontr_pred)
 
 
-#plot holding sample size at it's mean with lines and CI's predicting contransion based on pc1 mean score and disturbance category.  
+#plot holding sample size at it's mean with lines and CI's predicting contransion based on PC1 mean score and disturbance category.  
 shade.contr.plot_new_all <- ggplot(data= niche.shift.trait.table.all)+
   geom_point(size=2.5,aes(x=shade.tolerance,y=log(mean.contr.prop.adult),color=factor(disturbance,levels=c("fire","insect.disease","none"))))+
   geom_ribbon(data=shadecontr_preddat_all, aes(ymin = lwr, ymax = upr, x=shade.tolerance, fill=factor(disturbance,levels=c("fire","insect.disease","none"))), alpha = .15) +
   geom_line(data=shadecontr_preddat_all, aes(x = shade.tolerance, y=fit, color=factor(disturbance,levels=c("fire","insect.disease","none"))), size=1)+
   theme_bw()+
-  xlab("Shade Tolerance")+ ylab("Log(Contraction)")+
+  xlab("Shade tolerance")+ ylab("Log(contraction)")+
   scale_color_manual(values=disturbance.colors,name="Disturbance")+
   scale_fill_manual(values=disturbance.colors,name="Disturbance")+
   #ylim(c(-10,0))+
@@ -4024,7 +4159,7 @@ shade.contr.plot_new_all <- ggplot(data= niche.shift.trait.table.all)+
   theme(axis.text = element_text(size=24),axis.title = element_text(size=24),legend.text = element_text(size=24),legend.title = element_text(size=24),plot.margin = unit(c(0.5, 0.5, 0, 0.5), "cm"))
 
 
-#dispersal mode
+#Dispersal mode
 contr.disp.mod.all<- lm(log(mean.contr.prop.adult)~dispersal*disturbance,data=niche.shift.trait.table.all)
 par(mfrow=c(2,2))
 plot(contr.disp.mod.all)
@@ -4045,7 +4180,7 @@ AICc(contr.disp.mod.all,contr.disp.mod.all2)
 disp.contr.plot_new_all <- ggplot(data= niche.shift.trait.table.all)+
   geom_boxplot(aes(x=dispersal,y=log(mean.contr.prop.adult),fill=factor(disturbance,levels=c("fire","insect.disease","none"))))+
   theme_bw()+
-  xlab("Dispersal Mode")+ ylab("Log(Contraction)")+
+  xlab("Dispersal mode")+ ylab("Log(contraction)")+
   scale_fill_manual(values=disturbance.colors,name="Disturbance")+
   #ylim(c(-10,0))+
   # annotate("text", label=("shadetol~~italic(p) == 0.6"),parse=TRUE, x=1, y=-7,size=8,hjust=0)+
@@ -4078,13 +4213,13 @@ pc1contr_pred_all <- predict(pc1.contr.mod.all, newdata = pc1contr_preddat_all, 
 pc1contr_preddat_all = cbind(pc1contr_preddat_all, pc1contr_pred_all)
 
 
-#plot holding sample size at it's mean with lines and CI's predicting contransion based on pc1 mean score and disturbance category.  
+#plot holding sample size at it's mean with lines and CI's predicting contransion based on PC1 mean score and disturbance category.  
 pc1.contr.plot_new_all <- ggplot(data= niche.shift.trait.table.all)+
   geom_point(size=2.5,aes(x=pc1speciesmean,y=log(mean.contr.prop.adult),color=factor(disturbance,levels=c("fire","insect.disease","none"))))+
   geom_ribbon(data=pc1contr_preddat_all, aes(ymin = lwr, ymax = upr, x=pc1speciesmean, fill=factor(disturbance,levels=c("fire","insect.disease","none"))), alpha = .15) +
   geom_line(data=pc1contr_preddat_all, aes(x = pc1speciesmean, y=fit, color=factor(disturbance,levels=c("fire","insect.disease","none"))), size=1)+
   theme_bw()+
-  xlab("PC1 Mean Score")+ ylab("Log(Contraction)")+
+  xlab("PC1 mean score")+ ylab("Log(contraction)")+
   scale_color_manual(values=disturbance.colors,name="Disturbance")+
   scale_fill_manual(values=disturbance.colors,name="Disturbance")+
   #ylim(c(-10,0))+
@@ -4107,7 +4242,7 @@ comb_table <- sample.append %>%
 
 colnames(comb_table)
 
-#shade tolerance
+#Shade tolerance
 shade.pc1.2.5mod <- lm(pc1diff_2.5 ~ shade.tolerance*disturbance + n.adult*disturbance, data=comb_table)
 par(mfrow=c(2,2))
 plot(shade.pc1.2.5mod)
