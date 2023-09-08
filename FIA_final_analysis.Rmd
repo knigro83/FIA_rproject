@@ -2106,15 +2106,17 @@ for(i in 1:length(adult_data_pcapts)){
 }
 unlist(pc1.means)
 
-pc1means.table <- as.data.frame(matrix(unlist(pc1.means),nrow=length(pc1.means),ncol=1))
-pc1means.table<- pc1means.table %>% 
+pc1means.table <- as.data.frame(matrix(unlist(pc1.means),nrow=length(pc1.means),ncol=1))  %>% 
   mutate(names =  names(adult_data_pcapts)) %>% 
   tidyr::separate(names,into=c("species.code","disturbance","extra"),sep="_") %>% 
   mutate(species.code = as.numeric(species.code)) %>% 
   left_join(species.names) %>% 
   dplyr::rename(pc1mean = V1) %>% 
   group_by(species.name) %>% 
-  dplyr::summarise(pc1speciesmean = mean(pc1mean)) %>% ungroup()
+  dplyr::summarise(pc1speciesmean = mean(pc1mean)) %>% ungroup() %>% 
+  filter(!species.name == "singleleaf pinyon") %>% 
+  arrange(pc1speciesmean) %>% 
+  mutate(number=seq(1:15))
 ########
 
 ellipse_margins_diff_props_clean<- ellipse_margins_diff_props %>% 
@@ -2598,12 +2600,13 @@ ggplot(pc2_df, aes(x=factor(species.name,levels=pc1means.table %>% arrange(pc1sp
 ######relativized
 pc1_df_rel<- bind_rows(mu1_rel_df %>% mutate(var="PC1 centroid", species=as.numeric(species)),
 max1_rel_df %>% mutate(var="PC1 max"),
- min1_rel_df %>% mutate(var="PC1 min")) #%>% 
+ min1_rel_df %>% mutate(var="PC1 min")) %>% 
 #   mutate(mean=ifelse(var=="PC1 max",mean+.8,ifelse(var=="PC1 min", mean-.8,mean)),
 #          lwr=ifelse(var=="PC1 max",lwr+.8,ifelse(var=="PC1 min", lwr-.8,lwr)),
 #          upr=ifelse(var=="PC1 max",upr+.8,ifelse(var=="PC1 min", upr-.8,upr)))
+  left_join(pc1means.table)
 
-ggplot(pc1_df_rel, aes(x=factor(species.name,levels=pc1means.table %>% arrange(pc1speciesmean) %>% pull(species.name)), y=mean, fill=pc1speciesmean, col=sig))+
+pc1_reldiff<- ggplot(pc1_df_rel, aes(x=factor(number,levels=pc1means.table %>% arrange(pc1speciesmean) %>% pull(number)), y=mean, fill=pc1speciesmean, col=sig))+
   geom_errorbar(aes(ymin=lwr,ymax=upr, col=sig),width=0.2,size=1)+
     geom_point(pch=21, size=2)+
   geom_hline(yintercept=0,lty=1)+
@@ -2614,34 +2617,40 @@ ggplot(pc1_df_rel, aes(x=factor(species.name,levels=pc1means.table %>% arrange(p
   #annotate(geom="text",x=4, y=-4.5, label="hot/dry",col="black", size=5 )+
   #annotate(geom="text", x=4, y=6,label="cold/wet",col="black", size=5)+
   ylab("Relativized Difference in Margin Position")+
+  xlab("Species")+
   ggtitle("PC1")+
   theme_bw()+
-  theme(axis.text.x = element_text(angle=60, hjust=1,size=9, color="black"),axis.title.x = element_blank(),axis.text.y = element_text(size=10, colour = "black"),axis.title.y = element_text(size=12, color="black"), strip.text = element_text(size = 12), title=element_text(size=14), legend.position = "right")
+  theme(axis.text.x = element_text(angle=60, hjust=1,,size=9, color="black"),axis.title.x = element_text(size=12, color="black"),axis.text.y = element_text(size=10, colour = "black"),axis.title.y = element_text(size=12, color="black"), strip.text = element_text(size = 12), title=element_text(size=14), legend.position = "right")
 
 
 pc2_df_rel<- bind_rows(mu2_rel_df %>% mutate(var="pc2 centroid", species=as.numeric(species)),
 max2_rel_df %>% mutate(var="pc2 max"),
- min2_rel_df %>% mutate(var="pc2 min")) #%>% 
+ min2_rel_df %>% mutate(var="pc2 min")) %>% 
 #   mutate(mean=ifelse(var=="pc2 max",mean+.8,ifelse(var=="pc2 min", mean-.8,mean)),
 #          lwr=ifelse(var=="pc2 max",lwr+.8,ifelse(var=="pc2 min", lwr-.8,lwr)),
 #          upr=ifelse(var=="pc2 max",upr+.8,ifelse(var=="pc2 min", upr-.8,upr)))
+  left_join(pc1means.table)
 
-ggplot(pc2_df_rel, aes(x=factor(species.name,levels=pc1means.table %>% arrange(pc1speciesmean) %>% pull(species.name)), y=mean, fill=pc1speciesmean, col=sig))+
+pc2_reldiff<- ggplot(pc2_df_rel, aes(x=factor(number,levels=pc1means.table %>% arrange(pc1speciesmean) %>% pull(number)), y=mean, fill=pc1speciesmean, col=sig))+
   geom_errorbar(aes(ymin=lwr,ymax=upr, col=sig),width=0.2,size=1)+
   geom_point(pch=21, size=2)+
   geom_hline(yintercept=0,lty=1)+
   scale_fill_gradient2(low="#F21A00", mid = "#E9C925", high="#3A9AB2", midpoint=0.32942, name="PC1 Mean")+
   scale_color_manual(values=c("gray","black"),name="Significance")+
   facet_grid(factor(var, levels=c("pc2 max","pc2 centroid","pc2 min"), labels=c("97.5%","centroid","2.5%"))~dist, scales = "free")+
-  #scale_y_continuous(breaks=seq(-5,5,1))+
+  scale_y_continuous(breaks=seq(-.8,.8,.4))+
   #annotate(geom="text",x=4, y=-4.5, label="hot/dry",col="black", size=5 )+
   #annotate(geom="text", x=4, y=6,label="cold/wet",col="black", size=5)+
   ylab("Relativized Difference in Margin Position")+
+  xlab("Species")+
   ggtitle("PC2")+
   theme_bw()+
-  theme(axis.text.x = element_text(angle=60, hjust=1,size=9, color="black"),axis.title.x = element_blank(),axis.text.y = element_text(size=10, colour = "black"),axis.title.y = element_text(size=12, color="black"), strip.text = element_text(size = 12), title=element_text(size=14), legend.position = "right")
+  theme(axis.text.x = element_text(angle=60, hjust=1,size=9, color="black"),axis.title.x = element_text(size=12, color="black"),axis.text.y = element_text(size=10, colour = "black"),axis.title.y = element_text(size=12, color="black"), strip.text = element_text(size = 12), title=element_text(size=14), legend.position = "right")
 
-```
+png("new_fia_figure.png", width=4500, height=6000, res = 600)
+ggarrange(pc1_reldiff, pc2_reldiff, nrow=2, common.legend = T, labels = c("A)","B)"), legend = "right")
+dev.off()
+``
 
 ```{r}
 #classify shift types
@@ -4226,15 +4235,17 @@ for(i in 1:length(adult_data_pcapts)){
 }
 unlist(pc1.means)
 
-pc1means.table <- as.data.frame(matrix(unlist(pc1.means),nrow=length(pc1.means),ncol=1))
-pc1means.table<- pc1means.table %>% 
+pc1means.table <- as.data.frame(matrix(unlist(pc1.means),nrow=length(pc1.means),ncol=1)) %>% 
   mutate(names =  names(adult_data_pcapts)) %>% 
   tidyr::separate(names,into=c("species.code","disturbance","extra"),sep="_") %>% 
-  #mutate(species.code = as.numeric(species.code)) %>% 
+  mutate(species.code = as.numeric(species.code)) %>% 
   left_join(species.names) %>% 
   dplyr::rename(pc1mean = V1) %>% 
   group_by(species.name) %>% 
-  dplyr::summarise(pc1speciesmean = mean(pc1mean)) %>% ungroup()
+  dplyr::summarise(pc1speciesmean = mean(pc1mean)) %>% ungroup() %>% 
+  filter(!species.name=="singleleaf pinyon") %>% 
+  arrange(pc1speciesmean) %>% 
+  mutate(number=seq(1:15))
 
 ggplot(pc1means.table,aes(x=pc1speciesmean,y=rep(1,nrow(pc1means.table)),color=factor(species.name)))+
   geom_point()
