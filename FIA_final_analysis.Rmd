@@ -943,6 +943,7 @@ library(MASS)
 library(rjags)
 library(MuMIn)
 library(stringr)
+library(RColorBrewer)
 ```
 
 Let's first read in the data.
@@ -2650,14 +2651,14 @@ pc2_reldiff<- ggplot(pc2_df_rel, aes(x=factor(number,levels=pc1means.table %>% a
 png("new_fia_figure.png", width=4500, height=6000, res = 600)
 ggarrange(pc1_reldiff, pc2_reldiff, nrow=2, common.legend = T, labels = c("A)","B)"), legend = "right")
 dev.off()
-``
+```
 
 ```{r}
 #classify shift types
 shifts<- read.csv("C:/Users/katie/OneDrive - Colostate/OneDrive/FIA project/shift_type_fia.csv")
 
 ggarrange(
-ggplot(data=shifts, aes(x=disturbance, fill=factor(type, levels=c("shift","expansion","contraction","lean","no change"))))+
+ggplot(data=shifts, aes(x=disturbance, fill=factor(type, levels=c("march","expansion","contraction","lean","no change"))))+
   geom_bar(stat="count")+
   scale_fill_grey(name="Shift Type")+
   facet_wrap(~pc)+
@@ -2694,13 +2695,26 @@ ggplot(shifts_byspecies, aes(x=shift, fill=factor(species,levels=pc1means.table 
 shifts_byspecies_longer <- shifts_byspecies %>% 
   pivot_longer(cols=c(PC1,PC2), names_to = "pc", values_to = "type")
 
-ggplot(shifts_byspecies_longer, aes(x=shift, fill=factor(type, levels=c("shift","expansion","contraction","lean","no change"))))+
+ggplot(shifts_byspecies_longer, aes(x=shift, fill=factor(type, levels=c("march","expansion","contraction","lean","no change"))))+
   geom_bar(stat="count") +
   scale_fill_grey(name="Shift Type")+
   facet_grid(pc~disturbance)+
   theme_bw()+
   theme(text=element_text(size=14,color="black"))
 
+
+
+shift_colors<- c(brewer.pal(n=5, name="BrBG")[c(5,4,2,1)],"gray")
+
+
+ggplot(shifts_byspecies_longer, aes(x=shift, fill=factor(type, levels=c("march","expansion","lean","contraction","no change"))))+
+  geom_bar(stat="count") +
+  scale_fill_manual(name="Shift Type", values=shift_colors)+
+  facet_grid(pc~disturbance)+
+  xlab("Shift")+
+  ylab("Count")+
+  theme_bw()+
+  theme(text=element_text(size=14,color="black"))
 
 ```
 
