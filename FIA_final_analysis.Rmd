@@ -3457,6 +3457,7 @@ ggplot(margins_bydist, aes(x=dist, y=mean, col=dist))+
 
 ```
 
+
 ```{r}
 #classify shift types
 shifts<- read.csv("C:/Users/katie/OneDrive - Colostate/OneDrive/FIA project/shift_type_fia.csv")
@@ -3687,7 +3688,6 @@ ggplot(niche.areas.long, aes(x=name, y=niche.area, fill=age))+
 # names(overlap.list)<- names(ellipses.posterior.list)
 # 
 # saveRDS(overlap.list, file = "overlap.list.2023.RDS")
-
 ```
 
 ```{r}
@@ -3787,7 +3787,8 @@ overlap.table.long<- overlap.table %>%
   mutate(diff = ifelse(lwr>0 & upr>0, "diff", "nodiff")) %>% 
   mutate(typen = as.numeric(as.factor(type))) %>% 
   mutate(type=ifelse(type=="mean.exp.prop.adult", "gained",
-                      ifelse(type=="mean.contr.prop.adult", "lost", NA)))
+                      ifelse(type=="mean.contr.prop.adult", "lost", NA))) %>% 
+  left_join(pc1means.table)
 
 overlap.table.long_cutoff<- 
   overlap.table.long %>% 
@@ -3822,6 +3823,105 @@ comb.p.plot<- ggplot(overlap.table.long_cutoff,aes(x=typen,y=mean,color=disturba
 # comb.p.plot
 # dev.off()
 
+##facet by disturbance
+ggplot(overlap.table.long_cutoff,aes(x=number,y=mean,color=factor(species.name, levels=pc1means.table$species.name),alpha=diff,shape=diff))+
+  scale_color_manual(values = c("#F37408","#EFAB1A","#ECBF1E","#EBC021","#DCC340","#B7B66D","#B4B46F","#B0B372","#ABB177","#A7B077","#A6B282","#7FA698","#73A3A0","#6DA2A1","#3A9AB2"), name="Species")+
+  geom_hline(yintercept=0, linetype=2, size=0.8)+
+  geom_point(position = position_dodge(0.9),size=4)+
+  geom_errorbar(aes(ymin=lwr, ymax =upr), width=0, position = position_dodge(0.9),size=1)+
+  scale_alpha_manual(values=c(1,.7),labels=c("no","yes"),name="95% CI overlaps 0")+
+  scale_shape_manual(values=c(16,1),labels=c("no","yes"),name="95% CI overlaps 0")+
+  facet_grid(type~disturbance)+
+  ylim(c(-.1,.7))+
+  ylab("Proportion")+
+  geom_segment(data=arrow_tips_table1, aes(x=11,xend=11,y=.25,yend=.7,color=factor(species.name, levels=pc1means.table$species.name),alpha=diff), arrow = arrow(length=unit(.2,"cm")),size=1)+
+    geom_segment(data=arrow_tips_table2, aes(x=8,xend=8,y=.25,yend=.7,color=factor(species.name, levels=pc1means.table$species.name),alpha=diff), arrow = arrow(length=unit(.2,"cm")),size=1)+
+  theme_bw()+
+  theme(axis.text = element_text(size=24),legend.text = element_text(size=16),legend.title = element_text(size=24),legend.position = 'bottom',axis.title = element_text(size=24),plot.margin=margin(0,0.5,.6,.1,"cm"), axis.text.x=element_blank(), axis.title.x = element_blank(),strip.text = element_text(size=16,color="black"), panel.grid.minor.x = element_blank(), panel.grid.major.x = element_blank())
+
+##see how many CIs are non-overlapping within disturbances
+
+a<- overlap.table.long %>% 
+  filter(disturbance == "fire" & type=="gained") %>% 
+  filter(species.name=="Douglas-fir")
+
+b<- overlap.table.long %>% 
+  filter(disturbance == "fire" & type=="gained") %>% 
+  filter(species.name=="western redcedar")
+
+species.pairs <- t(combn(unique(overlap.table.long$species.name),2))
+species.pairs[1,]
+
+ci_overlap <- data.frame(comp = NA, eval=NA)
+
+for(i in 1:nrow(species.pairs)){
+  a <- overlap.table.long %>% filter(disturbance=="fire", type=="gained") %>%  filter(species.name == species.pairs[i,1])
+  b <- overlap.table.long %>% filter(disturbance=="fire", type=="gained") %>%  filter(species.name == species.pairs[i,2])
+  
+if(a %>% pull(mean) > b %>% pull(mean)){ 
+    eval <- a %>% pull(lwr) >  b %>% pull(upr)
+    row <- data.frame(comp= paste(species.pairs[i,1],"_",species.pairs[i,2], sep=""), eval = eval)
+  ci_overlap<- bind_rows(ci_overlap, row)}
+
+if(a %>% pull(mean) <  b %>% pull(mean)){
+  eval <- b %>% pull(lwr) > a %>% pull(upr)
+  row <- data.frame(comp= paste(species.pairs[i,1],"_",species.pairs[i,2], sep=""), eval = eval)
+  ci_overlap<- bind_rows(ci_overlap, row)}
+}
+
+View(ci_overlap)
+
+###order by sample size
+n_seed_fire<- sample.append %>% dplyr::select(c(species.name.x,disturbance,n.seed)) %>% 
+  filter(disturbance=="fire") %>% 
+  arrange(n.seed)
+
+n_seed_ID<- sample.append %>% dplyr::select(c(species.name.x,disturbance,n.seed)) %>% 
+  filter(disturbance=="insect.disease") %>% 
+  arrange(n.seed)
+
+n_seed_none<- sample.append %>% dplyr::select(c(species.name.x,disturbance,n.seed)) %>% 
+  filter(disturbance=="none") %>% 
+  arrange(n.seed)
+
+#fire
+ggplot(overlap.table.long_cutoff %>% filter(disturbance=="fire"),aes(x=factor(species.name, levels=n_seed_fire$species.name),y=mean,alpha=diff,shape=diff))+
+  geom_hline(yintercept=0, linetype=2, size=0.8)+
+  geom_point(position = position_dodge(0.9),size=4)+
+  geom_errorbar(aes(ymin=lwr, ymax =upr), width=0, position = position_dodge(0.9),size=1)+
+  scale_alpha_manual(values=c(1,.7),labels=c("no","yes"),name="95% CI overlaps 0")+
+  scale_shape_manual(values=c(16,1),labels=c("no","yes"),name="95% CI overlaps 0")+
+  facet_grid(type~disturbance)+
+  ylim(c(-.1,.7))+
+  ylab("Proportion")+
+  theme_bw()+
+  theme(axis.text = element_text(size=24),legend.text = element_text(size=16),legend.title = element_text(size=24),legend.position = 'bottom',axis.title = element_text(size=24),plot.margin=margin(0,0.5,.6,.1,"cm"), axis.text.x=element_blank(), axis.title.x = element_blank(),strip.text = element_text(size=16,color="black"), panel.grid.minor.x = element_blank(), panel.grid.major.x = element_blank())
+
+#insect/disease
+ggplot(overlap.table.long_cutoff %>% filter(disturbance=="insect.disease"),aes(x=factor(species.name, levels=n_seed_ID$species.name),y=mean,alpha=diff,shape=diff))+
+  geom_hline(yintercept=0, linetype=2, size=0.8)+
+  geom_point(position = position_dodge(0.9),size=4)+
+  geom_errorbar(aes(ymin=lwr, ymax =upr), width=0, position = position_dodge(0.9),size=1)+
+  scale_alpha_manual(values=c(1,.7),labels=c("no","yes"),name="95% CI overlaps 0")+
+  scale_shape_manual(values=c(16,1),labels=c("no","yes"),name="95% CI overlaps 0")+
+  facet_grid(type~disturbance)+
+  ylim(c(-.1,.7))+
+  ylab("Proportion")+
+  theme_bw()+
+  theme(axis.text = element_text(size=24),legend.text = element_text(size=16),legend.title = element_text(size=24),legend.position = 'bottom',axis.title = element_text(size=24),plot.margin=margin(0,0.5,.6,.1,"cm"), axis.text.x=element_blank(), axis.title.x = element_blank(),strip.text = element_text(size=16,color="black"), panel.grid.minor.x = element_blank(), panel.grid.major.x = element_blank())
+
+#none
+ggplot(overlap.table.long_cutoff %>% filter(disturbance=="none"),aes(x=factor(species.name, levels=n_seed_none$species.name),y=mean,alpha=diff,shape=diff))+
+  geom_hline(yintercept=0, linetype=2, size=0.8)+
+  geom_point(position = position_dodge(0.9),size=4)+
+  geom_errorbar(aes(ymin=lwr, ymax =upr), width=0, position = position_dodge(0.9),size=1)+
+  scale_alpha_manual(values=c(1,.7),labels=c("no","yes"),name="95% CI overlaps 0")+
+  scale_shape_manual(values=c(16,1),labels=c("no","yes"),name="95% CI overlaps 0")+
+  facet_grid(type~disturbance)+
+  ylim(c(-.1,.7))+
+  ylab("Proportion")+
+  theme_bw()+
+  theme(axis.text = element_text(size=24),legend.text = element_text(size=16),legend.title = element_text(size=24),legend.position = 'bottom',axis.title = element_text(size=24),plot.margin=margin(0,0.5,.6,.1,"cm"), axis.text.x=element_blank(), axis.title.x = element_blank(),strip.text = element_text(size=16,color="black"), panel.grid.minor.x = element_blank(), panel.grid.major.x = element_blank())
 #############################################
 
 
@@ -3969,6 +4069,78 @@ ggplot(overlap.table %>%
   scale_fill_manual(values=c("darkorange1","steelblue"),labels=c("Contraction", "Expansion"),name="Shift Type")+
   theme_bw()+
   theme(axis.text.x = element_text(angle=45,vjust=0.9,hjust=0.8),axis.text=element_text(size=16,color="black"),legend.text = element_text(size=16),axis.title = element_text(size=16),legend.title = element_text(size=16))
+```
+
+```{r}
+#summarise by traits
+overlap.table_traits_raw <- as.data.frame(matrix(unlist(overlap.list),nrow = 960000, ncol=5,byrow=FALSE))  
+colnames(overlap.table_traits_raw)<-names(overlap.list[[1]])
+overlap.table_traits<- overlap.table_traits %>% 
+  mutate(names = names(overlap.list)) %>% 
+  separate(names,into=c("species","disturbance","extra"),sep="_") %>% 
+  mutate(species = species) %>% 
+  left_join(species.names,by=c("species"="species.code")) %>% 
+  filter(!species.name=="singleleaf pinyon")
+
+length(unlist(overlap.list))
+
+overlap.df <- data.frame(area1=NA, area2=NA, overlap=NA, exp.prop.adult=NA, contr.prop.adult=NA)
+for(i in 1:length(overlap.list)){
+  data <- overlap.list[[i]] %>% mutate(name=names(overlap.list)[i])
+  overlap.df <- overlap.df %>% bind_rows(data)
+}
+
+overlap.df.traits<- overlap.df %>% 
+  filter(!is.na(area1)) %>% 
+  mutate(species= substr(name, 0,3),
+         dist =  str_extract(name,"_.+_")) %>% 
+  mutate(dist= gsub("_","",dist),
+         species = gsub("_","",species)) %>%
+  left_join(species.names, by=c("species" = "species.code")) %>% 
+  left_join(sample.append %>% 
+  dplyr::select(-species.name.y) %>% 
+  dplyr::rename("species.name" = "species.name.x", "dist"="disturbance")) %>% 
+  filter(!species.name=="singleleaf pinyon")
+
+exp.by.disp <-overlap.df.traits %>% 
+  group_by(dispersal,dist) %>% 
+  dplyr::summarise(mean = mean(mean.exp.prop.adult), lwr=quantile(mean.exp.prop.adult,c(0.025,0.975))[1], upr=quantile(mean.exp.prop.adult,c(0.025,0.975))[2])
+
+ggplot(exp.by.disp, aes(x=dispersal,y=mean,col=dist))+
+  geom_point(position=position_dodge(0.9))+
+  geom_errorbar(aes(ymin=lwr, ymax =upr), width=1, position = position_dodge(0.9),size=1)+
+  scale_color_manual(values=disturbance.colors) #no significant difference between dispersal type * disturbance and amount of expansion
+
+contr.by.disp <-overlap.df.traits %>% 
+  group_by(dispersal,dist) %>% 
+  dplyr::summarise(mean = mean(mean.contr.prop.adult), lwr=quantile(mean.contr.prop.adult,c(0.025,0.975))[1], upr=quantile(mean.contr.prop.adult,c(0.025,0.975))[2])
+
+ggplot(contr.by.disp, aes(x=dispersal,y=mean,col=dist))+
+  geom_point(position=position_dodge(0.9))+
+  geom_errorbar(aes(ymin=lwr, ymax =upr), width=1, position = position_dodge(0.9),size=1)+
+  scale_color_manual(values=disturbance.colors)
+
+##I actually don't think this will work cause i'm looking for a linear trend, not just a comparison of categories 
+
+###summarise by disturbance
+overlap.table_raw <- as.data.frame(matrix(unlist(overlap.list),nrow = 960000, ncol=5,byrow=FALSE))  
+colnames(overlap.table_raw)<-names(overlap.list[[1]])
+
+exp.by.dist <-overlap.df.traits %>% 
+  group_by(dist) %>% 
+  dplyr::summarise(mean = mean(mean.exp.prop.adult), lwr=quantile(mean.exp.prop.adult,c(0.025,0.975))[1], upr=quantile(mean.exp.prop.adult,c(0.025,0.975))[2])%>% 
+  mutate(type="gained")
+
+contr.by.dist <-overlap.df.traits %>% 
+  group_by(dist) %>% 
+  dplyr::summarise(mean = mean(mean.contr.prop.adult), lwr=quantile(mean.contr.prop.adult,c(0.025,0.975))[1], upr=quantile(mean.contr.prop.adult,c(0.025,0.975))[2]) %>% 
+  mutate(type="lost")
+
+ggplot(bind_rows(exp.by.dist, contr.by.dist), aes(x=dist, y=mean, col=dist))+
+  geom_point()+
+  geom_errorbar(aes(ymin=lwr, ymax=upr))+
+  facet_wrap(~type)+
+  scale_color_manual(values=disturbance.colors)
 ```
 
 Now I will look at differences between disturbances in the amount of contraction/expansion. There is significantly more contraction across the board than expansion. 
@@ -5227,7 +5399,7 @@ First I will only include the species that have big enough sample sizes for all 
 ```{r}
 ##full set analysis 
 
-niche.shift.trait.table <- overlap.table.fullset %>% 
+niche.shift.trait.table <- overlap.table %>% 
   left_join(trait.data,by="species.name")
 ```
 
@@ -5306,7 +5478,7 @@ sample.append<- niche.shift.trait.table %>%
 #overall expansion and contraction by disturbance type WITH sample size
 
 #expansion
-dist.exp.anova2 <- lm(log(mean.exp.prop.adult)~factor(disturbance)*n.adult,data=sample.append)
+dist.exp.anova2 <- lm(log(mean.exp.prop.adult)~factor(disturbance)*n.adult,data=sample.append %>% filter(!(species.name.y=="western redcedar"& disturbance=="fire")) %>% filter(!(species.name.y == "western larch" & disturbance == "insect.disease")))
 par(mfrow=c(2,2))
 plot(dist.exp.anova)
 anova(dist.exp.anova2)#no significant interaction
@@ -5315,8 +5487,8 @@ Anova(dist.exp.anova2_noint, type='2')
 
 AICc(dist.exp.anova, dist.exp.anova2)
 
-ggplot(sample.append, aes(x=n.seed,y=log(mean.exp.prop.adult)))+
-  geom_point()+
+ggplot(sample.append %>% filter(!(species.name.y=="western redcedar"& disturbance=="fire")) %>% filter(!(species.name.y == "western larch" & disturbance == "insect.disease")), aes(x=n.adult,y=log(mean.exp.prop.adult)))+
+  geom_point(aes(col=species.name.y))+
   geom_smooth(method="lm")+
   facet_wrap(~disturbance)
   
@@ -5327,7 +5499,14 @@ anova(dist.contr.anova2)#no significant interaction
 dist.contr.anova2_noint<- lm(log(mean.contr.prop.adult)~factor(disturbance)+n.seed, data=sample.append)
 Anova(dist.contr.anova2_noint, type= '2')
 
-AICc(dist.contr.anova,dist.contr.anova2)
+AICc(dist.contr.anova2_noint,dist.contr.anova2)
+
+
+ggplot(sample.append, aes(x=n.adult,y=log(mean.contr.prop.adult)))+
+  geom_point(aes(col=species.name.y))+
+  geom_smooth(method="lm")+
+  facet_wrap(~disturbance)
+  
 ```
 
 
@@ -5355,7 +5534,7 @@ par(mfrow=c(2,2))
 plot(exp.shade.mod3)
 Anova(exp.shade.mod3, type='2')
 
-AICc(exp.shade.mod,exp.shade.mod2) #model 2 is lower
+AICc(exp.shade.mod,exp.shade.mod2,exp.shade.mod3) #model 2 is lower
 
 ggplot(niche.shift.trait.table,aes(x=shade.tolerance,y=mean.exp.prop.adult))+
   geom_point()+
@@ -5581,7 +5760,7 @@ Anova(pc1.contr.mod2_noint, type="2")
 pc1contr_preddat = expand.grid(pc1speciesmean = seq(min(sample.append$pc1speciesmean), max(sample.append$pc1speciesmean)+0.05, by = .1),
                      disturbance = unique(sample.append$disturbance))
 
-pc1contrpred <- predict(pc1.contr.mod, newdata = pc1contr_preddat, interval = "confidence")
+pc1contrpred <- predict(pc1.contr.mod2_sigint, newdata = pc1contr_preddat, interval = "confidence")
 
 pc1contr_preddat = cbind(pc1contr_preddat, pc1contrpred)
 
@@ -5697,20 +5876,48 @@ ggarrange(diff.plot,traits.plot8_new,ncol=1,nrow=2,heights=c(0.8,3),labels=c("a"
 
 ```{r}
 ##try all traits in one model 
-all.traits.mod.contr <- lm(log(mean.contr.prop.adult)~ pc1speciesmean*disturbance+dispersal*disturbance + shade.tolerance*disturbance, data=niche.shift.trait.table)
+all.traits.mod.contr <- lm(log(mean.contr.prop.adult)~ pc1speciesmean*disturbance+dispersal*disturbance + shade.tolerance*disturbance + n.adult*disturbance + n.seed*disturbance, data=sample.append)
 plot(all.traits.mod.contr)
+options(na.action = "na.fail")
+contr.dredge <- dredge(all.traits.mod.contr)
+contr.dredge
 Anova(all.traits.mod.contr, type='3')
 summary(all.traits.mod.contr)
 emtrends(all.traits.mod.contr, pairwise ~ disturbance, var = "pc1speciesmean")
-emtrends(all.traits.mod.contr, pairwise ~ disturbance, var = "shade.tolerance")
 
 
-all.traits.mod.exp <- lm(log(mean.exp.prop.adult)~ pc1speciesmean*disturbance+dispersal*disturbance + shade.tolerance*disturbance, data=niche.shift.trait.table)
+all.traits.mod.exp <- lm(log(mean.exp.prop.adult)~ pc1speciesmean*disturbance+dispersal*disturbance + shade.tolerance*disturbance + n.adult*disturbance + n.seed*disturbance, data=sample.append)
 plot(all.traits.mod.exp)
 Anova(all.traits.mod.exp, type='3')
-summary(all.traits.mod.exp)
-emtrends(all.traits.mod.exp, pairwise ~ disturbance, var = "pc1speciesmean")
-emtrends(all.traits.mod.exp, pairwise ~ disturbance, var = "shade.tolerance")
+exp.dredge <- dredge(all.traits.mod.exp)
+exp.dredge
+all.traits.mod.exp.best <- lm(log(mean.exp.prop.adult)~ dispersal + n.adult + n.seed*disturbance, data=sample.append)
+Anova(all.traits.mod.exp.best, type="3")
+summary(all.traits.mod.exp.best)
+
+#without extreme low sample sizes
+sample.append.noextreme <- sample.append %>% filter(!(species.name.x=="western redcedar" & disturbance=="fire")) %>% filter(!(species.name.x=="western larch" & disturbance=="insect.disease"))
+
+all.traits.mod.exp <- lm(log(mean.exp.prop.adult)~ pc1speciesmean*disturbance+dispersal*disturbance + shade.tolerance*disturbance + n.adult*disturbance + n.seed*disturbance, data=sample.append.noextreme)
+plot(all.traits.mod.exp)
+Anova(all.traits.mod.exp, type='3')
+exp.dredge <- dredge(all.traits.mod.exp)
+exp.dredge
+all.traits.mod.exp.best <- lm(log(mean.exp.prop.adult)~ pc1speciesmean*disturbance+ + n.adult*disturbance , data=sample.append.noextreme)
+Anova(all.traits.mod.exp.best, type="3")
+summary(all.traits.mod.exp.best)
+
+
+all.traits.mod.contr <- lm(log(mean.contr.prop.adult)~ pc1speciesmean*disturbance+dispersal*disturbance + shade.tolerance*disturbance + n.adult*disturbance + n.seed*disturbance, data=sample.append.noextreme)
+plot(all.traits.mod.contr)
+Anova(all.traits.mod.contr, type="3")
+options(na.action = "na.fail")
+contr.dredge <- dredge(all.traits.mod.contr)
+contr.dredge
+all.traits.mod.contr.best <- lm(log(mean.contr.prop.adult)~ n.seed , data=sample.append.noextreme)
+Anova(all.traits.mod.contr.best, type="3")
+summary(all.traits.mod.contr.best)
+
 ```
 
 ```{r}
