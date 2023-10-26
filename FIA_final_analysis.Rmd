@@ -1014,9 +1014,7 @@ undis<- read_csv("undisturbed.plots2022.csv")
 dist <- bind_rows(fire,ID,harvest,other,wind,undis)%>% 
   filter(PLT_CN %in% plot_subset$CN)
 
-options(scipen=9999)
-
-write.csv(dist, "FIA_plot_disturbance_data.csv")
+#write.csv(dist, "FIA_plot_disturbance_data.csv")
 ```
 
 ```{r,echo=FALSE,eval=FALSE}
@@ -1140,7 +1138,7 @@ sample_seeds <- dist_seeds_joined %>%
 datatable(sample_seeds, caption = "Seedling Sample Size")
 ```
 
-Let's set the minimum number of plots at 60 Since there are always less seedling plots than adult plots, we will look at the seedlings first. We will also only look at fire, insect/disease, and undisturbed categories since the other disturbance categories have very low sample sizes. 
+Let's set the minimum number of plots at 60. Since there are always less seedling plots than adult plots, we will look at the seedlings first. We will also only look at fire, insect/disease, and undisturbed categories since the other disturbance categories have very low sample sizes. 
 
 ```{r, echo=FALSE}
 #seedling sample 
@@ -1160,7 +1158,6 @@ sample_seeds_over60 %>%
   left_join(species.names, by=c("SPCD"="species.code")) %>% 
   datatable() #picked up western larch and rocky mountain juniper in 2/3 disturbances (insect.disease and none for juniper and fire and none for western larch.)
 ```
-
 There are 16 species in the FIA database that have 60 or more plots in at least 2 of the 3 disturbance types with seedlings present. 
 
 This is a sample size table for each species, age and disturbance
@@ -1192,12 +1189,6 @@ sample_size_wide<- sample_size %>%
 
 #write.csv(sample_size_wide, "sample_size_wide.csv")
 
-insectonlyspp <- sample_size %>% 
-  filter(n.seed < 60 & Agent == "fire") %>% 
-  pull(species.name)
-fireonlyspp <- sample_size %>% 
-  filter(n.seed < 60 & Agent == "insect.disease") %>% 
-  pull(species.name)
 ```
 
 And the below plots show sample size for each species within each disturbance type graphically. 
@@ -1220,7 +1211,7 @@ seedling.sample <- ggplot(sample_size,aes(x=Agent, y=n.seed, fill=factor(species
 ggarrange(adult.sample,seedling.sample, common.legend = TRUE)
 ```
 
-Looking at the seedling and adult sample sizes, we will exclude white fir, Rocky Mountain juniper, two needle pinyon, limber pine, and western redcedar in fire plots from the analysis, because these groups have very low numbers of plots with seedlings. Western larch will be excluded from insect/disease analysis. We also exclude singleleaf pinyon from the analysis because the plots in this analysis do not seem to capture the full range of this species (it's niche is weirdly cut off in climate space).  
+Looking at the seedling and adult sample sizes, western redcedar in fire plots and  sestern larch in insect/disease plots have extremely low sample sizes. We will keep this in mind when interpreting results. We will exclude singleleaf pinyon from the analysis because the plots in this analysis do not seem to capture the full range of this species (it's niche is weirdly cut off in climate space).  
 
 ```{r}
 #look at sample size of seedling only plots
@@ -1245,24 +1236,27 @@ View(sample_size %>%
 
 The histograms below show the distribution of recent (blue) and previous (green) measurement years for the plots where adults and seedlings of each species were found.  
 ```{r, echo=FALSE}
-# spp_hist_data <- species.sum.long %>% 
-#   left_join(plot, by=c("PREV_PLT_CN" = "CN")) %>% 
-#   dplyr::select(c(PREV_PLT_CN:SPCD,MEASYEAR.y)) %>% 
-#   dplyr::rename("Prev.MEASYEAR" = "MEASYEAR.y","MEASYEAR"="MEASYEAR.x") 
-# par(mfrow=c(5,3))
-# for(i in 1:length(species.names$species.code)){
-# hist(spp_hist_data[spp_hist_data$SPCD==species.names$species.code[i],]$MEASYEAR, col=rgb(0,0,1,0.5), breaks=(max(spp_hist_data[which(spp_hist_data$SPCD==species.names$species.code[i] & !is.na(spp_hist_data$MEASYEAR)),]$MEASYEAR) - min(spp_hist_data[which(spp_hist_data$SPCD==species.names$species.code[i] & !is.na(spp_hist_data$MEASYEAR)),]$MEASYEAR))+1, main=paste("Histogram for",species.names$species.name[i],"adults",sep=" "),xlab="Measurement Year")
-# hist(spp_hist_data[spp_hist_data$SPCD==species.names$species.code[i],]$Prev.MEASYEAR, col=rgb(0,1,0,0.3), breaks=(max(spp_hist_data[which(spp_hist_data$SPCD==species.names$species.code[i] & !is.na(spp_hist_data$Prev.MEASYEAR)),]$Prev.MEASYEAR) - min(spp_hist_data[which(spp_hist_data$SPCD==species.names$species.code[i] & !is.na(spp_hist_data$Prev.MEASYEAR)),]$Prev.MEASYEAR))+1, add=TRUE)
-# }
+spp_hist_data <- species.sum.long %>%
+  left_join(plot, by=c("PREV_PLT_CN" = "CN")) %>%
+  dplyr::select(c(PREV_PLT_CN:SPCD,MEASYEAR.y)) %>%
+  dplyr::rename("Prev.MEASYEAR" = "MEASYEAR.y","MEASYEAR"="MEASYEAR.x")
+par(mfrow=c(5,3))
 
+pdf("measurement_years.pdf")
+for(i in 1:length(species.names$species.code)){
+hist(spp_hist_data[spp_hist_data$SPCD==species.names$species.code[i],]$MEASYEAR, col=rgb(0,0,1,0.5), breaks=(max(spp_hist_data[which(spp_hist_data$SPCD==species.names$species.code[i] & !is.na(spp_hist_data$MEASYEAR)),]$MEASYEAR) - min(spp_hist_data[which(spp_hist_data$SPCD==species.names$species.code[i] & !is.na(spp_hist_data$MEASYEAR)),]$MEASYEAR))+1, main=paste("Histogram for",species.names$species.name[i],"adults",sep=" "),xlab="Measurement Year")
+hist(spp_hist_data[spp_hist_data$SPCD==species.names$species.code[i],]$Prev.MEASYEAR, col=rgb(0,1,0,0.3), breaks=(max(spp_hist_data[which(spp_hist_data$SPCD==species.names$species.code[i] & !is.na(spp_hist_data$Prev.MEASYEAR)),]$Prev.MEASYEAR) - min(spp_hist_data[which(spp_hist_data$SPCD==species.names$species.code[i] & !is.na(spp_hist_data$Prev.MEASYEAR)),]$Prev.MEASYEAR))+1, add=TRUE)
+}
+dev.off()
 ```
 
 ```{r, echo=FALSE}
 #seedling histograms
-# par(mfrow=c(5,3))
-# for(i in 1:length(species.names$species.code)){
-# hist(dist_seeds_joined[dist_seeds_joined$SPCD == species.names$species.code[i],]$MEASYEAR, col=rgb(0,0,1,0.5), breaks=(max(dist_seeds_joined[which(dist_seeds_joined$SPCD==species.names$species.code[i] & !is.na(dist_seeds_joined$MEASYEAR)),]$MEASYEAR) - min(dist_seeds_joined[which(dist_seeds_joined$SPCD==species.names$species.code[i] & !is.na(dist_seeds_joined$MEASYEAR)),]$MEASYEAR))+1,  main=paste("Histogram for",species.names$species.name[i],"seedlings",sep=" "),xlab="Measurement Year")
-# }
+pdf("measurement_year_seedlings.pdf")
+for(i in 1:length(species.names$species.code)){
+hist(dist_seeds_joined[dist_seeds_joined$SPCD == species.names$species.code[i],]$MEASYEAR, col=rgb(0,0,1,0.5), breaks=(max(dist_seeds_joined[which(dist_seeds_joined$SPCD==species.names$species.code[i] & !is.na(dist_seeds_joined$MEASYEAR)),]$MEASYEAR) - min(dist_seeds_joined[which(dist_seeds_joined$SPCD==species.names$species.code[i] & !is.na(dist_seeds_joined$MEASYEAR)),]$MEASYEAR))+1,  main=paste("Histogram for",species.names$species.name[i],"seedlings",sep=" "),xlab="Measurement Year")
+}
+dev.off()
 ```
 
 ```{r, echo=FALSE}
@@ -1289,7 +1283,7 @@ merge_sp_dist_env <- function(joined_df, sp_code, agent_name, env_vars) {  sp_di
 }
 
    
-#FIA codes for all desired species (n=14) and disturbances (n=3)
+#FIA codes for all desired species (n=16) and disturbances (n=3)
 sp_codes <- as.character(unique(sample_seeds_over60$SPCD))
 dist_names <- c("fire","insect.disease","none")
 
@@ -1325,9 +1319,7 @@ I will first run a principal components analysis (PCA) on a suite of climate var
 ```{r, echo = FALSE,eval=FALSE}
 #first look at correlations in climate variables
 colnames(env_vars)
-```
 
-```{r, echo=FALSE}
 env_vars %>% 
   dplyr::select(-PLT_CN,-X,-RSCD,-INVYR,-ANN_INV,-CYCLE,-td) %>% 
   cor() %>% 
@@ -1337,46 +1329,16 @@ env_vars %>%
 env_vars_cut <- env_vars %>% 
   dplyr::select(-PLT_CN,-X,-RSCD,-INVYR,-ANN_INV,-CYCLE,-td, -ppt, -tmean, -tmax, - tmin, -vpdmin, -vpdmax, -mwmt, -ahm, -DD5, -bffp, -effp, -emt, -eref, -tave_wt, -tave_sm, -ppt_sm)
 
-env_vars_cut_alt <- env_vars %>%
-  dplyr::select(-PLT_CN,-X,-RSCD,-INVYR,-ANN_INV,-CYCLE,-cmd,-mcmt,-mwmt,-ppt_sm,-DD5,-dd_0,-bffp,-effp,-emt,-tave_sm,-tave_wt,-eref)
-
-env_vars_cut_alt %>%
+env_vars_cut %>%
   cor() %>%
   abs()>0.9
-
-# pdf(file="C:/Users/katie/OneDrive - Colostate/OneDrive/FIA project/figures/pre_trans_pairs_alt_2023.pdf")
-# 
-# pairs(env_vars_cut_alt, lower.panel = NULL)
-#  
-# dev.off()
-
-
-#log transform precipitation variables to make relationships linear
-env_vars_cut_alt_trans <- env_vars_cut_alt %>%
-  mutate(MSP_log = log(msp),SHM_log = log(shm), PPT_wt_log = log(ppt_wt), PPT_log=log(ppt), PAS_log = log(pas+0.999), AHM_log=log(ahm), VPDMAX_log=log(vpdmax), VPDMIN_log=log(vpdmin), .keep="unused")
-
-env_vars_cut_alt_trans2 <- env_vars_cut_alt %>%
-  dplyr::select(c(-vpdmin, -vpdmax,-td,-ahm,-shm,-pas,-tmean)) %>% 
-  mutate(MSP_log = log(msp),PPT_wt_log = log(ppt_wt), PPT_log=log(ppt), .keep="unused")
-
-# pdf(file="C:/Users/katie/OneDrive - Colostate/OneDrive/FIA project/figures/post_trans_pairs_alt_2023.pdf")
-# 
-# pairs(env_vars_cut_alt_trans, lower.panel = NULL)
-#  
-# dev.off()
-# 
-# pdf(file="C:/Users/katie/OneDrive - Colostate/OneDrive/FIA project/figures/post_trans_pairs_alt_2023_v2.pdf")
-# 
-# pairs(env_vars_cut_alt_trans2, lower.panel = NULL)
-#  
-# dev.off()
 ```
 
 ```{r,eval=FALSE,echo=FALSE}
 #look at linearity of relationships
 ncol(env_vars_cut)
 # 
-# pdf(file="C:/Users/Katie/Google Drive/FIA project/FIA_rproject/pre_trans_pairs_2022.pdf")
+# pdf(file="C:/Users/Katie/Google Drive/FIA project/FIA_rproject/pre_trans_pairs_2023.pdf")
 # 
 # pairs(env_vars_cut, lower.panel = NULL)
 # 
@@ -1420,14 +1382,6 @@ After running the PCA on these variables, we see that the first two components c
 # saveRDS(clim_pca, file = "FIA_pca_2022_subset.RDS")
 clim_pca <- readRDS("FIA_pca_2022_subset.RDS")
 
-##climate pca without CMD
-alt_clim_pca <- prcomp(env_vars_cut_alt_trans2, scale.=T)
-summary(alt_clim_pca)
-par(mfrow=c(1,1))
-plot(alt_clim_pca,type="l")
-autoplot(alt_clim_pca, loadings.colour="red", loadings=T, loadings.label=T, loadings.label.colour="red", scale=0)
-alt_clim_pca$rotation
-
 ##to get eigenvalues, we do the square of the stdev
 eigenvals <- (clim_pca$sdev)^2
 eigenvals
@@ -1436,10 +1390,6 @@ eigenvals/sum(eigenvals)#this is the proportion variance explained
 summary(clim_pca)
 par(mfrow=c(1,1))
 plot(clim_pca,type="l")
-
-##varimax rotation
-clim_pca_var <- varimax(clim_pca$rotation)
-clim_pca_var
 ```
 
 The variables most strongly correlated with PC1 are climate moisture deficit (CMD), precipitation as snow (PAS),  degree days below zero (DD_0), and mean temperature of the coldest month (MCMT). The variables most strongly correlated with PC2 are mean summer precipitation (MSP), and summer heat moisture index (SHM_log).
@@ -1506,6 +1456,7 @@ dev.off()
 ```
 
 ```{r}
+##Looking at how latitude and elevation vary across the 2D PCA space
 env_vars %>% 
   left_join(plot, by=c("PLT_CN"="CN")) %>% 
   bind_cols(clim_pca$x) %>% 
@@ -1557,7 +1508,6 @@ These boxplots display the range of PC1 and PC2 coordinates that plots within ea
 ```{r, echo=FALSE}
 #color palette
 disturbance.colors<- c("#bb5f4c","#8e5db0","#729b57")
-#red,blue,gray c("#661100", "#6699CC", "#888888")
 
 #summarize position on PC1 and 2 of plots in each disturbance category. 
 pca_pts_by_dist <- clim_pca_points %>% 
@@ -1584,387 +1534,11 @@ ggplot(pca_pts_by_dist[which(! pca_pts_by_dist$Agent %in% c("other","harvest","w
   theme_bw()
 ```
 
-##Species specific range shifts
+##Ellipse models
 
-The one species-specific test we can do, is a t-test comparing the mean positions on PC1 and PC2 of seedlings vs. adults in different disturbance types.
+Now I will use Bayesian methods to fit multivariate normal distributions to the distribution of points in PC space for each species x lifestage x disturbance combination. These take a while to run so I have saved them as objects and read them back in each time. Much of this code came from Andrew L Jackson's Introduction to SIBER vignette (https://cran.r-project.org/web/packages/SIBER/vignettes/Introduction-to-SIBER.html)
 
-###PC1
-
-First, PC1:
-
-```{r, echo=FALSE, results='hide'}
-##check for normality PC1
-#grab multiplot function script
-source("multiplot_fxn.R")
-
-#make density plots to check for normality in each of the species x disturbance x age category
-##adult
-adultplots = list()
-for(i in 1:length(adult_data)){
-group <- adult_data_pcapts %>% 
-  pluck(i) %>% 
-  ungroup() %>% 
-  pull(PC1) 
-adultplots[[i]]<- group
-}
-
-plotlist<- list()
-for(i in 1:length(adult_data)){
-  plot<- ggdensity(adultplots[[i]])
-  plotlist[[i]]<- plot
-}
-qplotlist<- list()
-for(i in 1:length(adult_data)){
-  plot<- ggqqplot(adultplots[[i]])
-  qplotlist[[i]]<- plot
-}
-
-##seedling
-seedlingplots = list()
-for(i in 1:length(seedling_data)){
-group <- seedling_data_pcapts %>% 
-  pluck(i) %>% 
-  ungroup() %>% 
-  pull(PC1) 
-seedlingplots[[i]]<- group
-}
-
-splotlist<- list()
-for(i in 1:length(seedling_data)){
-  plot<- ggdensity(seedlingplots[[i]])
-  splotlist[[i]]<- plot
-}
-sqplotlist<- list()
-for(i in 1:length(seedling_data)){
-  plot<- ggqqplot(seedlingplots[[i]])
-  sqplotlist[[i]]<- plot
-}
-
-
-vartest.results<-data.frame()
-for(i in 1:length(seedling_data)){
-vartest<- var.test(seedlingplots[[i]],adultplots[[i]],alternative="two.sided")
-vartest.results<-rbind(vartest.results, data.frame(num=i, p=vartest$p.value))
-}  
-vartest.results##not all have equal variance between adult and seedling data
-```
-
-```{r, echo=FALSE, results='hide'}
-#shapiro test to formally evaluate normality of data. Even though, not all pass this test, I think we can still use t-test because sample size is relatively large 
-
-#shapiro test for adults
-shapiro.results.a<-data.frame()
-for(i in 1:length(adult_data)){
-shapiro<- shapiro.test(adultplots[[i]])
-shapiro.results.a<-rbind(shapiro.results.a, data.frame(num=i, p=shapiro$p))
-} 
-shapiro.results.a %>% 
-  filter(p<0.05)
-#look at those that failed normality test
-data.names<- data.frame(name = names(adult_data_pcapts),num=seq(1,length(adult_data_pcapts),1))
-
-#this table shows sample size for adult data that didn't pass normality test. Lowest for adults is 151, I think this is reasonably large to still use a t-test. 
-shapiro.results.a %>% 
-  filter(p<0.05) %>% 
-  left_join(data.names, by='num') %>% 
-  separate(name,sep="_",into=c("species","agent","var")) %>% 
-  mutate(species = as.numeric(species)) %>% 
-  left_join(sample_size, by=c("species" = "SPCD", "agent"="Agent")) %>% 
-  datatable()
-
-
-shapiro.results.s<-data.frame()
-for(i in 1:length(seedling_data)){
-shapiro<- shapiro.test(seedlingplots[[i]])
-shapiro.results.s<-rbind(shapiro.results.s, data.frame(num=i, p=shapiro$p))
-} 
-head(shapiro.results.s)
-shapiro.results.s %>% 
-  filter(p<0.05)
-
-#this table shows sample size for seedling data that didn't pass normality test. Lowest is 162 so i think this is big enough to be fine.   
-shapiro.results.s %>% 
-  filter(p<0.05) %>% 
-  left_join(data.names, by='num') %>% 
-  separate(name,sep="_",into=c("species","agent","var")) %>% 
-    mutate(species = as.numeric(species)) %>% 
-  left_join(sample_size, by=c("species" = "SPCD", "agent"="Agent")) %>% 
-  datatable()
-
-```
-
-```{r, echo=FALSE, results="hide"}
-#do the t-tests for PC1
-pc1.ttest.pvalues <- data.frame()
-for(i in 1:length(adult_data_pcapts)){
-temp.adult <- adult_data_pcapts %>% 
-  pluck(i) %>% 
-  ungroup() %>% 
-  dplyr::select(PC1)
-
-temp.seed <- seedling_data_pcapts %>% 
-  pluck(i) %>% 
-  ungroup() %>% 
-  dplyr::select(PC1)
-
-temp.test<- t.test(temp.adult, temp.seed, paired=FALSE, var.equal = TRUE, conf.level=0.95)
-pc1.ttest.pvalues <- bind_rows(pc1.ttest.pvalues, data.frame(uid = names(adult_data_pcapts)[i], diff.means = temp.test$estimate[2] - temp.test$estimate[1],p.value = temp.test$p.value))
-}
-
-#unequal variance t-test for some species
-pc1.unequal.var <- vartest.results %>% 
-                      filter(p<0.05)
-
-pc1.ttest.pvalues.alt <- data.frame()
-for(i in pc1.unequal.var$num){
-temp.adult <- adult_data_pcapts %>% 
-  pluck(i) %>% 
-  ungroup() %>% 
-  dplyr::select(PC1)
-
-temp.seed <- seedling_data_pcapts %>% 
-  pluck(i) %>% 
-  ungroup() %>% 
-  dplyr::select(PC1)
-
-temp.test<- t.test(temp.adult, temp.seed, paired=FALSE, var.equal = FALSE, conf.level=0.95)
-pc1.ttest.pvalues.alt <- bind_rows(pc1.ttest.pvalues.alt, data.frame(uid = names(adult_data_pcapts)[i], diff.means = temp.test$estimate[2] - temp.test$estimate[1],p.value = temp.test$p.value))
-}
-pc1.ttest.pvalues.alt
-##replace rows with unequal variance results
-pc1.ttest.pvalues<- pc1.ttest.pvalues %>% 
-                rows_update(pc1.ttest.pvalues.alt, by="uid")
-pc1.ttest.pvalues
-
-#get dataframe in order
-pc1.ttest.pvalues
-pc1.ttest.pvalues.sep <- pc1.ttest.pvalues %>% 
-  separate(uid, c("species","agent"),sep="_",extra="drop",remove = FALSE) %>% 
-  mutate(species = as.numeric(species)) %>% 
-  left_join(species.names, by = c("species" = "species.code")) %>%   mutate(sym.pos = ifelse(p.value<0.05, 0.45, NA)) %>% 
-  filter(!(agent == "fire" & species.name %in% insectonlyspp)) %>% 
-  filter(!(agent == "insect.disease" & species.name %in% fireonlyspp)) %>% 
-  filter(!species.name == "singleleaf pinyon")
-```
-
-This plot shows the difference in seedling vs. adult positions on PC1 (seedling mean - adult mean), separated by species and disturbance type. Differences in means greater than zero indicate that seedlings occupy higher values on PC1 (cooler/wetter climates) than adults whereas negative differences in means indicate that seedlings occupy lower values on PC1 (warmer/drier climates) than adults. Asterisks indicate that seedling and adult positions on PC1 are significantly different (p\<0.05), as evaluated with a T-test.
-
-```{r,echo=FALSE}
-
-allspp_pc1<- ggplot(pc1.ttest.pvalues.sep, aes(x = agent, y = diff.means, fill = agent))+
-  geom_col()+
-  geom_text(data = subset(pc1.ttest.pvalues.sep, !is.na(sym.pos)), aes(x=agent, y=sym.pos), label="*", color="black",size=8)+
-  scale_fill_manual(values=disturbance.colors)+
-  geom_hline(yintercept=0,col="black")+
-  facet_wrap(~species.name,nrow=3)+
-  ylim(c(-0.2,0.5))+
-  ggtitle("PC1")+
-  xlab("")+
-  ylab("Difference in Means")+
-  labs(fill = "Disturbance Agent")+
-  theme_bw()+
-  theme(axis.text.x = element_text(angle=45, hjust=1), axis.text=element_text(color="black", size=14), legend.text = element_text(color="black", size=14), text=element_text(color="black", size=14), strip.text = element_text(color="black", size=11), legend.position = "none",legend.justification = c(1, -0.3))
-
-# png("allspecies.plot.pc1.png", width=700,height=600)
-# 
- allspp_pc1
-# 
-# dev.off()
-```
-
-###PC2
-
-Now for PC2, where postive differences mean that seedlings occupied higher values on PC2 (colder/drier climates) than adults, and negative differences mean that seedlings occupied lower values on PC2 (warmer/wetter climates).
-
-```{r, echo=FALSE, results='hide'}
-##check for normality on PC2
-
-##adults
-pc2_adultplots = list()
-for(i in 1:length(adult_data)){
-group <- adult_data_pcapts %>% 
-  pluck(i) %>% 
-  ungroup() %>% 
-  pull(PC2) 
-pc2_adultplots[[i]]<- group
-}
-
-pc2_plotlist<- list()
-for(i in 1:length(adult_data)){
-  plot<- ggdensity(pc2_adultplots[[i]])
-  pc2_plotlist[[i]]<- plot
-}
-pc2_qplotlist<- list()
-for(i in 1:length(adult_data)){
-  plot<- ggqqplot(pc2_adultplots[[i]])
-  pc2_qplotlist[[i]]<- plot
-}
-
-##seedlings
-pc2_seedlingplots = list()
-for(i in 1:length(adult_data)){
-group <- seedling_data_pcapts %>% 
-  pluck(i) %>% 
-  ungroup() %>% 
-  pull(PC2) 
-pc2_seedlingplots[[i]]<- group
-}
-
-pc2_splotlist<- list()
-for(i in 1:length(adult_data)){
-  plot<- ggdensity(pc2_seedlingplots[[i]])
-  pc2_splotlist[[i]]<- plot
-}
-pc2_sqplotlist<- list()
-for(i in 1:length(adult_data)){
-  plot<- ggqqplot(pc2_seedlingplots[[i]])
-  pc2_sqplotlist[[i]]<- plot
-}
-
-##test for equal variance. p<0.05 indicates unequal variance
-pc2_vartest.results<-data.frame()
-for(i in 1:length(adult_data)){
-vartest<- var.test(pc2_seedlingplots[[i]],pc2_adultplots[[i]],alternative="two.sided")
-pc2_vartest.results<-rbind(pc2_vartest.results, data.frame(num=i, p=vartest$p.value))
-}   
-pc2_vartest.results %>% 
-  filter(p<0.05)
-```
-
-```{r, eval=FALSE, echo=FALSE}
-#plot checks for normality PC2
-##adults
-# multiplot(plotlist=pc2_plotlist[1:16],cols=4)
-# multiplot(plotlist=pc2_qplotlist[1:16],cols=4)
-# multiplot(plotlist=pc2_qplotlist[17:33],cols=4)
-
-##seedlings
-# multiplot(plotlist=pc2_splotlist,cols=4)
-# multiplot(plotlist=pc2_sqplotlist[1:16],cols=4)
-# multiplot(plotlist=pc2_sqplotlist[17:33],cols=4)
-
-```
-
-```{r}
-#shapiro test to formally evaluate normality of data. Even though, not all pass this test, I think we can still use t-test because sample size is relatively large 
-
-#shapiro test for adults
-pc2.shapiro.results.a<-data.frame()
-for(i in 1:length(adult_data)){
-shapiro<- shapiro.test(pc2_adultplots[[i]])
-pc2.shapiro.results.a<-rbind(pc2.shapiro.results.a, data.frame(num=i, p=shapiro$p))
-} 
-pc2.shapiro.results.a %>% 
-  filter(p<0.05)
-
-#this table shows sample size for adult data that didn't pass normality test. Lowest for adults is 195, I think this is reasonably large to still use a t-test. 
-pc2.shapiro.results.a %>% 
-  filter(p<0.05) %>% 
-  left_join(data.names, by='num') %>% 
-  separate(name,sep="_",into=c("species","agent","var")) %>% 
-  mutate(species=as.numeric(species)) %>% 
-  left_join(sample_size, by=c("species"="SPCD","agent"="Agent")) %>% 
-  datatable()
-
-
-pc2.shapiro.results.s<-data.frame()
-for(i in 1:length(pc2_seedlingplots)){
-shapiro<- shapiro.test(pc2_seedlingplots[[i]])
-pc2.shapiro.results.s<-rbind(pc2.shapiro.results.s, data.frame(num=i, p=shapiro$p))
-} 
-pc2.shapiro.results.s %>% 
-  filter(p<0.05)
-
-#this table shows sample size for seedling data that didn't pass normality test. Lowest is 67. I think this is ok for t-test.   
-pc2.shapiro.results.s %>% 
-  filter(p<0.05) %>% 
-  left_join(data.names, by='num') %>% 
-  separate(name,sep="_",into=c("species","agent","var")) %>% 
-  mutate(species=as.numeric(species)) %>% 
-  left_join(sample_size, by=c("species"="SPCD","agent"="Agent")) %>%   datatable()
-
-```
-
-```{r, echo=FALSE, results='hide'}
-#do the t-test with assumption of equal vars PC2
-pc2.ttest.pvalues <- data.frame()
-for(i in 1:length(adult_data_pcapts)){
-temp.adult <- adult_data_pcapts %>% 
-  pluck(i) %>% 
-  ungroup() %>% 
-  dplyr::select(PC2)
-
-temp.seed <- seedling_data_pcapts %>% 
-  pluck(i) %>% 
-  ungroup() %>% 
-  dplyr::select(PC2)
-
-temp.test<- t.test(temp.adult, temp.seed, paired=FALSE, var.equal = TRUE, conf.level=0.95)
-pc2.ttest.pvalues <- bind_rows(pc2.ttest.pvalues, data.frame(uid = names(adult_data_pcapts)[i], diff.means = temp.test$estimate[2] - temp.test$estimate[1],p.value = temp.test$p.value))
-
-}
-
-#unequal variance t-test for some species/disturbances for PC2
-pc2.unequal.var <- pc2_vartest.results %>% 
-                      filter(p<0.05)
-
-pc2.ttest.pvalues.alt <- data.frame()
-for(i in pc2.unequal.var$num){
-temp.adult <- adult_data_pcapts %>% 
-  pluck(i) %>% 
-  ungroup() %>% 
-  dplyr::select(PC2)
-
-temp.seed <- seedling_data_pcapts %>% 
-  pluck(i) %>% 
-  ungroup() %>% 
-  dplyr::select(PC2)
-
-temp.test<- t.test(temp.adult, temp.seed, paired=FALSE, var.equal = FALSE, conf.level=0.95)
-pc2.ttest.pvalues.alt <- bind_rows(pc2.ttest.pvalues.alt, data.frame(uid = names(adult_data_pcapts)[i], diff.means = temp.test$estimate[2] - temp.test$estimate[1],p.value = temp.test$p.value))
-}
-pc2.ttest.pvalues.alt
-##replace rows with unequal variance results
-pc2.ttest.pvalues<- pc2.ttest.pvalues %>% 
-                rows_update(pc2.ttest.pvalues.alt, by="uid")
-pc2.ttest.pvalues
-
-#get data in order
-pc2.ttest.pvalues
-pc2.ttest.pvalues.sep <- pc2.ttest.pvalues %>% 
-  separate(uid, c("species","agent"),sep="_",extra="drop",remove = FALSE) %>% 
-  mutate(species = as.numeric(species)) %>% 
-  left_join(species.names, by = c("species" = "species.code")) %>%   mutate(sym.pos = ifelse(p.value<0.05, 0.5, NA)) %>% 
-  filter(!(agent=="fire" & species.name %in% insectonlyspp)) %>% 
-  filter(!(agent=="insect.disease" & species.name %in% fireonlyspp)) %>% 
-  filter(!species.name=="singleleaf pinyon")
-```
-
-```{r, echo=FALSE}
-allspp_pc2<- ggplot(pc2.ttest.pvalues.sep, aes(x = agent, y = diff.means, fill = agent))+
-  geom_col()+
-  geom_text(data = subset(pc2.ttest.pvalues.sep, !is.na(sym.pos)), aes(x=agent, y=sym.pos), label="*", color="black",size=8)+
-  scale_fill_manual(values=disturbance.colors)+
-  geom_hline(yintercept=0,col="black")+
-  facet_wrap(~species.name, nrow=3)+
-  ylim(c(-0.31,0.55))+
-  ggtitle("PC2")+
-  xlab("")+
-  ylab("Difference in Means")+
-  labs(fill = "Disturbance Agent")+
-  theme_bw()+
-  theme(axis.text.x = element_text(angle=45, hjust=1), axis.text=element_text(color="black",size=14), text=element_text(color="black",size=14), legend.text = element_text(color="black",size=14), strip.text = element_text(color="black",size=11),legend.position = "none", legend.justification = c(1,-0.3))
-
-# png("allsp_plot_pc2.png", width=700, height=600)
-# 
- allspp_pc2
-# 
-# dev.off()
-```
-
-##Niche models
-
-Now I will use Bayesian methods to fit multivariate normal distributions to the distribution of points in PC space for each species x lifestage x disturbance combination. These take a while to run so I have saved them as objects and read them back in each time. 
+###Modeling
 
 ```{r, echo=FALSE}
 #extract all species x disturbance combinations and make into iso style data
@@ -1983,614 +1557,6 @@ Now I will use Bayesian methods to fit multivariate normal distributions to the 
 ```
 
 
-```{r}
-##This is just trying ppt and nffd instead of the PCs 
-
-# iso_data_2d <- list()
-# for(i in 1:length(adult_data_pcapts)){
-#     temp_iso <- rbind(adult_data[[i]],seedling_data[[i]]) %>%
-#   dplyr::select(c("nffd","ppt")) %>%
-#   mutate(group=c(rep(1,nrow(adult_data[[i]])),rep(2,nrow(seedling_data[[i]]))),community=1) %>%
-#   dplyr::rename(iso1=nffd,iso2=ppt)
-#     iso_data_2d[[i]]<- temp_iso
-# }
-# names(iso_data_2d)<-names(adult_data)
-# names(iso_data_2d)
-# 
-# siber.objs2d <- list()
-# for(i in 1:length(iso_data_2d)){
-#   temp.obj<- createSiberObject(as.data.frame(iso_data_2d[[i]]))
-#   siber.objs2d[[i]]<- temp.obj
-# }
-# names(siber.objs2d)<-names(adult_data)
-# 
-# #estimate multivariate normal ellipses for each group using bayesian estimation
-# 
-# # options for running jags
-# 
-# parms <- list()
-# parms$n.iter <- 2 * 10^4   # number of iterations to run the model for
-# parms$n.burnin <- 1 * 10^3 # discard the first set of values
-# parms$n.thin <- 10     # thin the posterior by this many
-# parms$n.chains <- 2        # run this many chains
-# 
-# 
-# # set save.output = TRUE
-# parms$save.output = TRUE
-# # you might want to change the directory to your local directory or a
-# # sub folder in your current working directory. I have to set it to a
-# # temporary directory that R creates and can use for the purposes of this
-# # generic vignette that has to run on any computer as the package is
-# # built and installed.
-# parms$save.dir = getwd()
-# 
-# # # define the priors
-# #
-# priors <- list()
-# priors$R <- 1 * diag(2)
-# priors$k <- 2
-# priors$tau.mu <- 1.0E-3
-# 
-# # # fit the ellipses which uses an Inverse Wishart prior on the covariance matrix Sigma, and a vague normal prior on the means. Fitting is via the JAGS method.
-# 
-# ellipses.posterior.list2d <- list()
-# for(i in 1:length(siber.objs2d)){
-#   temp.mvn <- siberMVN(siber.objs2d[[i]], parms, priors)
-#   ellipses.posterior.list2d[[i]] <- temp.mvn
-#   }
-# names(ellipses.posterior.list2d)<-names(siber.objs2d)
-# 
-# SEA.B.list2d <- list()
-# for(i in 1:length(ellipses.posterior.list2d)){
-#   temp.SEA.B <- siberEllipses(ellipses.posterior.list2d[[i]])
-#   SEA.B.list2d[[i]] <- temp.SEA.B
-# }
-#  names(SEA.B.list2d)<-names(siber.objs2d)
-#  
-#  ###post bayes analysis
-#  
-# #look at niche margins
-# 
-# pos1_1 <- ellipses.posterior.list2d[[1]]$'1.1'
-# 
-# ellipse_margins_2d_list<- list()
-# ellipse_margins_2d <- data.frame(xmax_adult=NA, xmin_adult=NA, ymax_adult=NA, ymin_adult=NA,
-#                               xmax_seed=NA, xmin_seed=NA, ymax_seed=NA, ymin_seed=NA)
-# 
-# ellipmargfun<- function(ellipses.posterior.list2d_element){
-# for(i in 1:nrow(ellipses.posterior.list2d_element$'1.1')){
-# pos_adult_2d <- ellipses.posterior.list2d_element$'1.1'
-# pos_seed_2d <- ellipses.posterior.list2d_element$'1.2'
-# 
-# ellipse_adult_2d<- addEllipse(mu = pos_adult_2d[i,5:6], sigma = matrix(pos_adult_2d[i,1:4],ncol=2,nrow=2), p.interval = 0.95)
-# xmax_adult = max(ellipse_adult_2d[,1])
-# ymax_adult = max(ellipse_adult_2d[,2])
-# xmin_adult = min(ellipse_adult_2d[,1])
-# ymin_adult = min(ellipse_adult_2d[,2])
-# ellipse_seed_2d<- addEllipse(mu = pos_seed_2d[i,5:6], sigma = matrix(pos_seed_2d[i,1:4],ncol=2,nrow=2), p.interval = 0.95)
-# xmax_seed = max(ellipse_seed_2d[,1])
-# ymax_seed = max(ellipse_seed_2d[,2])
-# xmin_seed = min(ellipse_seed_2d[,1])
-# ymin_seed = min(ellipse_seed_2d[,2])
-# ellipse_margins_2d[i,] = c(xmax_adult, xmin_adult, ymax_adult, ymin_adult,xmax_seed, xmin_seed, ymax_seed, ymin_seed)
-# }
-# return(ellipse_margins_2d)  
-# }
-# 
-# 
-# ellipmargfun(ellipses.posterior.list2d[[1]])
-# 
-#  ellipse_margins_2d_list<- lapply(X = ellipses.posterior.list2d, FUN=ellipmargfun)
-# 
-# ###now calculate with relativizing by adult niche width. 
-# max1_rel_2d<- matrix(nrow=length(ellipse_margins_2d_list),ncol=4)
-# min1_rel_2d<- matrix(nrow=length(ellipse_margins_2d_list),ncol=4)
-# 
-# max2_rel_2d<- matrix(nrow=length(ellipse_margins_2d_list),ncol=4)
-# min2_rel_2d<- matrix(nrow=length(ellipse_margins_2d_list),ncol=4)
-# 
-# for(i in 1:length(ellipse_margins_2d_list)){
-# max1diff_2d<- (ellipse_margins_2d_list[[i]][,'xmax_seed'] - ellipse_margins_2d_list[[i]][,'xmax_adult'])/ (ellipse_margins_2d_list[[i]][,'xmax_adult'] - ellipse_margins_2d_list[[i]][,'xmin_adult'])
-# max1sum_2d<- c(names(ellipse_margins_2d_list)[i],mean(max1diff_2d),quantile(max1diff_2d, c(.025,.975)))
-# max1_rel_2d[i,]<- max1sum_2d
-# min1diff_2d<- (ellipse_margins_2d_list[[i]][,'xmin_seed'] - ellipse_margins_2d_list[[i]][,'xmin_adult'])/(ellipse_margins_2d_list[[i]][,'xmax_adult'] - ellipse_margins_2d_list[[i]][,'xmin_adult'])
-# min1sum_2d<- c(names(ellipse_margins_2d_list)[i],mean(min1diff_2d),quantile(min1diff_2d, c(.025,.975)))
-# min1_rel_2d[i,]<- min1sum_2d
-# 
-# max2diff_2d<- (ellipse_margins_2d_list[[i]][,'ymax_seed'] - ellipse_margins_2d_list[[i]][,'ymax_adult'])/(ellipse_margins_2d_list[[i]][,'ymax_adult'] - ellipse_margins_2d_list[[i]][,'ymin_adult'])
-# max2sum_2d<- c(names(ellipse_margins_2d_list)[i],mean(max2diff_2d),quantile(max2diff_2d, c(.025,.975)))
-# max2_rel_2d[i,]<- max2sum_2d
-# min2diff_2d<- (ellipse_margins_2d_list[[i]][,'ymin_seed'] - ellipse_margins_2d_list[[i]][,'ymin_adult'])/(ellipse_margins_2d_list[[i]][,'ymax_adult'] - ellipse_margins_2d_list[[i]][,'ymin_adult'])
-# min2sum_2d<- c(names(ellipse_margins_2d_list)[i],mean(min2diff_2d),quantile(min2diff_2d, c(.025,.975)))
-# min2_rel_2d[i,]<- min2sum_2d
-# }
-# 
-# ##need to create pc1means table
-# 
-# pc1.means<- vector()
-# for(i in 1:length(adult_data_pcapts)){
-#   temp.mean <- adult_data_pcapts[[i]] %>% 
-#     dplyr::summarise(mean(PC1))
-#   pc1.means[i]<-temp.mean 
-# }
-# unlist(pc1.means)
-# 
-# pc1means.table <- as.data.frame(matrix(unlist(pc1.means),nrow=length(pc1.means),ncol=1)) %>% 
-#   mutate(names =  names(adult_data_pcapts)) %>% 
-#   tidyr::separate(names,into=c("species.code","disturbance","extra"),sep="_") %>% 
-#   mutate(species.code = as.numeric(species.code)) %>% 
-#   left_join(species.names) %>% 
-#   dplyr::rename(pc1mean = V1) %>% 
-#   group_by(species.name) %>% 
-#   dplyr::summarise(pc1speciesmean = mean(pc1mean)) %>% ungroup() %>% 
-#   filter(!species.name=="singleleaf pinyon") %>% 
-#   arrange(pc1speciesmean) %>% 
-#   mutate(number=seq(1:15))
-# ################
-# 
-# max1_rel_2d_df <- as.data.frame(max1_rel_2d) %>% dplyr::rename(group=V1, mean=V2, lwr = V3, upr = V4) %>% mutate(mean=as.numeric(mean),lwr=as.numeric(lwr),upr=as.numeric(upr)) %>% 
-#   mutate(sig = ifelse(lwr>0&upr>0, "yes", ifelse(lwr<0 & upr<0, "yes", "no"))) %>% 
-#   mutate(species= substr(group, 0,3),
-#          dist =  str_extract(group,"_.+_")) %>% 
-#   mutate(dist= gsub("_","",dist),
-#          species = as.numeric(gsub("_","",species))) %>% 
-#   left_join(species.names %>% mutate(species.code=as.numeric(species.code)),by=c("species"="species.code")) %>% 
-#   left_join(pc1means.table) %>% 
-#   filter(!species.name == "singleleaf pinyon")
-# 
-# min1_rel_2d_df <- as.data.frame(min1_rel_2d) %>% dplyr::rename(group=V1, mean=V2, lwr = V3, upr = V4) %>% mutate(mean=as.numeric(mean),lwr=as.numeric(lwr),upr=as.numeric(upr)) %>% 
-#   mutate(sig = ifelse(lwr>0&upr>0, "yes", ifelse(lwr<0 & upr<0, "yes", "no"))) %>% 
-#   mutate(species= substr(group, 0,3),
-#          dist =  str_extract(group,"_.+_")) %>% 
-#   mutate(dist= gsub("_","",dist),
-#          species = as.numeric(gsub("_","",species))) %>% 
-#   left_join(species.names %>% mutate(species.code=as.numeric(species.code)),by=c("species"="species.code")) %>% 
-#   left_join(pc1means.table)%>% 
-#   filter(!species.name == "singleleaf pinyon")
-# 
-# max2_rel_2d_df <- as.data.frame(max2_rel_2d) %>% dplyr::rename(group=V1, mean=V2, lwr = V3, upr = V4) %>% mutate(mean=as.numeric(mean),lwr=as.numeric(lwr),upr=as.numeric(upr)) %>% 
-#   mutate(sig = ifelse(lwr>0&upr>0, "yes", ifelse(lwr<0 & upr<0, "yes", "no"))) %>% 
-#   mutate(species= substr(group, 0,3),
-#          dist =  str_extract(group,"_.+_")) %>% 
-#   mutate(dist= gsub("_","",dist),
-#          species = as.numeric(gsub("_","",species))) %>% 
-#   left_join(species.names %>% mutate(species.code=as.numeric(species.code)),by=c("species"="species.code")) %>% 
-#   left_join(pc1means.table)%>% 
-#   filter(!species.name == "singleleaf pinyon")
-# 
-# min2_rel_2d_df <- as.data.frame(min2_rel_2d) %>% dplyr::rename(group=V1, mean=V2, lwr = V3, upr = V4) %>% mutate(mean=as.numeric(mean),lwr=as.numeric(lwr),upr=as.numeric(upr)) %>% 
-#   mutate(sig = ifelse(lwr>0&upr>0, "yes", ifelse(lwr<0 & upr<0, "yes", "no"))) %>% 
-#   mutate(species= substr(group, 0,3),
-#          dist =  str_extract(group,"_.+_")) %>% 
-#   mutate(dist= gsub("_","",dist),
-#          species = as.numeric(gsub("_","",species))) %>% 
-#   left_join(species.names %>% mutate(species.code=as.numeric(species.code)),by=c("species"="species.code")) %>% 
-#   left_join(pc1means.table)%>% 
-#   filter(!species.name == "singleleaf pinyon")
-# 
-# 
-# ggplot(min1_rel_2d_df, aes(x=factor(species.name,levels=pc1means.table %>% arrange(pc1speciesmean) %>% pull(species.name)), y=mean, fill=pc1speciesmean, col=sig))+
-#   geom_errorbar(aes(ymin=lwr,ymax=upr, col=sig))+
-#     geom_point(pch=21)+
-#   geom_hline(yintercept=0)+
-#   scale_fill_gradient2(low="#F21A00", mid = "#E9C925", high="#3A9AB2", midpoint=0, name="nffd Mean")+
-#   scale_color_manual(values=c("gray","black"))+
-#   facet_wrap(~dist)+
-#   ggtitle("nffd 2.5%")+
-#   theme(axis.text.x = element_text(angle=50, hjust=1,size=8),axis.title.x = element_blank())
-# 
-# ggplot(max1_rel_2d_df, aes(x=factor(species.name,levels=pc1means.table %>% arrange(pc1speciesmean) %>% pull(species.name)), y=mean, fill=pc1speciesmean, col=sig))+
-#   geom_errorbar(aes(ymin=lwr,ymax=upr, col=sig))+
-#     geom_point(pch=21)+
-#   geom_hline(yintercept=0)+
-#   scale_fill_gradient2(low="#F21A00", mid = "#E9C925", high="#3A9AB2", midpoint=0, name="nffd Mean")+
-#   scale_color_manual(values=c("gray","black"))+
-#   facet_wrap(~dist)+
-#   ggtitle("nffd 97.5%")+
-#   theme(axis.text.x = element_text(angle=50, hjust=1,size=8),axis.title.x = element_blank())
-# 
-# ggplot(min2_rel_2d_df, aes(x=factor(species.name,levels=pc1means.table %>% arrange(pc1speciesmean) %>% pull(species.name)), y=mean, fill=pc1speciesmean, col=sig))+
-#   geom_errorbar(aes(ymin=lwr,ymax=upr, col=sig))+
-#     geom_point(pch=21)+
-#   geom_hline(yintercept=0)+
-#   scale_fill_gradient2(low="#F21A00", mid = "#E9C925", high="#3A9AB2", midpoint=0, name="nffd Mean")+
-#   scale_color_manual(values=c("gray","black"))+
-#   facet_wrap(~dist)+
-#   ggtitle("ppt 2.5%")+
-#   theme(axis.text.x = element_text(angle=50, hjust=1,size=8),axis.title.x = element_blank())
-# 
-# ggplot(max2_rel_2d_df, aes(x=factor(species.name,levels=pc1means.table %>% arrange(pc1speciesmean) %>% pull(species.name)), y=mean, fill=pc1speciesmean, col=sig))+
-#   geom_errorbar(aes(ymin=lwr,ymax=upr, col=sig))+
-#     geom_point(pch=21)+
-#   geom_hline(yintercept=0)+
-#   scale_fill_gradient2(low="#F21A00", mid = "#E9C925", high="#3A9AB2", midpoint=0, name="nffd Mean")+
-#   scale_color_manual(values=c("gray","black"))+
-#   facet_wrap(~dist)+
-#   ggtitle("ppt 97.5%")+
-#   theme(axis.text.x = element_text(angle=50, hjust=1,size=8),axis.title.x = element_blank())
-# 
-# 
-# #relativized
-# mu1_2d_rel<- matrix(nrow=length(ellipses.posterior.list2d),ncol=4)
-# mu2_2d_rel<- matrix(nrow=length(ellipses.posterior.list2d),ncol=4)
-# 
-# for(i in 1:length(ellipses.posterior.list2d)){
-# mu1_2d_reldiff<- (ellipses.posterior.list2d[[i]]$`1.2`[,'mu[1]'] - ellipses.posterior.list2d[[i]]$`1.1`[,'mu[1]'])/(ellipse_margins_2d_list[[i]][,'xmax_adult'] - ellipse_margins_2d_list[[i]][,'xmin_adult'])
-# mu1_2d_relsum<- c(names(ellipses.posterior.list2d)[i],mean(mu1_2d_reldiff),quantile(mu1_2d_reldiff, c(.025,.975)))
-# mu1_2d_rel[i,]<- mu1_2d_relsum
-# 
-# mu2_2d_reldiff<- (ellipses.posterior.list2d[[i]]$`1.2`[,'mu[2]'] - ellipses.posterior.list2d[[i]]$`1.1`[,'mu[2]'])/ (ellipse_margins_2d_list[[i]][,'ymax_adult'] - ellipse_margins_2d_list[[i]][,'ymin_adult'])
-# mu2_2d_relsum<- c(names(ellipses.posterior.list2d)[i],mean(mu2_2d_reldiff),quantile(mu2_2d_reldiff, c(.025,.975)))
-# mu2_2d_rel[i,]<- mu2_2d_relsum
-# }
-# mu1_2d_rel_df<- as.data.frame(mu1_2d_rel) %>% dplyr::rename(group=V1, mean=V2, lwr = V3, upr = V4) %>% mutate(mean=as.numeric(mean),lwr=as.numeric(lwr),upr=as.numeric(upr)) %>% 
-#   mutate(sig = ifelse(lwr>0&upr>0, "yes", ifelse(lwr<0 & upr<0, "yes", "no"))) %>% 
-#   mutate(species= substr(group, 0,3),
-#          dist =  str_extract(group,"_.+_")) %>% 
-#   mutate(dist= gsub("_","",dist),
-#          species = as.numeric(gsub("_","",species))) %>% 
-#   left_join(species.names,by=c("species"="species.code")) %>% 
-#     left_join(pc1means.table)%>% 
-#     filter(!species.name == "singleleaf pinyon")
-# 
-# mu2_2d_rel_df<- as.data.frame(mu2_2d_rel) %>% dplyr::rename(group=V1, mean=V2, lwr = V3, upr = V4) %>% mutate(mean=as.numeric(mean),lwr=as.numeric(lwr),upr=as.numeric(upr)) %>% 
-#   mutate(sig = ifelse(lwr>0&upr>0, "yes", ifelse(lwr<0 & upr<0, "yes", "no"))) %>% 
-#   mutate(species= substr(group, 0,3),
-#          dist =  str_extract(group,"_.+_")) %>% 
-#   mutate(dist= gsub("_","",dist),
-#          species = as.numeric(gsub("_","",species))) %>% 
-#   left_join(species.names,by=c("species"="species.code")) %>% 
-#       left_join(pc1means.table)%>% 
-#     filter(!species.name == "singleleaf pinyon")
-# 
-# ######relativized
-# nffd_df_rel<- bind_rows(mu1_2d_rel_df %>% mutate(var="nffd centroid", species=as.numeric(species)),
-# max1_rel_2d_df %>% mutate(var="nffd max"),
-#  min1_rel_2d_df %>% mutate(var="nffd min")) %>% 
-# #   mutate(mean=ifelse(var=="nffd max",mean+.8,ifelse(var=="nffd min", mean-.8,mean)),
-# #          lwr=ifelse(var=="nffd max",lwr+.8,ifelse(var=="nffd min", lwr-.8,lwr)),
-# #          upr=ifelse(var=="nffd max",upr+.8,ifelse(var=="nffd min", upr-.8,upr)))
-#   left_join(pc1means.table)
-# 
-# nffd_reldiff<- ggplot(nffd_df_rel, aes(x=factor(number,levels=pc1means.table %>% arrange(pc1speciesmean) %>% pull(number)), y=mean, fill=pc1speciesmean, col=sig))+
-#   geom_errorbar(aes(ymin=lwr,ymax=upr, col=sig),width=0.2,size=1)+
-#     geom_point(pch=21, size=2)+
-#   geom_hline(yintercept=0,lty=1)+
-#   scale_fill_gradient2(low="#F21A00", mid = "#E9C925", high="#3A9AB2", midpoint=0, name="nffd Mean")+
-#   scale_color_manual(values=c("gray","black"),name="Significance")+
-#   facet_grid(factor(var, levels=c("nffd max","nffd centroid","nffd min"), labels=c("97.5%","centroid","2.5%"))~dist, scales = "free")+
-#   #scale_y_continuous(breaks=seq(-5,5,1))+
-#   #annotate(geom="text",x=4, y=-4.5, label="hot/dry",col="black", size=5 )+
-#   #annotate(geom="text", x=4, y=6,label="cold/wet",col="black", size=5)+
-#   ylab("Relativized Difference in Margin Position")+
-#   xlab("Species")+
-#   ggtitle("nffd")+
-#   theme_bw()+
-#   theme(axis.text.x = element_text(angle=60, hjust=1,size=9, color="black"),axis.title.x = element_text(size=12, color="black"),axis.text.y = element_text(size=10, colour = "black"),axis.title.y = element_text(size=12, color="black"), strip.text = element_text(size = 12), title=element_text(size=14), legend.position = "right")
-# 
-# 
-# ppt_df_rel<- bind_rows(mu2_2d_rel_df %>% mutate(var="ppt centroid", species=as.numeric(species)),
-# max2_rel_2d_df %>% mutate(var="ppt max"),
-#  min2_rel_2d_df %>% mutate(var="ppt min")) %>% 
-# #   mutate(mean=ifelse(var=="ppt max",mean+.8,ifelse(var=="ppt min", mean-.8,mean)),
-# #          lwr=ifelse(var=="ppt max",lwr+.8,ifelse(var=="ppt min", lwr-.8,lwr)),
-# #          upr=ifelse(var=="ppt max",upr+.8,ifelse(var=="ppt min", upr-.8,upr)))
-#   left_join(pc1means.table)
-# 
-# ppt_reldiff<- ggplot(ppt_df_rel, aes(x=factor(number,levels=pc1means.table %>% arrange(pc1speciesmean) %>% pull(number)), y=mean, fill=pc1speciesmean, col=sig))+
-#   geom_errorbar(aes(ymin=lwr,ymax=upr, col=sig),width=0.2,size=1)+
-#   geom_point(pch=21, size=2)+
-#   geom_hline(yintercept=0,lty=1)+
-#   scale_fill_gradient2(low="#F21A00", mid = "#E9C925", high="#3A9AB2", midpoint=0.32942, name="nffd Mean")+
-#   scale_color_manual(values=c("gray","black"),name="Significance")+
-#   facet_grid(factor(var, levels=c("ppt max","ppt centroid","ppt min"), labels=c("97.5%","centroid","2.5%"))~dist, scales = "free")+
-#   scale_y_continuous(breaks=seq(-.8,.8,.4))+
-#   #annotate(geom="text",x=4, y=-4.5, label="hot/dry",col="black", size=5 )+
-#   #annotate(geom="text", x=4, y=6,label="cold/wet",col="black", size=5)+
-#   ylab("Relativized Difference in Margin Position")+
-#   xlab("Species")+
-#   ggtitle("ppt")+
-#   theme_bw()+
-#   theme(axis.text.x = element_text(angle=60, hjust=1,size=9, color="black"),axis.title.x = element_text(size=12, color="black"),axis.text.y = element_text(size=10, colour = "black"),axis.title.y = element_text(size=12, color="black"), strip.text = element_text(size = 12), title=element_text(size=14), legend.position = "right")
-# 
-# ggarrange(nffd_reldiff, ppt_reldiff, nrow=2, common.legend = T, labels = c("A)","B)"), legend = "right")
-#                                                                                   
-```              
-
-```{r}
-# ##tying out just using nffd and ppt instead of the PCA
-# iso_data_2d <- list()
-# for(i in 1:length(adult_data_pcapts)){
-#     temp_iso <- rbind(adult_data[[i]],seedling_data[[i]]) %>%
-#   dplyr::select(c("nffd","ppt")) %>%
-#   mutate(group=c(rep(1,nrow(adult_data[[i]])),rep(2,nrow(seedling_data[[i]]))),community=1) %>%
-#   dplyr::rename(iso1=nffd,iso2=ppt)
-#     iso_data_2d[[i]]<- temp_iso
-# }
-# names(iso_data_2d)<-names(adult_data)
-# names(iso_data_2d)
-# 
-# siber.objs2d <- list()
-# for(i in 1:length(iso_data_2d)){
-#   temp.obj<- createSiberObject(as.data.frame(iso_data_2d[[i]]))
-#   siber.objs2d[[i]]<- temp.obj
-# }
-# names(siber.objs2d)<-names(adult_data)
-# 
-# #estimate multivariate normal ellipses for each group using bayesian estimation
-# 
-# # options for running jags
-# 
-# parms <- list()
-# parms$n.iter <- 2 * 10^4   # number of iterations to run the model for
-# parms$n.burnin <- 1 * 10^3 # discard the first set of values
-# parms$n.thin <- 10     # thin the posterior by this many
-# parms$n.chains <- 2        # run this many chains
-# 
-# 
-# # set save.output = TRUE
-# parms$save.output = TRUE
-# # you might want to change the directory to your local directory or a
-# # sub folder in your current working directory. I have to set it to a
-# # temporary directory that R creates and can use for the purposes of this
-# # generic vignette that has to run on any computer as the package is
-# # built and installed.
-# parms$save.dir = getwd()
-# 
-# # # define the priors
-# #
-# priors <- list()
-# priors$R <- 1 * diag(2)
-# priors$k <- 2
-# priors$tau.mu <- 1.0E-3
-# 
-# # # fit the ellipses which uses an Inverse Wishart prior on the covariance matrix Sigma, and a vague normal prior on the means. Fitting is via the JAGS method.
-# 
-# ellipses.posterior.list2d <- list()
-# for(i in 1:length(siber.objs2d)){
-#   temp.mvn <- siberMVN(siber.objs2d[[i]], parms, priors)
-#   ellipses.posterior.list2d[[i]] <- temp.mvn
-#   }
-# names(ellipses.posterior.list2d)<-names(siber.objs2d)
-# 
-# SEA.B.list2d <- list()
-# for(i in 1:length(ellipses.posterior.list2d)){
-#   temp.SEA.B <- siberEllipses(ellipses.posterior.list2d[[i]])
-#   SEA.B.list2d[[i]] <- temp.SEA.B
-# }
-#  names(SEA.B.list2d)<-names(siber.objs2d)
-#  
-#  ###post bayes analysis
-#  
-# #look at niche margins
-# 
-# pos1_1 <- ellipses.posterior.list2d[[1]]$'1.1'
-# 
-# ellipse_margins_2d_list<- list()
-# ellipse_margins_2d <- data.frame(xmax_adult=NA, xmin_adult=NA, ymax_adult=NA, ymin_adult=NA,
-#                               xmax_seed=NA, xmin_seed=NA, ymax_seed=NA, ymin_seed=NA)
-# 
-# ellipmargfun<- function(ellipses.posterior.list2d_element){
-# for(i in 1:nrow(ellipses.posterior.list2d_element$'1.1')){
-# pos_adult_2d <- ellipses.posterior.list2d_element$'1.1'
-# pos_seed_2d <- ellipses.posterior.list2d_element$'1.2'
-# 
-# ellipse_adult_2d<- addEllipse(mu = pos_adult_2d[i,5:6], sigma = matrix(pos_adult_2d[i,1:4],ncol=2,nrow=2), p.interval = 0.95)
-# xmax_adult = max(ellipse_adult_2d[,1])
-# ymax_adult = max(ellipse_adult_2d[,2])
-# xmin_adult = min(ellipse_adult_2d[,1])
-# ymin_adult = min(ellipse_adult_2d[,2])
-# ellipse_seed_2d<- addEllipse(mu = pos_seed_2d[i,5:6], sigma = matrix(pos_seed_2d[i,1:4],ncol=2,nrow=2), p.interval = 0.95)
-# xmax_seed = max(ellipse_seed_2d[,1])
-# ymax_seed = max(ellipse_seed_2d[,2])
-# xmin_seed = min(ellipse_seed_2d[,1])
-# ymin_seed = min(ellipse_seed_2d[,2])
-# ellipse_margins_2d[i,] = c(xmax_adult, xmin_adult, ymax_adult, ymin_adult,xmax_seed, xmin_seed, ymax_seed, ymin_seed)
-# }
-# return(ellipse_margins_2d)  
-# }
-# 
-# 
-# ellipmargfun(ellipses.posterior.list2d[[1]])
-# 
-#  ellipse_margins_2d_list<- lapply(X = ellipses.posterior.list2d, FUN=ellipmargfun)
-# 
-# ###now calculate with relativizing by adult niche width. 
-# max1_rel_2d<- matrix(nrow=length(ellipse_margins_2d_list),ncol=4)
-# min1_rel_2d<- matrix(nrow=length(ellipse_margins_2d_list),ncol=4)
-# 
-# max2_rel_2d<- matrix(nrow=length(ellipse_margins_2d_list),ncol=4)
-# min2_rel_2d<- matrix(nrow=length(ellipse_margins_2d_list),ncol=4)
-# 
-# for(i in 1:length(ellipse_margins_2d_list)){
-# max1diff_2d<- (ellipse_margins_2d_list[[i]][,'xmax_seed'] - ellipse_margins_2d_list[[i]][,'xmax_adult'])/ (ellipse_margins_2d_list[[i]][,'xmax_adult'] - ellipse_margins_2d_list[[i]][,'xmin_adult'])
-# max1sum_2d<- c(names(ellipse_margins_2d_list)[i],mean(max1diff_2d),quantile(max1diff_2d, c(.025,.975)))
-# max1_rel_2d[i,]<- max1sum_2d
-# min1diff_2d<- (ellipse_margins_2d_list[[i]][,'xmin_seed'] - ellipse_margins_2d_list[[i]][,'xmin_adult'])/(ellipse_margins_2d_list[[i]][,'xmax_adult'] - ellipse_margins_2d_list[[i]][,'xmin_adult'])
-# min1sum_2d<- c(names(ellipse_margins_2d_list)[i],mean(min1diff_2d),quantile(min1diff_2d, c(.025,.975)))
-# min1_rel_2d[i,]<- min1sum_2d
-# 
-# max2diff_2d<- (ellipse_margins_2d_list[[i]][,'ymax_seed'] - ellipse_margins_2d_list[[i]][,'ymax_adult'])/(ellipse_margins_2d_list[[i]][,'ymax_adult'] - ellipse_margins_2d_list[[i]][,'ymin_adult'])
-# max2sum_2d<- c(names(ellipse_margins_2d_list)[i],mean(max2diff_2d),quantile(max2diff_2d, c(.025,.975)))
-# max2_rel_2d[i,]<- max2sum_2d
-# min2diff_2d<- (ellipse_margins_2d_list[[i]][,'ymin_seed'] - ellipse_margins_2d_list[[i]][,'ymin_adult'])/(ellipse_margins_2d_list[[i]][,'ymax_adult'] - ellipse_margins_2d_list[[i]][,'ymin_adult'])
-# min2sum_2d<- c(names(ellipse_margins_2d_list)[i],mean(min2diff_2d),quantile(min2diff_2d, c(.025,.975)))
-# min2_rel_2d[i,]<- min2sum_2d
-# }
-# 
-# 
-# max1_rel_2d_df <- as.data.frame(max1_rel_2d) %>% dplyr::rename(group=V1, mean=V2, lwr = V3, upr = V4) %>% mutate(mean=as.numeric(mean),lwr=as.numeric(lwr),upr=as.numeric(upr)) %>% 
-#   mutate(sig = ifelse(lwr>0&upr>0, "yes", ifelse(lwr<0 & upr<0, "yes", "no"))) %>% 
-#   mutate(species= substr(group, 0,3),
-#          dist =  str_extract(group,"_.+_")) %>% 
-#   mutate(dist= gsub("_","",dist),
-#          species = as.numeric(gsub("_","",species))) %>% 
-#   left_join(species.names %>% mutate(species.code=as.numeric(species.code)),by=c("species"="species.code")) %>% 
-#   left_join(pc1means.table) %>% 
-#   filter(!species.name == "singleleaf pinyon")
-# 
-# min1_rel_2d_df <- as.data.frame(min1_rel_2d) %>% dplyr::rename(group=V1, mean=V2, lwr = V3, upr = V4) %>% mutate(mean=as.numeric(mean),lwr=as.numeric(lwr),upr=as.numeric(upr)) %>% 
-#   mutate(sig = ifelse(lwr>0&upr>0, "yes", ifelse(lwr<0 & upr<0, "yes", "no"))) %>% 
-#   mutate(species= substr(group, 0,3),
-#          dist =  str_extract(group,"_.+_")) %>% 
-#   mutate(dist= gsub("_","",dist),
-#          species = as.numeric(gsub("_","",species))) %>% 
-#   left_join(species.names %>% mutate(species.code=as.numeric(species.code)),by=c("species"="species.code")) %>% 
-#   left_join(pc1means.table)%>% 
-#   filter(!species.name == "singleleaf pinyon")
-# 
-# max2_rel_2d_df <- as.data.frame(max2_rel_2d) %>% dplyr::rename(group=V1, mean=V2, lwr = V3, upr = V4) %>% mutate(mean=as.numeric(mean),lwr=as.numeric(lwr),upr=as.numeric(upr)) %>% 
-#   mutate(sig = ifelse(lwr>0&upr>0, "yes", ifelse(lwr<0 & upr<0, "yes", "no"))) %>% 
-#   mutate(species= substr(group, 0,3),
-#          dist =  str_extract(group,"_.+_")) %>% 
-#   mutate(dist= gsub("_","",dist),
-#          species = as.numeric(gsub("_","",species))) %>% 
-#   left_join(species.names %>% mutate(species.code=as.numeric(species.code)),by=c("species"="species.code")) %>% 
-#   left_join(pc1means.table)%>% 
-#   filter(!species.name == "singleleaf pinyon")
-# 
-# min2_rel_2d_df <- as.data.frame(min2_rel_2d) %>% dplyr::rename(group=V1, mean=V2, lwr = V3, upr = V4) %>% mutate(mean=as.numeric(mean),lwr=as.numeric(lwr),upr=as.numeric(upr)) %>% 
-#   mutate(sig = ifelse(lwr>0&upr>0, "yes", ifelse(lwr<0 & upr<0, "yes", "no"))) %>% 
-#   mutate(species= substr(group, 0,3),
-#          dist =  str_extract(group,"_.+_")) %>% 
-#   mutate(dist= gsub("_","",dist),
-#          species = as.numeric(gsub("_","",species))) %>% 
-#   left_join(species.names %>% mutate(species.code=as.numeric(species.code)),by=c("species"="species.code")) %>% 
-#   left_join(pc1means.table)%>% 
-#   filter(!species.name == "singleleaf pinyon")
-# 
-# 
-# ggplot(min1_rel_2d_df, aes(x=factor(species.name,levels=pc1means.table %>% arrange(pc1speciesmean) %>% pull(species.name)), y=mean, fill=pc1speciesmean, col=sig))+
-#   geom_errorbar(aes(ymin=lwr,ymax=upr, col=sig))+
-#     geom_point(pch=21)+
-#   geom_hline(yintercept=0)+
-#   scale_fill_gradient2(low="#F21A00", mid = "#E9C925", high="#3A9AB2", midpoint=0, name="nffd Mean")+
-#   scale_color_manual(values=c("gray","black"))+
-#   facet_wrap(~dist)+
-#   ggtitle("nffd 2.5%")+
-#   theme(axis.text.x = element_text(angle=50, hjust=1,size=8),axis.title.x = element_blank())
-# 
-# ggplot(max1_rel_2d_df, aes(x=factor(species.name,levels=pc1means.table %>% arrange(pc1speciesmean) %>% pull(species.name)), y=mean, fill=pc1speciesmean, col=sig))+
-#   geom_errorbar(aes(ymin=lwr,ymax=upr, col=sig))+
-#     geom_point(pch=21)+
-#   geom_hline(yintercept=0)+
-#   scale_fill_gradient2(low="#F21A00", mid = "#E9C925", high="#3A9AB2", midpoint=0, name="nffd Mean")+
-#   scale_color_manual(values=c("gray","black"))+
-#   facet_wrap(~dist)+
-#   ggtitle("nffd 97.5%")+
-#   theme(axis.text.x = element_text(angle=50, hjust=1,size=8),axis.title.x = element_blank())
-# 
-# ggplot(min2_rel_2d_df, aes(x=factor(species.name,levels=pc1means.table %>% arrange(pc1speciesmean) %>% pull(species.name)), y=mean, fill=pc1speciesmean, col=sig))+
-#   geom_errorbar(aes(ymin=lwr,ymax=upr, col=sig))+
-#     geom_point(pch=21)+
-#   geom_hline(yintercept=0)+
-#   scale_fill_gradient2(low="#F21A00", mid = "#E9C925", high="#3A9AB2", midpoint=0, name="nffd Mean")+
-#   scale_color_manual(values=c("gray","black"))+
-#   facet_wrap(~dist)+
-#   ggtitle("ppt 2.5%")+
-#   theme(axis.text.x = element_text(angle=50, hjust=1,size=8),axis.title.x = element_blank())
-# 
-# ggplot(max2_rel_2d_df, aes(x=factor(species.name,levels=pc1means.table %>% arrange(pc1speciesmean) %>% pull(species.name)), y=mean, fill=pc1speciesmean, col=sig))+
-#   geom_errorbar(aes(ymin=lwr,ymax=upr, col=sig))+
-#     geom_point(pch=21)+
-#   geom_hline(yintercept=0)+
-#   scale_fill_gradient2(low="#F21A00", mid = "#E9C925", high="#3A9AB2", midpoint=0, name="nffd Mean")+
-#   scale_color_manual(values=c("gray","black"))+
-#   facet_wrap(~dist)+
-#   ggtitle("ppt 97.5%")+
-#   theme(axis.text.x = element_text(angle=50, hjust=1,size=8),axis.title.x = element_blank())
-# 
-# 
-# #relativized
-# mu1_2d_rel<- matrix(nrow=length(ellipses.posterior.list2d),ncol=4)
-# mu2_2d_rel<- matrix(nrow=length(ellipses.posterior.list2d),ncol=4)
-# 
-# for(i in 1:length(ellipses.posterior.list2d)){
-#   
-# mu1_2d_reldiff<- (ellipses.posterior.list2d[[i]]$`1.2`[,'mu[1]'] - ellipses.posterior.list2d[[i]]$`1.1`[,'mu[1]'])/(ellipse_margins_2d_list[[i]][,'xmax_adult'] -ellipse_margins_2d_list[[i]][,'xmin_adult'])
-# 
-# mu1_2d_relsum<- c(names(ellipses.posterior.list2d)[i],mean(mu1_2d_reldiff),quantile(mu1_2d_reldiff, c(.025,.975)))
-# mu1_2d_rel[i,]<- mu1_2d_relsum
-# 
-# mu2_2d_reldiff<- (ellipses.posterior.list2d[[i]]$`1.2`[,'mu[2]'] - ellipses.posterior.list2d[[i]]$`1.1`[,'mu[2]'])/(ellipse_margins_2d_list[[i]][,'ymax_adult'] - ellipse_margins_2d_list[[i]][,'ymin_adult'])
-# mu2_2d_relsum<- c(names(ellipses.posterior.list2d)[i],mean(mu2_2d_reldiff),quantile(mu2_2d_reldiff, c(.025,.975)))
-# mu2_2d_rel[i,]<- mu2_2d_relsum
-# }
-# mu1_2d_rel_df<- as.data.frame(mu1_2d_rel) %>% dplyr::rename(group=V1, mean=V2, lwr = V3, upr = V4) %>% mutate(mean=as.numeric(mean),lwr=as.numeric(lwr),upr=as.numeric(upr)) %>% 
-#   mutate(sig = ifelse(lwr>0&upr>0, "yes", ifelse(lwr<0 & upr<0, "yes", "no"))) %>% 
-#   mutate(species= substr(group, 0,3),
-#          dist =  str_extract(group,"_.+_")) %>% 
-#   mutate(dist= gsub("_","",dist),
-#          species = gsub("_","",species)) %>% 
-#   left_join(species.names,by=c("species"="species.code")) %>% 
-#     left_join(pc1means.table)%>% 
-#     filter(!species.name == "singleleaf pinyon")
-# 
-# mu2_2d_rel_df<- as.data.frame(mu2_2d_rel) %>% dplyr::rename(group=V1, mean=V2, lwr = V3, upr = V4) %>% mutate(mean=as.numeric(mean),lwr=as.numeric(lwr),upr=as.numeric(upr)) %>% 
-#   mutate(sig = ifelse(lwr>0&upr>0, "yes", ifelse(lwr<0 & upr<0, "yes", "no"))) %>% 
-#   mutate(species= substr(group, 0,3),
-#          dist =  str_extract(group,"_.+_")) %>% 
-#   mutate(dist= gsub("_","",dist),
-#          species = gsub("_","",species)) %>% 
-#   left_join(species.names,by=c("species"="species.code")) %>% 
-#       left_join(pc1means.table)%>% 
-#     filter(!species.name == "singleleaf pinyon")
-# 
-# ######relativized
-# nffd_df_rel<- bind_rows(mu1_2d_rel_df %>% mutate(var="nffd centroid", species=as.numeric(species)),
-# max1_rel_2d_df %>% mutate(var="nffd max"),
-#  min1_rel_2d_df %>% mutate(var="nffd min")) %>% 
-# #   mutate(mean=ifelse(var=="nffd max",mean+.8,ifelse(var=="nffd min", mean-.8,mean)),
-# #          lwr=ifelse(var=="nffd max",lwr+.8,ifelse(var=="nffd min", lwr-.8,lwr)),
-# #          upr=ifelse(var=="nffd max",upr+.8,ifelse(var=="nffd min", upr-.8,upr)))
-#   left_join(pc1means.table)
-# 
-# nffd_reldiff<- ggplot(nffd_df_rel, aes(x=factor(number,levels=pc1means.table %>% arrange(pc1speciesmean) %>% pull(number)), y=mean, fill=pc1speciesmean, col=sig))+
-#   geom_errorbar(aes(ymin=lwr,ymax=upr, col=sig),width=0.2,size=1)+
-#     geom_point(pch=21, size=2)+
-#   geom_hline(yintercept=0,lty=1)+
-#   scale_fill_gradient2(low="#F21A00", mid = "#E9C925", high="#3A9AB2", midpoint=0, name="nffd Mean")+
-#   scale_color_manual(values=c("gray","black"),name="Significance")+
-#   facet_grid(factor(var, levels=c("nffd max","nffd centroid","nffd min"), labels=c("97.5%","centroid","2.5%"))~dist, scales = "free")+
-#   #scale_y_continuous(breaks=seq(-5,5,1))+
-#   #annotate(geom="text",x=4, y=-4.5, label="hot/dry",col="black", size=5 )+
-#   #annotate(geom="text", x=4, y=6,label="cold/wet",col="black", size=5)+
-#   ylab("Relativized Difference in Margin Position")+
-#   xlab("Species")+
-#   ggtitle("nffd")+
-#   theme_bw()+
-#   theme(axis.text.x = element_text(angle=60, hjust=1,size=9, color="black"),axis.title.x = element_text(size=12, color="black"),axis.text.y = element_text(size=10, colour = "black"),axis.title.y = element_text(size=12, color="black"), strip.text = element_text(size = 12), title=element_text(size=14), legend.position = "right")
-# 
-# 
-# ppt_df_rel<- bind_rows(mu2_2d_rel_df %>% mutate(var="ppt centroid", species=as.numeric(species)),
-# max2_rel_2d_df %>% mutate(var="ppt max"),
-#  min2_rel_2d_df %>% mutate(var="ppt min")) %>% 
-# #   mutate(mean=ifelse(var=="ppt max",mean+.8,ifelse(var=="ppt min", mean-.8,mean)),
-# #          lwr=ifelse(var=="ppt max",lwr+.8,ifelse(var=="ppt min", lwr-.8,lwr)),
-# #          upr=ifelse(var=="ppt max",upr+.8,ifelse(var=="ppt min", upr-.8,upr)))
-#   left_join(pc1means.table)
-# 
-# ppt_reldiff<- ggplot(ppt_df_rel, aes(x=factor(number,levels=pc1means.table %>% arrange(pc1speciesmean) %>% pull(number)), y=mean, fill=pc1speciesmean, col=sig))+
-#   geom_errorbar(aes(ymin=lwr,ymax=upr, col=sig),width=0.2,size=1)+
-#   geom_point(pch=21, size=2)+
-#   geom_hline(yintercept=0,lty=1)+
-#   scale_fill_gradient2(low="#F21A00", mid = "#E9C925", high="#3A9AB2", midpoint=0.32942, name="nffd Mean")+
-#   scale_color_manual(values=c("gray","black"),name="Significance")+
-#   facet_grid(factor(var, levels=c("ppt max","ppt centroid","ppt min"), labels=c("97.5%","centroid","2.5%"))~dist, scales = "free")+
-#   scale_y_continuous(breaks=seq(-.8,.8,.4))+
-#   #annotate(geom="text",x=4, y=-4.5, label="hot/dry",col="black", size=5 )+
-#   #annotate(geom="text", x=4, y=6,label="cold/wet",col="black", size=5)+
-#   ylab("Relativized Difference in Margin Position")+
-#   xlab("Species")+
-#   ggtitle("ppt")+
-#   theme_bw()+
-#   theme(axis.text.x = element_text(angle=60, hjust=1,size=9, color="black"),axis.title.x = element_text(size=12, color="black"),axis.text.y = element_text(size=10, colour = "black"),axis.title.y = element_text(size=12, color="black"), strip.text = element_text(size = 12), title=element_text(size=14), legend.position = "right")
-# 
-# ggarrange(nffd_reldiff, ppt_reldiff, nrow=2, common.legend = T, labels = c("A)","B)"), legend = "right")
-
-```
-
-
 ```{r, echo=FALSE}
 #make iso data into list of SIBER objects
 
@@ -2601,10 +1567,6 @@ Now I will use Bayesian methods to fit multivariate normal distributions to the 
 # }
 # names(siber.objs)<-names(adult_data_pcapts)
 # #
-# # #remove species*disturbance without enough data
-# # siber.objs[which(names(siber.objs) %in% c("15_fire_cvars","66_fire_cvars","106_fire_cvars","113_fire_cvars","133_fire_cvars","242_fire_cvars","73_insect.disease_cvars"))]<-NULL
-# # #
-#  names(siber.objs)
 ```
 
 ```{r, echo=FALSE}
@@ -2621,11 +1583,6 @@ Now I will use Bayesian methods to fit multivariate normal distributions to the 
 # 
 # # set save.output = TRUE
 # parms$save.output = TRUE
-# # you might want to change the directory to your local directory or a
-# # sub folder in your current working directory. I have to set it to a
-# # temporary directory that R creates and can use for the purposes of this
-# # generic vignette that has to run on any computer as the package is
-# # built and installed.
 # parms$save.dir = getwd()
 # 
 # # # define the priors
@@ -2655,11 +1612,6 @@ Now I will use Bayesian methods to fit multivariate normal distributions to the 
 
 ```{r, echo=FALSE}
 #save model output
- # saveRDS(iso_data, file="iso_data.2022_subset.rds")
- # saveRDS(siber.objs, file="siber.objs.2022_subset.rds")
- # saveRDS(ellipses.posterior.list, file="ellipses.posterior.list.2022_subset.rds")
- # saveRDS(SEA.B.list, file="SEA.B.list.2022_subset.rds")
-
  # saveRDS(iso_data, file="iso_data.2023.rds")
  # saveRDS(siber.objs, file="siber.objs.2023.rds")
  # saveRDS(ellipses.posterior.list, file="ellipses.posterior.list.2023.rds")
@@ -2668,16 +1620,93 @@ Now I will use Bayesian methods to fit multivariate normal distributions to the 
 
 ```{r}
 #read in siber files
-# iso_data <- readRDS("iso_data.2022_subset.rds")
-# siber.objs <- readRDS("siber.objs.2022_subset.rds")
-# ellipses.posterior.list<- readRDS("ellipses.posterior.list.2022_subset.rds")
-# SEA.B.list <- readRDS("SEA.B.list.2022_subset.rds")
-
 iso_data <- readRDS("iso_data.2023.rds")
 siber.objs <- readRDS("siber.objs.2023.rds")
 ellipses.posterior.list<- readRDS("ellipses.posterior.list.2023.rds")
 SEA.B.list <- readRDS("SEA.B.list.2023.rds")
 ```
+
+
+```{r,echo=FALSE, eval=FALSE}
+#look at trace plots for bayesian models
+
+# pdf("trace.plots_2023.pdf")
+# 
+# par(mfrow=c(3,2))
+# for(i in 1:length(ellipses.posterior.list)){
+#   for (j in 1:2){
+#     for(k in 1:6){
+#       plot(ellipses.posterior.list[[i]][[j]][,k],type="l")
+#     }
+#   }
+# }
+# 
+# dev.off()
+# 
+# head(ellipses.posterior.list[[1]])
+# nrow(ellipses.posterior.list[[1]][[1]])
+# head(ellipses.posterior.list[[1]][[1]])
+```
+
+Checking models for convergence
+
+```{r}
+#look at convergence
+# Now we want to determine whether our models have converged. There are separate models for each ellipse, and there should be one for each saved in our `parms$save.dir` directory. Note that the `gelman.diag` function does not seem to deal with the multivariate covariance matrix properly. We can calculate the statistic on the marginal parameters of the covariance matrix separately by setting `multivariate = FALSE`. See `?gelman.diag` for more advice and assistance with interpreting this statistic: basically, we are looking for scale reduction factors less than 1.1. These models tend to behave well since we have z-scored the data for each ellipse prior to fitting and so convergence should not be an issue in most cases.
+# 
+# **_N.B._** the parameter estimates we are performing these convergence tests on are the based on the estimates for the *z-scored* data as fitted by the `jags` model and as saved to file, and so are not the same scale as your actual raw data. In this regard, the means should approximate 0, and the diagonals of the covariance matrix close to 1, with a non-zero off-diagonal. These are back-transformed within SIBER when calculating the subsequent statistics such as SEA or shifts in the bivariate means.
+
+# # get a list of all the files in the save directory
+# all.files <- dir(parms$save.dir, full.names = TRUE)
+# # find which ones are jags model files
+# model.files <- all.files[grep("jags_output", all.files)]
+# # test convergence for the first one
+# do.this <- 1
+# load(model.files[do.this])
+# gelman.diag(output, multivariate = FALSE) #looking for scale reduction factors less than 1.1
+# gelman.plot(output, auto.layout = FALSE)
+
+
+# Repeat for whichever or all ellipses you want to test convergence. There are other convergence tests available within the `coda` package and beyond, which you may use with the `mcmc.list` object called `output` that is saved in the various `*.RData` files produced.
+
+```
+
+Plotting ellipses for each species
+```{r}
+# par(mfrow=c(1,1))
+# plot(x=unlist(c(siber.objs[[31]]$original.data %>% filter(group==1) %>% dplyr::select(iso1))),
+#      y=unlist(c(siber.objs[[31]]$original.data %>% filter(group==1)%>% dplyr::select(iso2))),col="black", xlim=c(-4,6),ylim=c(-4,6),pch=16, xlab="PC1",ylab="PC2",main="Douglas-fir Fire",cex=1.2)
+# 
+# plot(x=unlist(c(siber.objs[[31]]$original.data %>% filter(group==2) %>% dplyr::select(iso1))),
+#      y=unlist(c(siber.objs[[31]]$original.data %>% filter(group==2)%>% dplyr::select(iso2))),col=disturbance.colors[1], xlim=c(-4,6),ylim=c(-4,6),pch=16, xlab="PC1",ylab="PC2",main="Douglas-fir Fire",cex=1.2)
+# 
+# plot(x=unlist(c(siber.objs[[31]]$original.data %>% filter(group==1) %>% dplyr::select(iso1))),
+#      y=unlist(c(siber.objs[[31]]$original.data %>% filter(group==1)%>% dplyr::select(iso2))),col="black", xlim=c(-4,6),ylim=c(-4,3),pch=16, xlab="PC1",ylab="PC2",main="Douglas-fir Fire",cex=1.2)+
+# points(x=unlist(c(siber.objs[[31]]$original.data %>% filter(group==2) %>% dplyr::select(iso1))),
+#      y=unlist(c(siber.objs[[31]]$original.data %>% filter(group==2)%>% dplyr::select(iso2))),col=alpha(disturbance.colors[1],0.6),pch=16)+
+# points(x=mean(unlist(c(siber.objs[[31]]$original.data %>% filter(group==1) %>% dplyr::select(iso1)))), y = mean(unlist(c(siber.objs[[31]]$original.data %>% filter(group==1)%>% dplyr::select(iso2)))), col = "grey", pch = 18, cex=1.5)+
+# points(x=mean(unlist(c(siber.objs[[31]]$original.data %>% filter(group==2) %>% dplyr::select(iso1)))), y = mean(unlist(c(siber.objs[[31]]$original.data %>% filter(group==2)%>% dplyr::select(iso2)))), col = "gold1", pch = 18, cex = 1.5)
+# addEllipse(siber.objs[[31]]$ML.mu[[1]][ , , 1],
+#                      siber.objs[[31]]$ML.cov[[1]][ , , 1],
+#                      m = NULL,
+#                      n = 100,
+#                      p.interval = 0.95,
+#                      ci.mean = FALSE,
+#                      col = "black",
+#                      lty = 1,
+#                      lwd = 2)
+# addEllipse(siber.objs[[31]]$ML.mu[[1]][ , , 2],
+#                      siber.objs[[31]]$ML.cov[[1]][ , , 2],
+#                      m = NULL,
+#                      n = 100,
+#                      p.interval = 0.95,
+#                      ci.mean = FALSE,
+#                      col = disturbance.colors[1],
+#                      lty = 1,
+#                      lwd = 2)
+```
+
+###Niche margins
 
 ```{r}
 #look at niche margins
@@ -2709,296 +1738,15 @@ ellipse_margins[i,] = c(xmax_adult, xmin_adult, ymax_adult, ymin_adult,
 return(ellipse_margins)  
 }
 
-
-ellipmargfun(ellipses.posterior.list[[1]])
-
 # ellipse_margins_list<- lapply(X = ellipses.posterior.list, FUN=ellipmargfun)
 # saveRDS(ellipse_margins_list, file = "ellipse_margins_list.RDS")
 ellipse_margins_list<- readRDS("ellipse_margins_list.RDS")
 
-ellipmargdiff_fun <- function(ellipse_margins){
-ellipse_margins_diffs<- ellipse_margins %>% 
-  mutate(x_diff_high = xmax_seed - xmax_adult,
-         x_diff_low = xmin_seed - xmin_adult,
-         y_diff_high = ymax_seed - ymax_adult,
-         y_diff_low = ymin_seed - ymin_adult) 
-
-return(full_join(full_join(ellipse_margins_diffs %>% 
-  with(count(sign(x_diff_high))) %>% 
-  mutate(x_high_prop = freq/4000) %>% 
-  dplyr::rename(x_high_freq=freq),
-ellipse_margins_diffs %>% 
-  with(count(sign(x_diff_low))) %>% 
-  mutate(x_low_prop = freq/4000) %>% 
-  dplyr::rename(x_low_freq=freq),by="x"),
-full_join(ellipse_margins_diffs %>% 
-  with(count(sign(y_diff_high))) %>% 
-  mutate(y_high_prop = freq/4000) %>% 
-  dplyr::rename(y_high_freq=freq),
-ellipse_margins_diffs %>% 
-  with(count(sign(y_diff_low))) %>% 
-  mutate(y_low_prop = freq/4000) %>% 
-  dplyr::rename(y_low_freq=freq), by="x")))}
-
-ellipse_margins_diff_list<- lapply(ellipse_margins_list,ellipmargdiff_fun)
-
-ellipse_margins_diff_props<- bind_rows(ellipse_margins_diff_list, .id = "column_label")
-
-
-###make table with pc1 means in it
-
-pc1.means<- vector()
-for(i in 1:length(adult_data_pcapts)){
-  temp.mean <- adult_data_pcapts[[i]] %>% 
-    dplyr::summarise(mean(PC1))
-  pc1.means[i]<-temp.mean 
-}
-unlist(pc1.means)
-
-pc1means.table <- as.data.frame(matrix(unlist(pc1.means),nrow=length(pc1.means),ncol=1))  %>% 
-  mutate(names =  names(adult_data_pcapts)) %>% 
-  tidyr::separate(names,into=c("species.code","disturbance","extra"),sep="_") %>% 
-  mutate(species.code = as.numeric(species.code)) %>% 
-  left_join(species.names) %>% 
-  dplyr::rename(pc1mean = V1) %>% 
-  group_by(species.name) %>% 
-  dplyr::summarise(pc1speciesmean = mean(pc1mean)) %>% ungroup() %>% 
-  filter(!species.name == "singleleaf pinyon") %>% 
-  arrange(pc1speciesmean) %>% 
-  mutate(number=seq(1:15))
-########
-
-ellipse_margins_diff_props_clean<- ellipse_margins_diff_props %>% 
-  replace(is.na(.),0) %>% 
-  mutate(species= substr(column_label, 0,3),
-         dist =  str_extract(column_label,"_.+_")) %>% 
-  mutate(dist= gsub("_","",dist),
-         species = as.numeric(gsub("_","",species))) %>% 
-  dplyr::select(-c(x_high_freq,x_low_freq,y_high_freq,y_low_freq)) %>% 
-  mutate(x_high_prop = ifelse(x=="-1", -1*x_high_prop, x_high_prop),
-         x_low_prop = ifelse(x=="-1", -1*x_low_prop, x_low_prop),
-         y_high_prop = ifelse(x=="-1", -1*y_high_prop, y_high_prop),
-         y_low_prop = ifelse(x=="-1", -1*y_low_prop, y_low_prop)) %>% 
-  left_join(species.names, by=c("species"="species.code")) %>% 
-  left_join(pc1means.table)
-
-ellipse_margins_diff_props_clean_long<- ellipse_margins_diff_props_clean %>% 
-         pivot_longer(x_high_prop:y_low_prop) 
-
-ggplot(ellipse_margins_diff_props_clean_long, aes(x=dist, y=value, col=species.name))+
-  facet_wrap(~factor(name,levels=c("x_low_prop","x_high_prop","y_low_prop","y_high_prop"), labels=c("PC1 2.5%", "PC1 97.5%", "PC2 2.5%","PC2 97.5%")))+
-  geom_jitter(width=0.1,height=0)+
-  geom_hline(yintercept = 0)+
-  scale_color_manual(values=c("#5cbb7a",
-"#d760c5",
-"#82b540",
-"#924fb6",
-"#d2a43d",
-"#696edb",
-"#4e7b3a",
-"#dc3f62",
-"#44bbc2",
-"#cb5831",
-"#6183c4",
-"#9e7e40",
-"#c44c89",
-"#e68a80",
-"#bf85c3",
-"#9f4957"))+
-  theme_bw()+
-  theme(axis.text.x = element_text(angle=45,hjust=1),axis.title.x = element_blank())
-
-ggplot(ellipse_margins_diff_props_clean_long %>% filter(dist=="fire" & x=="1"), aes(x=species.name, y=value, col=pc1speciesmean))+
-  facet_wrap(~factor(name,levels=c("x_low_prop","x_high_prop","y_low_prop","y_high_prop"), labels=c("PC1 2.5%", "PC1 97.5%", "PC2 2.5%","PC2 97.5%")))+
-  geom_point()+
-  geom_hline(yintercept = 0)+
-  geom_hline(yintercept = c(0.5,0.75), col="gray", lty=2)+
-  #scale_color_gradientn(colors=wes_palette("Zissou1",100,type = "continuous"))+
-  scale_color_gradient2(low="#F21A00", mid = "#E9C925", high="#3A9AB2", midpoint=1, name="PC1 Mean")+
-  #scale_color_manual(values=c("#5cbb7a","#d760c5","#82b540","#924fb6","#d2a43d","#696edb","#4e7b3a","#dc3f62","#44bbc2","#cb5831","#6183c4","#9e7e40","#c44c89","#e68a80","#bf85c3","#9f4957"))+
-  coord_flip()+
-  ggtitle("Fire")+
-  theme_bw()+
-  theme(axis.text.x = element_text(angle=45,hjust=1),axis.title.y = element_blank())
-
-ggplot(ellipse_margins_diff_props_clean_long %>% filter(dist=="insect.disease" & x=="1"), aes(x=species.name, y=value, col=pc1speciesmean))+
-  facet_wrap(~factor(name,levels=c("x_low_prop","x_high_prop","y_low_prop","y_high_prop"), labels=c("PC1 2.5%", "PC1 97.5%", "PC2 2.5%","PC2 97.5%")))+
-  geom_point()+
-  geom_hline(yintercept = 0)+
-  geom_hline(yintercept = c(0.5,0.75), col="gray", lty=2)+
-  #scale_color_gradientn(colors=wes_palette("Zissou1",100,type = "continuous"))+
-  scale_color_gradient2(low="#F21A00", mid = "#E9C925", high="#3A9AB2", midpoint=0, name="PC1 Mean")+
-  #scale_color_manual(values=c("#5cbb7a","#d760c5","#82b540","#924fb6","#d2a43d","#696edb","#4e7b3a","#dc3f62","#44bbc2","#cb5831","#6183c4","#9e7e40","#c44c89","#e68a80","#bf85c3","#9f4957"))+
-  coord_flip()+
-  ggtitle("Insect/Disease")+
-  theme_bw()+
-  theme(axis.text.x = element_text(angle=45,hjust=1),axis.title.y = element_blank())
-
-ggplot(ellipse_margins_diff_props_clean_long %>% filter(dist=="none" & x=="1"), aes(x=species.name, y=value, col=pc1speciesmean))+
-  facet_wrap(~factor(name,levels=c("x_low_prop","x_high_prop","y_low_prop","y_high_prop"), labels=c("PC1 2.5%", "PC1 97.5%", "PC2 2.5%","PC2 97.5%")))+
-  geom_point()+
-  geom_hline(yintercept = 0)+
-  geom_hline(yintercept = c(0.5,0.75), col="gray", lty=2)+
-  #scale_color_gradientn(colors=wes_palette("Zissou1",100,type = "continuous"))+
-  scale_color_gradient2(low="#F21A00", mid = "#E9C925", high="#3A9AB2", midpoint=0, name="PC1 Mean")+
-  #scale_color_manual(values=c("#5cbb7a","#d760c5","#82b540","#924fb6","#d2a43d","#696edb","#4e7b3a","#dc3f62","#44bbc2","#cb5831","#6183c4","#9e7e40","#c44c89","#e68a80","#bf85c3","#9f4957"))+
-  coord_flip()+
-  ggtitle("Undisturbed")+
-  theme_bw()+
-  theme(axis.text.x = element_text(angle=45,hjust=1),axis.title.y = element_blank())
-
-
-ellipse_margins_diff_props_summary<- ellipse_margins_diff_props_clean %>% 
-  group_by(x,dist) %>% 
-  dplyr::summarise(mean_xmax = mean(x_high_prop),
-            mean_xmin = mean(x_low_prop),
-            mean_ymax = mean(y_high_prop),
-            mean_ymin = mean(y_low_prop),
-            se_xmax = sd(x_high_prop)/sqrt(n()),
-            se_xmin = sd(x_low_prop)/sqrt(n()),
-            se_ymax = sd(y_high_prop)/sqrt(n()),
-            se_ymin = sd(y_low_prop)/sqrt(n())) %>% 
-  arrange(dist) 
-
-ellipse_margins_diff_props_summarylong<- left_join(ellipse_margins_diff_props_summary %>% 
-  dplyr::select(x:mean_ymin) %>% 
-  pivot_longer(starts_with("mean"),values_to = "mean") %>% 
-  mutate(name=substr(name, 6,9)),
-ellipse_margins_diff_props_summary %>% 
-  dplyr::select(c(x:dist,se_xmax:se_ymin)) %>% 
-  pivot_longer(starts_with("se"),values_to = "se") %>% 
-  mutate(name=substr(name, 4,7))) %>% 
-  mutate(dist=ifelse(dist=="_fire_","fire",ifelse(dist=="_insect.disease_","insect.disease","none")))
-
-ggplot(ellipse_margins_diff_props_summarylong, aes(x=dist, y=mean, col=dist))+
-  facet_wrap(~factor(name,levels=c("xmin","xmax","ymin","ymax"), labels=c("PC1 2.5%", "PC1 97.5%", "PC2 2.5%","PC2 97.5%")))+
-  geom_point()+
-  geom_hline(yintercept = 0)+
-    geom_hline(yintercept = c(0.5,-0.5),lty=2,col="gray")+
-  geom_errorbar(aes(x=dist, ymin=mean-se, ymax=mean+se, col=dist),width=.4)+
-  scale_color_manual(values=disturbance.colors)+
-  theme_bw()+
-  theme(axis.text.x = element_text(angle=45,hjust=1),axis.title.x = element_blank(),legend.position = "top")
-
-
-###alternative - look at mean and 95% percentiles of posterior estimates of difference between adult and seedling niche margins
+###look at mean and 95% percentiles of posterior estimates of difference between adult and seedling niche margins
+###calculate with relativizing by adult niche width. 
 
 ellipse_margins_list
 
-max1<- matrix(nrow=length(ellipse_margins_list),ncol=4)
-min1<- matrix(nrow=length(ellipse_margins_list),ncol=4)
-
-max2<- matrix(nrow=length(ellipse_margins_list),ncol=4)
-min2<- matrix(nrow=length(ellipse_margins_list),ncol=4)
-
-for(i in 1:length(ellipse_margins_list)){
-max1diff<- ellipse_margins_list[[i]][,'xmax_seed'] - ellipse_margins_list[[i]][,'xmax_adult']
-max1sum<- c(names(ellipse_margins_list)[i],mean(max1diff),quantile(max1diff, c(.025,.975)))
-max1[i,]<- max1sum
-min1diff<- ellipse_margins_list[[i]][,'xmin_seed'] - ellipse_margins_list[[i]][,'xmin_adult']
-min1sum<- c(names(ellipse_margins_list)[i],mean(min1diff),quantile(min1diff, c(.025,.975)))
-min1[i,]<- min1sum
-
-max2diff<- ellipse_margins_list[[i]][,'ymax_seed'] - ellipse_margins_list[[i]][,'ymax_adult']
-max2sum<- c(names(ellipse_margins_list)[i],mean(max2diff),quantile(max2diff, c(.025,.975)))
-max2[i,]<- max2sum
-min2diff<- ellipse_margins_list[[i]][,'ymin_seed'] - ellipse_margins_list[[i]][,'ymin_adult']
-min2sum<- c(names(ellipse_margins_list)[i],mean(min2diff),quantile(min2diff, c(.025,.975)))
-min2[i,]<- min2sum
-}
-
-max1_df <- as.data.frame(max1) %>% dplyr::rename(group=V1, mean=V2, lwr = V3, upr = V4) %>% mutate(mean=as.numeric(mean),lwr=as.numeric(lwr),upr=as.numeric(upr)) %>% 
-  mutate(sig = ifelse(lwr>0&upr>0, "yes", ifelse(lwr<0 & upr<0, "yes", "no"))) %>% 
-  mutate(species= substr(group, 0,3),
-         dist =  str_extract(group,"_.+_")) %>% 
-  mutate(dist= gsub("_","",dist),
-         species = as.numeric(gsub("_","",species))) %>% 
-  left_join(species.names,by=c("species"="species.code")) %>% 
-  left_join(pc1means.table) %>% 
-  filter(!species.name == "singleleaf pinyon")
-
-min1_df <- as.data.frame(min1) %>% dplyr::rename(group=V1, mean=V2, lwr = V3, upr = V4) %>% mutate(mean=as.numeric(mean),lwr=as.numeric(lwr),upr=as.numeric(upr)) %>% 
-  mutate(sig = ifelse(lwr>0&upr>0, "yes", ifelse(lwr<0 & upr<0, "yes", "no"))) %>% 
-  mutate(species= substr(group, 0,3),
-         dist =  str_extract(group,"_.+_")) %>% 
-  mutate(dist= gsub("_","",dist),
-         species = as.numeric(gsub("_","",species))) %>% 
-  left_join(species.names,by=c("species"="species.code"))%>% 
-  left_join(pc1means.table)%>% 
-  filter(!species.name == "singleleaf pinyon")
-
-max2_df <- as.data.frame(max2) %>% dplyr::rename(group=V1, mean=V2, lwr = V3, upr = V4) %>% mutate(mean=as.numeric(mean),lwr=as.numeric(lwr),upr=as.numeric(upr)) %>% 
-  mutate(sig = ifelse(lwr>0&upr>0, "yes", ifelse(lwr<0 & upr<0, "yes", "no"))) %>% 
-  mutate(species= substr(group, 0,3),
-         dist =  str_extract(group,"_.+_")) %>% 
-  mutate(dist= gsub("_","",dist),
-         species = as.numeric(gsub("_","",species))) %>% 
-  left_join(species.names,by=c("species"="species.code"))%>% 
-  left_join(pc1means.table)%>% 
-  filter(!species.name == "singleleaf pinyon")
-
-min2_df <- as.data.frame(min2) %>% dplyr::rename(group=V1, mean=V2, lwr = V3, upr = V4) %>% mutate(mean=as.numeric(mean),lwr=as.numeric(lwr),upr=as.numeric(upr)) %>% 
-  mutate(sig = ifelse(lwr>0&upr>0, "yes", ifelse(lwr<0 & upr<0, "yes", "no"))) %>% 
-  mutate(species= substr(group, 0,3),
-         dist =  str_extract(group,"_.+_")) %>% 
-  mutate(dist= gsub("_","",dist),
-         species = as.numeric(gsub("_","",species))) %>% 
-  left_join(species.names,by=c("species"="species.code"))%>% 
-  left_join(pc1means.table)%>% 
-  filter(!species.name == "singleleaf pinyon")
-
-ggplot(min1_df, aes(x=factor(species.name,levels=pc1means.table %>% arrange(pc1speciesmean) %>% pull(species.name)), y=mean, fill=pc1speciesmean, col=sig))+
-  geom_errorbar(aes(ymin=lwr,ymax=upr, col=sig))+
-    geom_point(pch=21)+
-  geom_hline(yintercept=0)+
-  scale_fill_gradient2(low="#F21A00", mid = "#E9C925", high="#3A9AB2", midpoint=0, name="PC1 Mean")+
-  scale_color_manual(values=c("gray","black"))+
-  facet_wrap(~dist)+
-  ggtitle("PC1 2.5%")+
-  theme(axis.text.x = element_text(angle=50, hjust=1,size=8),axis.title.x = element_blank())
-
-ggplot(max1_df, aes(x=factor(species.name,levels=pc1means.table %>% arrange(pc1speciesmean) %>% pull(species.name)), y=mean, fill=pc1speciesmean, col=sig))+
-  geom_errorbar(aes(ymin=lwr,ymax=upr, col=sig))+
-    geom_point(pch=21)+
-  geom_hline(yintercept=0)+
-  scale_fill_gradient2(low="#F21A00", mid = "#E9C925", high="#3A9AB2", midpoint=0, name="PC1 Mean")+
-  scale_color_manual(values=c("gray","black"))+
-  facet_wrap(~dist)+
-  ggtitle("PC1 97.5%")+
-  theme(axis.text.x = element_text(angle=50, hjust=1,size=8),axis.title.x = element_blank())
-
-ggplot(min2_df, aes(x=factor(species.name,levels=pc1means.table %>% arrange(pc1speciesmean) %>% pull(species.name)), y=mean, fill=pc1speciesmean, col=sig))+
-  geom_errorbar(aes(ymin=lwr,ymax=upr, col=sig))+
-    geom_point(pch=21)+
-  geom_hline(yintercept=0)+
-  scale_fill_gradient2(low="#F21A00", mid = "#E9C925", high="#3A9AB2", midpoint=0, name="PC1 Mean")+
-  scale_color_manual(values=c("gray","black"))+
-  facet_wrap(~dist)+
-  ggtitle("PC2 2.5%")+
-  theme(axis.text.x = element_text(angle=50, hjust=1,size=8),axis.title.x = element_blank())
-
-ggplot(max2_df, aes(x=factor(species.name,levels=pc1means.table %>% arrange(pc1speciesmean) %>% pull(species.name)), y=mean, fill=pc1speciesmean, col=sig))+
-  geom_errorbar(aes(ymin=lwr,ymax=upr, col=sig))+
-    geom_point(pch=21)+
-  geom_hline(yintercept=0)+
-  scale_fill_gradient2(low="#F21A00", mid = "#E9C925", high="#3A9AB2", midpoint=0, name="PC1 Mean")+
-  scale_color_manual(values=c("gray","black"))+
-  facet_wrap(~dist)+
-  ggtitle("PC2 97.5%")+
-  theme(axis.text.x = element_text(angle=50, hjust=1,size=8),axis.title.x = element_blank())
-
-ggplot(max2_df, aes(x=dist, y=mean, fill=pc1speciesmean, col=sig))+
-  geom_errorbar(aes(ymin=lwr,ymax=upr, col=sig))+
-    geom_point(pch=21)+
-  geom_hline(yintercept=0)+
-  scale_fill_gradient2(low="#F21A00", mid = "#E9C925", high="#3A9AB2", midpoint=0, name="PC1 Mean")+
-  scale_color_manual(values=c("gray","black"))+
-  facet_wrap(~factor(species.name,levels=pc1means.table %>% arrange(pc1speciesmean) %>% pull(species.name)))+
-  ggtitle("PC2 97.5%")+
-  theme(axis.text.x = element_text(angle=50, hjust=1,size=8),axis.title.x = element_blank())
-
-
-###now calculate with relativizing by adult niche width. 
 max1_rel<- matrix(nrow=length(ellipse_margins_list),ncol=4)
 min1_rel<- matrix(nrow=length(ellipse_margins_list),ncol=4)
 
@@ -3188,7 +1936,6 @@ mu2_rel_df<- as.data.frame(mu2_rel) %>% dplyr::rename(group=V1, mean=V2, lwr = V
       left_join(pc1means.table)%>% 
     filter(!species.name == "singleleaf pinyon")
 
-
 #combine centroid with margins
 
 pc1_df<- bind_rows(mu1_df %>% mutate(var="PC1 centroid", species=as.numeric(species)),
@@ -3352,7 +2099,7 @@ mu_by_species <- bind_rows(
  mutate(species= substr(name, 0,3),
          dist =  str_extract(name,"_.+_")) %>% 
   mutate(dist= gsub("_","",dist),
-         species = gsub("_","",species)) %>% 
+         species = as.numeric(gsub("_","",species))) %>% 
   group_by(species) %>% 
   dplyr::summarise(mean = mean(mu1), lwr = quantile(mu1, c(0.025,.975))[1], upr = quantile(mu1, c(0.025,.975))[2]) %>% 
   mutate(var="mu1") %>% 
@@ -3362,7 +2109,7 @@ mu2_rel_all %>%
  mutate(species= substr(name, 0,3),
          dist =  str_extract(name,"_.+_")) %>% 
   mutate(dist= gsub("_","",dist),
-         species = gsub("_","",species)) %>% 
+         species = as.numeric(gsub("_","",species))) %>% 
   group_by(species) %>% 
   dplyr::summarise(mean = mean(mu2), lwr = quantile(mu2, c(0.025,.975))[1], upr = quantile(mu2, c(0.025,.975))[2]) %>% 
   mutate(var="mu2") %>% 
@@ -3457,6 +2204,7 @@ ggplot(margins_bydist, aes(x=dist, y=mean, col=dist))+
 
 ```
 
+###Shift types
 
 ```{r}
 #classify shift types
@@ -3533,8 +2281,10 @@ ggplot(shifts_byspecies_longer %>%
 
 ```
 
+###Ellipse size
+
 ```{r}
-#look at niche size 
+#look at ellipse size 
 
 adult.area <- data.frame()
 seedling.area<- data.frame()
@@ -3561,117 +2311,11 @@ ggplot(niche.areas.long, aes(x=name, y=niche.area, fill=age))+
   theme(axis.text.x = element_text(angle=45))
 ```
 
-```{r,echo=FALSE, eval=FALSE}
-#look at trace plots for bayesian models
-
-# pdf("trace.plots_2023.pdf")
-# 
-# par(mfrow=c(3,2))
-# for(i in 1:length(ellipses.posterior.list)){
-#   for (j in 1:2){
-#     for(k in 1:6){
-#       plot(ellipses.posterior.list[[i]][[j]][,k],type="l")
-#     }
-#   }
-# }
-# 
-# dev.off()
-# 
-# head(ellipses.posterior.list[[1]])
-# nrow(ellipses.posterior.list[[1]][[1]])
-# head(ellipses.posterior.list[[1]][[1]])
-```
-
-```{r}
-#look at convergence
-# Now we want to determine whether our models have converged. There are separate models for each ellipse, and there should be one for each saved in our `parms$save.dir` directory. Note that the `gelman.diag` function does not seem to deal with the multivariate covariance matrix properly. We can calculate the statistic on the marginal parameters of the covariance matrix separately by setting `multivariate = FALSE`. See `?gelman.diag` for more advice and assistance with interpreting this statistic: basically, we are looking for scale reduction factors less than 1.1. These models tend to behave well since we have z-scored the data for each ellipse prior to fitting and so convergence should not be an issue in most cases.
-# 
-# **_N.B._** the parameter estimates we are performing these convergence tests on are the based on the estimates for the *z-scored* data as fitted by the `jags` model and as saved to file, and so are not the same scale as your actual raw data. In this regard, the means should approximate 0, and the diagonals of the covariance matrix close to 1, with a non-zero off-diagonal. These are back-transformed within SIBER when calculating the subsequent statistics such as SEA or shifts in the bivariate means.
-
-# # get a list of all the files in the save directory
-# all.files <- dir(parms$save.dir, full.names = TRUE)
-# # find which ones are jags model files
-# model.files <- all.files[grep("jags_output", all.files)]
-# # test convergence for the first one
-# do.this <- 1
-# load(model.files[do.this])
-# gelman.diag(output, multivariate = FALSE) #looking for scale reduction factors less than 1.1
-# gelman.plot(output, auto.layout = FALSE)
-
-
-# Repeat for whichever or all ellipses you want to test convergence. There are other convergence tests available within the `coda` package and beyond, which you may use with the `mcmc.list` object called `output` that is saved in the various `*.RData` files produced.
-
-```
-
-
-```{r}
-# par(mfrow=c(1,1))
-# plot(x=unlist(c(siber.objs[[31]]$original.data %>% filter(group==1) %>% dplyr::select(iso1))),
-#      y=unlist(c(siber.objs[[31]]$original.data %>% filter(group==1)%>% dplyr::select(iso2))),col="black", xlim=c(-4,6),ylim=c(-4,6),pch=16, xlab="PC1",ylab="PC2",main="Douglas-fir Fire",cex=1.2)
-# 
-# plot(x=unlist(c(siber.objs[[31]]$original.data %>% filter(group==2) %>% dplyr::select(iso1))),
-#      y=unlist(c(siber.objs[[31]]$original.data %>% filter(group==2)%>% dplyr::select(iso2))),col=disturbance.colors[1], xlim=c(-4,6),ylim=c(-4,6),pch=16, xlab="PC1",ylab="PC2",main="Douglas-fir Fire",cex=1.2)
-# 
-# plot(x=unlist(c(siber.objs[[31]]$original.data %>% filter(group==1) %>% dplyr::select(iso1))),
-#      y=unlist(c(siber.objs[[31]]$original.data %>% filter(group==1)%>% dplyr::select(iso2))),col="black", xlim=c(-4,6),ylim=c(-4,3),pch=16, xlab="PC1",ylab="PC2",main="Douglas-fir Fire",cex=1.2)+
-# points(x=unlist(c(siber.objs[[31]]$original.data %>% filter(group==2) %>% dplyr::select(iso1))),
-#      y=unlist(c(siber.objs[[31]]$original.data %>% filter(group==2)%>% dplyr::select(iso2))),col=alpha(disturbance.colors[1],0.6),pch=16)+
-# points(x=mean(unlist(c(siber.objs[[31]]$original.data %>% filter(group==1) %>% dplyr::select(iso1)))), y = mean(unlist(c(siber.objs[[31]]$original.data %>% filter(group==1)%>% dplyr::select(iso2)))), col = "grey", pch = 18, cex=1.5)+
-# points(x=mean(unlist(c(siber.objs[[31]]$original.data %>% filter(group==2) %>% dplyr::select(iso1)))), y = mean(unlist(c(siber.objs[[31]]$original.data %>% filter(group==2)%>% dplyr::select(iso2)))), col = "gold1", pch = 18, cex = 1.5)
-# addEllipse(siber.objs[[31]]$ML.mu[[1]][ , , 1],
-#                      siber.objs[[31]]$ML.cov[[1]][ , , 1],
-#                      m = NULL,
-#                      n = 100,
-#                      p.interval = 0.95,
-#                      ci.mean = FALSE,
-#                      col = "black",
-#                      lty = 1,
-#                      lwd = 2)
-# addEllipse(siber.objs[[31]]$ML.mu[[1]][ , , 2],
-#                      siber.objs[[31]]$ML.cov[[1]][ , , 2],
-#                      m = NULL,
-#                      n = 100,
-#                      p.interval = 0.95,
-#                      ci.mean = FALSE,
-#                      col = disturbance.colors[1],
-#                      lty = 1,
-#                      lwd = 2)
-```
-
-### Niche Overlap
+### Ellipse Overlap
 
 ```{r}
 #calculate niche areas and overlap
 ##this takes ~10 hours length(ellipses.posterior.list)
-
-# overlap.list<-list()
-# for(i in 1:2){
-#     cat(i, "\n")
-# temp.overlap <- bayesianOverlap("1.1","1.2",ellipses.posterior.list[[i]],draws=NULL,p.interval=0.95)
-# 
-# temp.overlap$exp.prop.adult = (temp.overlap$area2 - temp.overlap$overlap)/temp.overlap$area1
-# 
-# temp.overlap$contr.prop.adult = (temp.overlap$area1 - temp.overlap$overlap)/temp.overlap$area1
-# 
-# overlap.list[[i]] <- temp.overlap
-# }
-# names(overlap.list)<- names(ellipses.posterior.list)
-# 
-# saveRDS(overlap.list, file = "overlap.list.2022.subset.RDS")
-# 
-# for(i in 3:length(ellipses.posterior.list)){
-#     cat(i, "\n")
-# temp.overlap <- bayesianOverlap("1.1","1.2",ellipses.posterior.list[[i]],draws=NULL,p.interval=0.95)
-# 
-# temp.overlap$exp.prop.adult = (temp.overlap$area2 - temp.overlap$overlap)/temp.overlap$area1
-# 
-# temp.overlap$contr.prop.adult = (temp.overlap$area1 - temp.overlap$overlap)/temp.overlap$area1
-# 
-# overlap.list[[i]] <- temp.overlap
-# }
-# names(overlap.list)<- names(ellipses.posterior.list)
-# 
-# saveRDS(overlap.list, file = "overlap.list.2022.subset.RDS")
 
 ##new for 2023
 # overlap.list<-list()
@@ -3695,6 +2339,7 @@ ggplot(niche.areas.long, aes(x=name, y=niche.area, fill=age))+
 overlap.list <- readRDS("overlap.list.2023.RDS")
 ```
 
+###Net expansion
 
 ```{r}
 #calculate net expansion for each replicate
@@ -3774,7 +2419,10 @@ diff.plot_all<- ggplot(overlap.table,aes(x=disturbance,y=mean.net.expansion,colo
   # annotate("text",x=8.5,y=-0.4,label="contraction",size=7)+
   theme_bw()+
   theme(axis.text = element_text(size=24),legend.text = element_text(size=24),legend.title = element_text(size=24),legend.position = 'bottom',axis.title = element_text(size=24),plot.margin=margin(0,0.5,.6,.1,"cm"), axis.text.x=element_blank(), axis.ticks.x=element_blank(),axis.title.x = element_blank(),strip.text = element_text(size=16,color="black"))
+```
 
+###Gains vs. Losses
+```{r}
 ##experimenting
 ##combine the new and lost area into one plot
 overlap.table.long<- overlap.table %>% 
@@ -3818,6 +2466,7 @@ comb.p.plot<- ggplot(overlap.table.long_cutoff,aes(x=typen,y=mean,color=disturba
   theme_bw()+
   theme(axis.text = element_text(size=24),legend.text = element_text(size=24),legend.title = element_text(size=24),legend.position = 'bottom',axis.title = element_text(size=24),plot.margin=margin(0,0.5,.6,.1,"cm"), axis.text.x=element_text(color="black",size=20), axis.title.x = element_blank(),strip.text = element_text(size=16,color="black"), panel.grid = element_blank())
 
+comb.p.plot
 
 # png("figures/comb.prop.plot.png", width = 1000, height = 600)
 # comb.p.plot
@@ -3869,7 +2518,7 @@ if(a %>% pull(mean) <  b %>% pull(mean)){
   ci_overlap<- bind_rows(ci_overlap, row)}
 }
 
-View(ci_overlap)
+ci_overlap
 
 ###order by sample size
 n_seed_fire<- sample.append %>% dplyr::select(c(species.name.x,disturbance,n.seed)) %>% 
@@ -3922,153 +2571,6 @@ ggplot(overlap.table.long_cutoff %>% filter(disturbance=="none"),aes(x=factor(sp
   ylab("Proportion")+
   theme_bw()+
   theme(axis.text = element_text(size=24),legend.text = element_text(size=16),legend.title = element_text(size=24),legend.position = 'bottom',axis.title = element_text(size=24),plot.margin=margin(0,0.5,.6,.1,"cm"), axis.text.x=element_blank(), axis.title.x = element_blank(),strip.text = element_text(size=16,color="black"), panel.grid.minor.x = element_blank(), panel.grid.major.x = element_blank())
-#############################################
-
-
-#for all species
-diff.plot_all_top<- ggplot(overlap.table %>% filter(species.name %in% pc1means.table$species.name[c(1,3,4,6:7,9,12:15)]),aes(x=disturbance,y=mean.net.expansion,color=disturbance, alpha=nodiff,shape=nodiff))+
-  geom_hline(yintercept=0, linetype=2, size=0.8)+
-  geom_point(position = position_dodge(0.9),size=4)+
-  geom_errorbar(aes(ymin=lwr.net.expansion, ymax =upr.net.expansion), width=.5, position = position_dodge(0.9),size=1)+
-  scale_color_manual(values=disturbance.colors, name="Disturbance",labels=c("fire","insect/disease","none"))+
-  scale_alpha_manual(values=c(1,0.4),labels=c("no","yes"),name="95% CI overlaps 0")+
-  scale_shape_manual(values=c(16,1),labels=c("no","yes"),name="95% CI overlaps 0")+
-  facet_wrap(~factor(species.name, levels=c(pc1means.table$species.name[c(1,3,4,6:7,9,12:15)])), nrow=2, labeller = labeller(species.name = label_wrap_gen(20)))+
-  ylab("Net expansion")+
-  theme_bw()+
-  theme(axis.text = element_text(size=24),legend.text = element_text(size=24),legend.title = element_text(size=24),legend.position = 'none',axis.title = element_text(size=24),plot.margin=margin(0,0.5,.6,.1,"cm"), axis.text.x=element_blank(), axis.ticks.x=element_blank(),axis.title.x = element_blank(),strip.text = element_text(size=16,color="black"))
-
-#Our transformation function
-scaleFUN <- function(x) sprintf("%.2f", x)
-
-diff.plot_all_bottom<- ggplot(overlap.table %>% filter(species.name %in% pc1means.table$species.name[c(2,5,8,10,11)]),aes(x=disturbance,y=mean.net.expansion,color=disturbance, alpha=nodiff,shape=nodiff))+
-  geom_hline(yintercept=0, linetype=2, size=0.8)+
-  geom_point(position = position_dodge(0.9),size=4)+
-  geom_errorbar(aes(ymin=lwr.net.expansion, ymax =upr.net.expansion), width=.5, position = position_dodge(0.9),size=1)+
-  scale_color_manual(values=disturbance.colors, name="Disturbance",labels=c("fire","insect/disease","none"))+
-  scale_alpha_manual(values=c(1,0.4),labels=c("no","yes"),name="95% CI overlaps 0")+
-  scale_shape_manual(values=c(16,1),labels=c("no","yes"),name="95% CI overlaps 0")+
-  facet_wrap(~factor(species.name, levels=c(pc1means.table$species.name[c(2,5,8,10,11)])), nrow=1, labeller = labeller(species.name = label_wrap_gen(20)))+
-  ylab("")+
-  scale_y_continuous(labels = scaleFUN)+
-  theme_bw()+
-  theme(axis.text = element_text(size=24),legend.text = element_text(size=24),legend.title = element_text(size=24),legend.position = 'bottom',axis.title = element_text(size=24),plot.margin=margin(0,0.5,.6,.1,"cm"), axis.text.x=element_blank(), axis.ticks.x=element_blank(),axis.title.x = element_blank(),strip.text = element_text(size=16,color="black"))
-
-
-diff.plot_all_top<- ggplot(overlap.table,aes(x=disturbance,y=mean.net.expansion,color=disturbance, alpha=nodiff,shape=nodiff))+
-  geom_hline(yintercept=0, linetype=2, size=0.8)+
-  geom_point(position = position_dodge(0.9),size=4)+
-  geom_errorbar(aes(ymin=lwr.net.expansion, ymax =upr.net.expansion), width=.5, position = position_dodge(0.9),size=1)+
-  scale_color_manual(values=disturbance.colors, name="Disturbance",labels=c("fire","insect/disease","none"))+
-  scale_alpha_manual(values=c(1,0.4),labels=c("no","yes"),name="95% CI overlaps 0")+
-  scale_shape_manual(values=c(16,1),labels=c("no","yes"),name="95% CI overlaps 0")+
-  facet_wrap(~factor(species.name, levels=pc1means.table$species.name[c(1:7,9:15,8)]), nrow=3, labeller = labeller(species.name = label_wrap_gen(20)), scales="free_y")+
-  ylab("Net growth")+
-  theme_bw()+
-  theme(axis.text = element_text(size=24),legend.text = element_text(size=24),legend.title = element_text(size=24),legend.position = 'bottom',axis.title = element_text(size=24),plot.margin=margin(0,0.5,.6,.1,"cm"), axis.text.x=element_blank(), axis.ticks.x=element_blank(),axis.title.x = element_blank(),strip.text = element_text(size=16,color="black"))
-
-diff.plot_all_bottom<-ggplot(overlap.table %>% filter(!species.name=="western redcedar"),aes(x=disturbance,y=mean.net.expansion,color=disturbance, alpha=nodiff,shape=nodiff))+
-  geom_hline(yintercept=0, linetype=2, size=0.8)+
-  geom_point(position = position_dodge(0.9),size=4)+
-  geom_errorbar(aes(ymin=lwr.net.expansion, ymax =upr.net.expansion), width=.5, position = position_dodge(0.9),size=1)+
-  scale_color_manual(values=disturbance.colors, name="Disturbance",labels=c("fire","insect/disease","none"))+
-  scale_alpha_manual(values=c(1,0.4),labels=c("no","yes"),name="95% CI overlaps 0")+
-  scale_shape_manual(values=c(16,1),labels=c("no","yes"),name="95% CI overlaps 0")+
-  facet_wrap(~factor(species.name, levels=pc1means.table$species.name[-8]), nrow=3, labeller = labeller(species.name = label_wrap_gen(20)))+
-  ylab("Net growth")+
-  theme_bw()+
-  theme(axis.text = element_text(size=24),legend.text = element_text(size=24),legend.title = element_text(size=24),legend.position = 'bottom',axis.title = element_text(size=24),plot.margin=margin(0,0.5,.6,.1,"cm"), axis.text.x=element_blank(), axis.ticks.x=element_blank(),axis.title.x = element_blank(),strip.text = element_text(size=16,color="black"))
-
-# png("figures/diffplot_top.png", width = 1100, height = 600)
-# 
-# diff.plot_all_top
-# 
-# dev.off()
-# 
-# 
-# png("figures/diffplot_bottom.png", width = 1000, height = 600)
-# 
-# diff.plot_all_bottom
-# 
-# dev.off()
-
-########################
-
-# png("figures/diffplot.png", width = 1000, height = 600)
-# 
-# diff.plot_all
-# 
-# dev.off()
-
-
-expansion.plot <- ggplot(overlap.table %>% filter(!(disturbance == "fire" & species.name %in% insectonlyspp)) %>% filter(!(disturbance=="insect.disease" & species.name %in% fireonlyspp)),aes(x=disturbance,y=mean.exp.prop.adult))+
-  geom_boxplot(fill="gray")+
-  geom_jitter(height=0,width=0.2, aes(color=species.name),pch=15,size=2)+
-  scale_color_manual(values=c("#119329",
-"#c975eb",
-"#e6c035",
-"#002489",
-"#00daa9",
-"#530046",
-"#dfd783",
-"#5676ef",
-"#3a5e00",
-"#0072d7",
-"#a65200",
-"#ff8cc0",
-"#614800",
-"#b15674",
-"#ff8e68"),name="Species")+
-  xlab("")+
-  ylab("Proportion Expanded")+
-  ylim(c(-0.001,0.42))+
-  theme_bw()+
-  theme(axis.text=element_text(size=16,color="black"),legend.text = element_text(size=14),axis.title = element_text(size=14),legend.title = element_text(size=14))
-
-contraction.plot <- ggplot(overlap.table %>% filter(!(disturbance == "fire" & species.name %in% insectonlyspp)) %>% filter(!(disturbance=="insect.disease" & species.name %in% fireonlyspp)),aes(x=disturbance,y=mean.contr.prop.adult))+
-  geom_boxplot(fill="gray")+
-  geom_jitter(height=0,width=0.2, aes(color=species.name),pch=15,size=2)+
-  scale_color_manual(values=c("#119329",
-"#c975eb",
-"#e6c035",
-"#002489",
-"#00daa9",
-"#530046",
-"#dfd783",
-"#5676ef",
-"#3a5e00",
-"#0072d7",
-"#a65200",
-"#ff8cc0",
-"#614800",
-"#b15674",
-"#ff8e68"),name="Species")+
-  xlab("")+
-  ylab("Proportion Contracted")+   ylim(c(-0.001,0.42))+
-  theme_bw()+
-  theme(axis.text=element_text(size=16,color="black"),legend.text = element_text(size=16),axis.title = element_text(size=14),legend.title = element_text(size=16))
-
-ggarrange(contraction.plot, expansion.plot, nrow=1, ncol=2,common.legend = TRUE)
-
-ggplot(overlap.table %>% 
-  pivot_longer(c(mean.exp.prop.adult,mean.contr.prop.adult),names_to = "shift",values_to = "proportion") %>% 
-    filter(!(disturbance == "fire" & species %in% c(17,113,106))),aes(x=species.name,y=proportion,fill=shift))+
-  geom_boxplot()+
-  xlab("")+
-  ylab("Mean Proportion Shift")+
-  scale_fill_manual(values=c("darkorange1","steelblue"),labels=c("Contraction", "Expansion"),name="Shift Type")+
-  theme_bw()+
-  theme(axis.text.x = element_text(angle=45,vjust=0.9,hjust=0.8),axis.text=element_text(size=16,color="black"),legend.text = element_text(size=16),axis.title = element_text(size=16),legend.title = element_text(size=16))
-
-ggplot(overlap.table %>% 
-  pivot_longer(c(mean.exp.prop.adult,mean.contr.prop.adult),names_to = "shift",values_to = "proportion")%>% 
-    filter(!(disturbance == "fire" & species %in% c(17,113,106))),aes(x=shift,y=proportion,fill=shift))+
-  geom_boxplot()+
-  xlab("")+
-  ylab("Mean Proportion Shift")+
-  scale_fill_manual(values=c("darkorange1","steelblue"),labels=c("Contraction", "Expansion"),name="Shift Type")+
-  theme_bw()+
-  theme(axis.text.x = element_text(angle=45,vjust=0.9,hjust=0.8),axis.text=element_text(size=16,color="black"),legend.text = element_text(size=16),axis.title = element_text(size=16),legend.title = element_text(size=16))
 ```
 
 ```{r}
@@ -4149,23 +2651,6 @@ Full set results:
 
 ```{r, echo=FALSE}
 overlap.table.partialset <- overlap.table
-overlap.table.fullset <- overlap.table %>% 
-  filter(!species.name %in% c(insectonlyspp,fireonlyspp))
-
-dist.exp.anova <- aov(log(mean.exp.prop.adult)~factor(disturbance),data=overlap.table.fullset)
-par(mfrow=c(2,2))
-plot(dist.exp.anova)
-summary(dist.exp.anova) #no significant difference between disturbances in expansion
-
-dist.contr.anova<- aov(log(mean.contr.prop.adult)~factor(disturbance), data=overlap.table.fullset)
-plot(dist.contr.anova)
-summary(dist.contr.anova)#no difference between disturbances for contractions
-
-par(mfrow=c(1,1))
-hist(overlap.table.fullset$mean.exp.prop.adult) #not normal
-hist(overlap.table.fullset$mean.contr.prop.adult) #normal-ish
-var.test(overlap.table.fullset$mean.exp.prop.adult, overlap.table.fullset$mean.contr.prop.adult, alternative = "two.sided")
-wilcox.test(overlap.table.fullset$mean.exp.prop.adult, overlap.table.fullset$mean.contr.prop.adult) #significant difference between amount of contraction and amount of expansion
 
 #for the partial set (all species)
 par(mfrow=c(1,1))
@@ -4195,14 +2680,8 @@ var.test(overlap.table.partialset$mean.exp.prop.adult, overlap.table.partialset$
 wilcox.test(overlap.table.partialset$mean.exp.prop.adult, overlap.table.partialset$mean.contr.prop.adult) #significant difference between amount of contraction and amount of expansion
 ```
 
-There is a moderate correlation between expansion and contraction, with species/disturbances that experienced more expansion generally experiencing less contraction. 
-
 ```{r, echo=FALSE}
 ##are expansion and contraction correlated?
-cor.test(overlap.table.fullset$mean.exp.prop.adult,overlap.table.fullset$mean.contr.prop.adult)
-par(mfrow=c(1,1))
-plot(overlap.table.fullset$mean.exp.prop.adult,overlap.table.fullset$mean.contr.prop.adult)
-
 cor.test(overlap.table.partialset$mean.exp.prop.adult,overlap.table.partialset$mean.contr.prop.adult)
 par(mfrow=c(1,1))
 plot(overlap.table.partialset$mean.exp.prop.adult,overlap.table.partialset$mean.contr.prop.adult)
