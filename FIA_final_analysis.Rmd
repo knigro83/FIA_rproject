@@ -1890,7 +1890,7 @@ unlist(pc1.means)
 pc1means.table <- as.data.frame(matrix(unlist(pc1.means),nrow=length(pc1.means),ncol=1))  %>% 
   mutate(names =  names(adult_data_pcapts)) %>% 
   tidyr::separate(names,into=c("species.code","disturbance","extra"),sep="_") %>% 
-  mutate(species.code = species.code) %>% 
+  mutate(species.code = as.numeric(species.code)) %>% 
   left_join(species.names) %>% 
   dplyr::rename(pc1mean = V1) %>% 
   group_by(species.name) %>% 
@@ -1904,7 +1904,7 @@ ellipse_margins_diff_props_clean<- ellipse_margins_diff_props %>%
   mutate(species= substr(column_label, 0,3),
          dist =  str_extract(column_label,"_.+_")) %>% 
   mutate(dist= gsub("_","",dist),
-         species = gsub("_","",species)) %>% 
+         species = as.numeric(gsub("_","",species))) %>% 
   dplyr::select(-c(x_high_freq,x_low_freq,y_high_freq,y_low_freq)) %>% 
   mutate(x_high_prop = ifelse(x=="-1", -1*x_high_prop, x_high_prop),
          x_low_prop = ifelse(x=="-1", -1*x_low_prop, x_low_prop),
@@ -2026,7 +2026,7 @@ max1_df <- as.data.frame(max1) %>% dplyr::rename(group=V1, mean=V2, lwr = V3, up
   mutate(species= substr(group, 0,3),
          dist =  str_extract(group,"_.+_")) %>% 
   mutate(dist= gsub("_","",dist),
-         species = gsub("_","",species)) %>% 
+         species = as.numeric(gsub("_","",species))) %>% 
   left_join(species.names,by=c("species"="species.code")) %>% 
   left_join(pc1means.table) %>% 
   filter(!species.name == "singleleaf pinyon")
@@ -2035,7 +2035,7 @@ min1_df <- as.data.frame(min1) %>% dplyr::rename(group=V1, mean=V2, lwr = V3, up
   mutate(species= substr(group, 0,3),
          dist =  str_extract(group,"_.+_")) %>% 
   mutate(dist= gsub("_","",dist),
-         species = gsub("_","",species)) %>% 
+         species = as.numeric(gsub("_","",species))) %>% 
   left_join(species.names,by=c("species"="species.code"))%>% 
   left_join(pc1means.table)%>% 
   filter(!species.name == "singleleaf pinyon")
@@ -2044,7 +2044,7 @@ max2_df <- as.data.frame(max2) %>% dplyr::rename(group=V1, mean=V2, lwr = V3, up
   mutate(species= substr(group, 0,3),
          dist =  str_extract(group,"_.+_")) %>% 
   mutate(dist= gsub("_","",dist),
-         species = gsub("_","",species)) %>% 
+         species = as.numeric(gsub("_","",species))) %>% 
   left_join(species.names,by=c("species"="species.code"))%>% 
   left_join(pc1means.table)%>% 
   filter(!species.name == "singleleaf pinyon")
@@ -2053,7 +2053,7 @@ min2_df <- as.data.frame(min2) %>% dplyr::rename(group=V1, mean=V2, lwr = V3, up
   mutate(species= substr(group, 0,3),
          dist =  str_extract(group,"_.+_")) %>% 
   mutate(dist= gsub("_","",dist),
-         species = gsub("_","",species)) %>% 
+         species = as.numeric(gsub("_","",species))) %>% 
   left_join(species.names,by=c("species"="species.code"))%>% 
   left_join(pc1means.table)%>% 
   filter(!species.name == "singleleaf pinyon")
@@ -2190,7 +2190,7 @@ mu1_df<- as.data.frame(mu1) %>% dplyr::rename(group=V1, mean=V2, lwr = V3, upr =
   mutate(species= substr(group, 0,3),
          dist =  str_extract(group,"_.+_")) %>%
   mutate(dist= gsub("_","",dist),
-         species = gsub("_","",species)) %>%
+         species = as.numeric(gsub("_","",species))) %>%
   left_join(species.names,by=c("species"="species.code")) %>%
     left_join(pc1means.table)%>%
     filter(!species.name == "singleleaf pinyon")
@@ -2202,7 +2202,7 @@ mu2_df<- as.data.frame(mu2) %>% dplyr::rename(group=V1, mean=V2, lwr = V3, upr =
   mutate(species= substr(group, 0,3),
          dist =  str_extract(group,"_.+_")) %>%
   mutate(dist= gsub("_","",dist),
-         species = gsub("_","",species)) %>%
+         species = as.numeric(gsub("_","",species))) %>%
   left_join(species.names,by=c("species"="species.code")) %>%
       left_join(pc1means.table)%>%
     filter(!species.name == "singleleaf pinyon")
@@ -2241,7 +2241,7 @@ mu1_rel_df<- as.data.frame(mu1_rel) %>% dplyr::rename(group=V1, mean=V2, lwr = V
   mutate(species= substr(group, 0,3),
          dist =  str_extract(group,"_.+_")) %>%
   mutate(dist= gsub("_","",dist),
-         species = gsub("_","",species)) %>%
+         species = as.numeric(gsub("_","",species))) %>%
   left_join(species.names,by=c("species"="species.code")) %>%
     left_join(pc1means.table)%>%
     filter(!species.name == "singleleaf pinyon")
@@ -2251,7 +2251,7 @@ mu2_rel_df<- as.data.frame(mu2_rel) %>% dplyr::rename(group=V1, mean=V2, lwr = V
   mutate(species= substr(group, 0,3),
          dist =  str_extract(group,"_.+_")) %>%
   mutate(dist= gsub("_","",dist),
-         species = gsub("_","",species)) %>%
+         species = as.numeric(gsub("_","",species))) %>%
   left_join(species.names,by=c("species"="species.code")) %>%
       left_join(pc1means.table)%>%
     filter(!species.name == "singleleaf pinyon")
@@ -2999,16 +2999,14 @@ ggplot(overlap.table.long_cutoff %>% filter(disturbance=="none"),aes(x=factor(sp
 
 ```{r}
 #summarise by traits
-overlap.table_traits_raw <- as.data.frame(matrix(unlist(overlap.list),nrow = 960000, ncol=5,byrow=FALSE))  
+overlap.table_traits_raw <- as.data.frame(matrix(unlist(overlap.list),nrow = 192000, ncol=5,byrow=FALSE))  
 colnames(overlap.table_traits_raw)<-names(overlap.list[[1]])
 overlap.table_traits<- overlap.table_traits_raw %>% 
-  mutate(names = names(overlap.list)) %>% 
+  mutate(names = rep(names(overlap.list), each=4000)) %>% 
   separate(names,into=c("species","disturbance","extra"),sep="_") %>% 
-  mutate(species = species) %>% 
+  mutate(species = as.numeric(species)) %>% 
   left_join(species.names,by=c("species"="species.code")) %>% 
   filter(!species.name=="singleleaf pinyon")
-
-length(unlist(overlap.list))
 
 overlap.df <- data.frame(area1=NA, area2=NA, overlap=NA, exp.prop.adult=NA, contr.prop.adult=NA)
 for(i in 1:length(overlap.list)){
@@ -3021,11 +3019,11 @@ overlap.df.traits<- overlap.df %>%
   mutate(species= substr(name, 0,3),
          dist =  str_extract(name,"_.+_")) %>% 
   mutate(dist= gsub("_","",dist),
-         species = gsub("_","",species)) %>%
+         species = as.numeric(gsub("_","",species))) %>%
   left_join(species.names, by=c("species" = "species.code")) %>% 
   left_join(sample.append %>% 
   dplyr::select(-species.name.y) %>% 
-  dplyr::rename("species.name" = "species.name.x", "dist"="disturbance")) %>% 
+  dplyr::rename("species.name" = "species.name.x", "dist"="disturbance") %>% mutate(species=as.numeric(species))) %>% 
   filter(!species.name=="singleleaf pinyon")
 
 exp.by.disp <-overlap.df.traits %>% 
@@ -3049,7 +3047,7 @@ ggplot(contr.by.disp, aes(x=dispersal,y=mean,col=dist))+
 ##I actually don't think this will work cause i'm looking for a linear trend, not just a comparison of categories 
 
 ###summarise by disturbance
-overlap.table_raw <- as.data.frame(matrix(unlist(overlap.list),nrow = 960000, ncol=5,byrow=FALSE))  
+overlap.table_raw <- as.data.frame(matrix(unlist(overlap.list),nrow = 192000, ncol=5,byrow=FALSE))  
 colnames(overlap.table_raw)<-names(overlap.list[[1]])
 
 exp.by.dist <-overlap.df.traits %>% 
