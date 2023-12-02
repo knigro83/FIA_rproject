@@ -1017,6 +1017,7 @@ dist <- bind_rows(fire,ID,harvest,other,wind,undis)%>%
 #write.csv(dist, "FIA_plot_disturbance_data.csv")
 ```
 
+
 ```{r,echo=FALSE,eval=FALSE}
 survey_data<- dist %>% 
   left_join(plot, by=c("PLT_CN" = "CN"))
@@ -1046,6 +1047,23 @@ dist_seeds_joined <- left_join(seeds, dist, by="PLT_CN") %>%
 head(dist_seeds_joined)
 summary(is.na(dist_seeds_joined)) #there are NAs for the plots that are not in my analysis, this is ok 
 
+```
+
+##time since disturbance
+```{r}
+dist_tsd<- dist_seeds_joined %>% 
+  mutate(tsd = MEASYEAR-dist_year) %>% 
+  filter(Agent %in% c("fire","insect.disease")) %>% 
+  filter(! source == "tree_table")
+
+ggplot(dist_tsd %>% filter(tsd>0))+
+  geom_histogram(aes(x=tsd))+
+  facet_wrap(~Agent, scales="free")
+ 
+ggplot(dist_tsd %>% filter(tsd>0))+
+  geom_boxplot(aes(x=Agent, y=tsd))
+##time since disturbance for insect/disease was much shorter on average than for fire. 
+ 
 ```
 
 ##Selecting species for analysis 
@@ -2773,7 +2791,7 @@ Now I will look at the effect of species traits on the amount of expansion/contr
 
 #make Shade tolerance dataframe from https://figshare.com/collections/TOLERANCE_TO_SHADE_DROUGHT_AND_WATERLOGGING_OF_TEMPERATE_NORTHERN_HEMISPHERE_TREES_AND_SHRUBS/3309258
 
-trait.data <- data.frame(species.name = species.names$species.name,
+trait.data1 <- data.frame(species.name = species.names$species.name,
                          shade.tolerance=c(4.33,4.01,4.83,1.48,1.35,4.53,1,1.44,1.48,1.56,1.64,1.17,2.78,4.73,1.21,2.09),
                          dispersal = c(rep("wind",3),"animal","wind","wind",rep("animal",2),"wind","animal","wind","animal",rep("wind",3),"animal"))
 
@@ -2803,16 +2821,17 @@ seed.weight.filter %>%
 
 
 #combine
-trait.data<- trait.data %>% 
+trait.data<- trait.data1 %>% 
   left_join(seed.weight.summary, by="species.name") %>% 
-  filter(!species.name == "singleleaf pinyon")
+  filter(!species.name == "singleleaf pinyon") %>% 
+  left_join(pc1means.table)
 ```
 
 Let's look at the correlations between trait data.
 
 ```{r, echo=FALSE,}
 #look at correlations between traits
-cor(trait.data[,c(2,4)])
+cor(trait.data[,c(2,4,5)])
 ggplot(trait.data,aes(x=shade.tolerance,y=mean.weight.mg))+
   geom_point()+
   geom_smooth(method="lm")
@@ -2888,7 +2907,7 @@ comb.p.plot
 # dev.off()
 
 ##facet by disturbance
-ggplot(overlap.table.long_cutoff,aes(x=number,y=mean,color=factor(species.name, levels=pc1means.table$species.name),alpha=diff,shape=diff))+
+gl_bydist<- ggplot(overlap.table.long_cutoff,aes(x=as.factor(number),y=mean,color=factor(species.name, levels=pc1means.table$species.name),alpha=diff,shape=diff))+
   scale_color_manual(values = c("#F37408","#EFAB1A","#ECBF1E","#EBC021","#DCC340","#B7B66D","#B4B46F","#B0B372","#ABB177","#A7B077","#A6B282","#7FA698","#73A3A0","#6DA2A1","#3A9AB2"), name="Species")+
   geom_hline(yintercept=0, linetype=2, size=0.8)+
   geom_point(position = position_dodge(0.9),size=4)+
@@ -2901,7 +2920,12 @@ ggplot(overlap.table.long_cutoff,aes(x=number,y=mean,color=factor(species.name, 
   geom_segment(data=arrow_tips_table1, aes(x=11,xend=11,y=.25,yend=.7,color=factor(species.name, levels=pc1means.table$species.name),alpha=diff), arrow = arrow(length=unit(.2,"cm")),size=1)+
     geom_segment(data=arrow_tips_table2, aes(x=8,xend=8,y=.25,yend=.7,color=factor(species.name, levels=pc1means.table$species.name),alpha=diff), arrow = arrow(length=unit(.2,"cm")),size=1)+
   theme_bw()+
-  theme(axis.text = element_text(size=24),legend.text = element_text(size=16),legend.title = element_text(size=24),legend.position = 'bottom',axis.title = element_text(size=24),plot.margin=margin(0,0.5,.6,.1,"cm"), axis.text.x=element_blank(), axis.title.x = element_blank(),strip.text = element_text(size=16,color="black"), panel.grid.minor.x = element_blank(), panel.grid.major.x = element_blank())
+  theme(axis.text = element_text(size=24),legend.text = element_text(size=16),legend.title = element_text(size=24),legend.position = 'right',axis.title = element_text(size=24),plot.margin=margin(0,0.5,.6,.1,"cm"), axis.title.x = element_blank(),strip.text = element_text(size=16,color="black"), panel.grid.minor.x = element_blank(), panel.grid.major.x = element_blank(), axis.text.x=element_text(size=16, angle=60,hjust=1))
+
+png("figures/gl_bydist.png", width = 900, height = 400)
+gl_bydist
+dev.off()
+
 
 ##see how many CIs are non-overlapping within disturbances
 
@@ -2945,20 +2969,24 @@ sample.append<- niche.shift.trait.table %>%
   left_join(niche.areas %>% 
   separate(col= name, into=c("species","disturbance","extra"), sep="_",remove = TRUE), by=c("species","disturbance","extra"))
 
-n_seed_fire<- sample.append %>% dplyr::select(c(species.name.x,disturbance,n.seed)) %>% 
+n_seed_fire<- sample.append %>% dplyr::select(c(species.name.x,number,disturbance,n.seed)) %>% 
+  dplyr::rename(species.name = species.name.x) %>% 
   filter(disturbance=="fire") %>% 
   arrange(n.seed)
 
-n_seed_ID<- sample.append %>% dplyr::select(c(species.name.x,disturbance,n.seed)) %>% 
+n_seed_ID<- sample.append %>% dplyr::select(c(species.name.x,number,disturbance,n.seed)) %>% 
+  dplyr::rename(species.name = species.name.x) %>% 
   filter(disturbance=="insect.disease") %>% 
   arrange(n.seed)
 
-n_seed_none<- sample.append %>% dplyr::select(c(species.name.x,disturbance,n.seed)) %>% 
+n_seed_none<- sample.append %>% dplyr::select(c(species.name.x,number,disturbance,n.seed)) %>% 
+  dplyr::rename(species.name = species.name.x) %>% 
   filter(disturbance=="none") %>% 
   arrange(n.seed)
 
 #fire
-ggplot(overlap.table.long_cutoff %>% filter(disturbance=="fire"),aes(x=factor(species.name, levels=n_seed_fire$species.name),y=mean,alpha=diff,shape=diff))+
+fireplot <- ggplot(overlap.table.long_cutoff %>% filter(disturbance=="fire"),aes(x=factor(species.name, levels=n_seed_fire$species.name, labels=n_seed_fire$number),y=mean,alpha=diff,shape=diff))+
+    # scale_color_manual(values = c("#F37408","#EFAB1A","#ECBF1E","#EBC021","#DCC340","#B7B66D","#B4B46F","#B0B372","#ABB177","#A7B077","#A6B282","#7FA698","#73A3A0","#6DA2A1","#3A9AB2"), name="Species")+
   geom_hline(yintercept=0, linetype=2, size=0.8)+
   geom_point(position = position_dodge(0.9),size=4)+
   geom_errorbar(aes(ymin=lwr, ymax =upr), width=0, position = position_dodge(0.9),size=1)+
@@ -2968,10 +2996,10 @@ ggplot(overlap.table.long_cutoff %>% filter(disturbance=="fire"),aes(x=factor(sp
   ylim(c(-.1,.7))+
   ylab("Proportion")+
   theme_bw()+
-  theme(axis.text = element_text(size=24),legend.text = element_text(size=16),legend.title = element_text(size=24),legend.position = 'bottom',axis.title = element_text(size=24),plot.margin=margin(0,0.5,.6,.1,"cm"), axis.text.x=element_blank(), axis.title.x = element_blank(),strip.text = element_text(size=16,color="black"), panel.grid.minor.x = element_blank(), panel.grid.major.x = element_blank())
+  theme(axis.text = element_text(size=24),legend.text = element_text(size=16),legend.title = element_text(size=24),legend.position = 'bottom',axis.title = element_text(size=24),plot.margin=margin(0,0.5,.6,.1,"cm"), axis.title.x = element_blank(),strip.text = element_text(size=16,color="black"), panel.grid.minor.x = element_blank(), panel.grid.major.x = element_blank(), axis.text.x = element_text(size=14, angle=60, color="black", hjust=1))
 
 #insect/disease
-ggplot(overlap.table.long_cutoff %>% filter(disturbance=="insect.disease"),aes(x=factor(species.name, levels=n_seed_ID$species.name),y=mean,alpha=diff,shape=diff))+
+idplot<- ggplot(overlap.table.long_cutoff %>% filter(disturbance=="insect.disease"),aes(x=factor(species.name, levels=n_seed_ID$species.name, labels=n_seed_ID$number),y=mean,alpha=diff,shape=diff))+
   geom_hline(yintercept=0, linetype=2, size=0.8)+
   geom_point(position = position_dodge(0.9),size=4)+
   geom_errorbar(aes(ymin=lwr, ymax =upr), width=0, position = position_dodge(0.9),size=1)+
@@ -2981,10 +3009,10 @@ ggplot(overlap.table.long_cutoff %>% filter(disturbance=="insect.disease"),aes(x
   ylim(c(-.1,.7))+
   ylab("Proportion")+
   theme_bw()+
-  theme(axis.text = element_text(size=24),legend.text = element_text(size=16),legend.title = element_text(size=24),legend.position = 'bottom',axis.title = element_text(size=24),plot.margin=margin(0,0.5,.6,.1,"cm"), axis.text.x=element_blank(), axis.title.x = element_blank(),strip.text = element_text(size=16,color="black"), panel.grid.minor.x = element_blank(), panel.grid.major.x = element_blank())
+  theme(axis.text = element_text(size=24),legend.text = element_text(size=16),legend.title = element_text(size=24),legend.position = 'bottom',axis.title = element_text(size=24),plot.margin=margin(0,0.5,.6,.1,"cm"), axis.title.x = element_blank(),strip.text = element_text(size=16,color="black"), panel.grid.minor.x = element_blank(), panel.grid.major.x = element_blank(),axis.text.x = element_text(size=14, angle=60, color="black", hjust=1))
 
 #none
-ggplot(overlap.table.long_cutoff %>% filter(disturbance=="none"),aes(x=factor(species.name, levels=n_seed_none$species.name),y=mean,alpha=diff,shape=diff))+
+noneplot<- ggplot(overlap.table.long_cutoff %>% filter(disturbance=="none"),aes(x=factor(species.name, levels=n_seed_none$species.name, labels=n_seed_none$number),y=mean,alpha=diff,shape=diff))+
   geom_hline(yintercept=0, linetype=2, size=0.8)+
   geom_point(position = position_dodge(0.9),size=4)+
   geom_errorbar(aes(ymin=lwr, ymax =upr), width=0, position = position_dodge(0.9),size=1)+
@@ -2994,7 +3022,11 @@ ggplot(overlap.table.long_cutoff %>% filter(disturbance=="none"),aes(x=factor(sp
   ylim(c(-.1,.7))+
   ylab("Proportion")+
   theme_bw()+
-  theme(axis.text = element_text(size=24),legend.text = element_text(size=16),legend.title = element_text(size=24),legend.position = 'bottom',axis.title = element_text(size=24),plot.margin=margin(0,0.5,.6,.1,"cm"), axis.text.x=element_blank(), axis.title.x = element_blank(),strip.text = element_text(size=16,color="black"), panel.grid.minor.x = element_blank(), panel.grid.major.x = element_blank())
+  theme(axis.text = element_text(size=24),legend.text = element_text(size=16),legend.title = element_text(size=24),legend.position = 'bottom',axis.title = element_text(size=24),plot.margin=margin(0,0.5,.6,.1,"cm"),axis.title.x = element_blank(),strip.text = element_text(size=16,color="black"), panel.grid.minor.x = element_blank(), panel.grid.major.x = element_blank(),axis.text.x = element_text(size=14, angle=60, color="black", hjust=1))
+
+png("figures/gl_byn.png", width = 1000, height = 400)
+ggarrange(fireplot, idplot, noneplot, nrow=1, common.legend = T)
+dev.off()
 ```
 
 ```{r}
@@ -3065,6 +3097,80 @@ ggplot(bind_rows(exp.by.dist, contr.by.dist), aes(x=dist, y=mean, col=dist))+
   geom_errorbar(aes(ymin=lwr, ymax=upr))+
   facet_wrap(~type)+
   scale_color_manual(values=disturbance.colors)
+
+####shade tolerance
+
+exp.by.shade <-overlap.df.traits %>% 
+  group_by(dist, shade.tolerance) %>% 
+  dplyr::summarise(mean = mean(mean.exp.prop.adult), lwr=quantile(mean.exp.prop.adult,c(0.025,0.975))[1], upr=quantile(mean.exp.prop.adult,c(0.025,0.975))[2])%>% 
+  mutate(type="gained")
+
+contr.by.shade <-overlap.df.traits %>% 
+  group_by(dist, shade.tolerance) %>% 
+  dplyr::summarise(mean = mean(mean.contr.prop.adult), lwr=quantile(mean.contr.prop.adult,c(0.025,0.975))[1], upr=quantile(mean.contr.prop.adult,c(0.025,0.975))[2]) %>% 
+  mutate(type="lost")
+
+ggplot(bind_rows(exp.by.shade, contr.by.shade), aes(x=shade.tolerance, y=mean, col=dist))+
+  geom_point()+
+  geom_errorbar(aes(ymin=lwr, ymax=upr))+
+  facet_wrap(~type)+
+  scale_color_manual(values=disturbance.colors)
+
+##pc1 mean
+exp.by.pc1 <-overlap.df.traits %>% 
+  group_by(dist, pc1speciesmean) %>% 
+  dplyr::summarise(mean = mean(mean.exp.prop.adult), lwr=quantile(exp.prop.adult,c(0.025,0.975))[1], upr=quantile(exp.prop.adult,c(0.025,0.975))[2])%>% 
+  mutate(type="gained")
+
+contr.by.pc1 <-overlap.df.traits %>% 
+  group_by(dist, pc1speciesmean) %>% 
+  dplyr::summarise(mean = mean(mean.contr.prop.adult), lwr=quantile(contr.prop.adult,c(0.025,0.975))[1], upr=quantile(contr.prop.adult,c(0.025,0.975))[2]) %>% 
+  mutate(type="lost")
+
+ggplot(bind_rows(exp.by.pc1, contr.by.pc1), aes(x=pc1speciesmean, y=mean, col=dist))+
+  geom_point()+
+  geom_errorbar(aes(x=pc1speciesmean, ymin=lwr, ymax=upr, col=dist))+
+  facet_wrap(~type)+
+  ylim(c(0,.5))+
+  scale_color_manual(values=disturbance.colors)
+
+##try a model
+traitmoddf <- overlap.df.traits %>% 
+  dplyr::select(species.name, dist,mean.exp.prop.adult,mean.contr.prop.adult,shade.tolerance,dispersal,pc1speciesmean,n.adult,n.seed) %>% 
+  unique()
+  
+cor(traitmoddf[,c(5,7:9)])
+  
+mod.1 <- lm(log(mean.exp.prop.adult) ~ shade.tolerance*dist + dispersal*dist + pc1speciesmean*dist + n.seed*dist, data=traitmoddf)
+par(mfrow=c(2,2))
+plot(mod.1)
+Anova(mod.1, type="3")
+summary(mod.1)
+options(na.action = "na.fail")
+dredge.mod1 <- dredge(mod.1)
+dredge.mod1
+
+ggplot(traitmoddf, aes(x=n.seed, y=log(mean.exp.prop.adult), col=dist))+
+  geom_point()+
+  geom_smooth(method="lm")
+
+mod.2 <- lm(log(mean.contr.prop.adult) ~ shade.tolerance*dist + dispersal*dist + pc1speciesmean*dist + n.seed*dist, data=traitmoddf)
+par(mfrow=c(2,2))
+plot(mod.2)
+Anova(mod.2, type="3")
+summary(mod.2)
+options(na.action = "na.fail")
+dredge.mod2 <- dredge(mod.2)
+dredge.mod2
+
+ggplot(traitmoddf, aes(x=n.seed, y=log(mean.contr.prop.adult), col=dist))+
+  geom_point()+
+  geom_smooth(method="lm")
+
+ggplot(traitmoddf, aes(x=pc1speciesmean, y=log(mean.contr.prop.adult), col=dist))+
+  geom_point()+
+  geom_smooth(method="lm")
+
 ```
 
 Now I will look at differences between disturbances in the amount of contraction/expansion. There is significantly more contraction across the board than expansion. 
