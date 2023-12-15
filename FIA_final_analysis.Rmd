@@ -2906,6 +2906,27 @@ comb.p.plot
 # comb.p.plot
 # dev.off()
 
+#compare lost vs. gain within disturbance within species
+ggplot(overlap.table.long_cutoff,aes(x=disturbance,y=mean,color=factor(type, levels=c("lost","gained")),alpha=diff,shape=diff))+
+  #geom_rect(aes(xmin=0.5, xmax=1.5, ymin=-Inf, ymax=Inf, fill = typen), alpha=0.3, stat="identity", col="black") +
+  geom_hline(yintercept=0, linetype=2, size=0.8)+
+  #geom_vline(xintercept=1.5)+
+  geom_point(position = position_dodge(0.5),size=4)+
+  geom_errorbar(aes(ymin=lwr, ymax =upr), width=0, position = position_dodge(0.5),size=1)+
+  scale_color_manual(values=shift_colors[c(4,2)])+
+  #scale_color_manual(values=disturbance.colors, name="Disturbance",labels=c("fire","insect/disease","none"))+
+  scale_alpha_manual(values=c(1,.7),labels=c("no","yes"),name="95% CI overlaps 0")+
+  scale_shape_manual(values=c(16,1),labels=c("no","yes"),name="95% CI overlaps 0")+
+  facet_wrap(~factor(species.name, levels=pc1means.table$species.name), nrow=3, labeller = labeller(species.name = label_wrap_gen(20)))+
+  ylab("Proportion")+
+  scale_y_continuous(limits=c(-.1,.7)) +
+  #scale_x_continuous(breaks=overlap.table.long$typen, labels=overlap.table.long$type)+
+  scale_fill_gradient(low="grey",high="white", guide="none")+
+  #geom_segment(data=arrow_tips_table1, aes(x=typen,xend=typen,y=.25,yend=.7,color=disturbance,alpha=diff), arrow = arrow(length=unit(.2,"cm")),size=1)+
+   #geom_segment(data=arrow_tips_table2, aes(x=typen-.3,xend=typen-.3,y=.25,yend=.7,color=disturbance,alpha=diff), arrow = arrow(length=unit(.2,"cm")),size=1)+
+  theme_bw()+
+  theme(axis.text = element_text(size=24),legend.text = element_text(size=24),legend.title = element_text(size=24),legend.position = 'bottom',axis.title = element_text(size=24),plot.margin=margin(0,0.5,.6,.1,"cm"), axis.text.x=element_text(color="black",size=20), axis.title.x = element_blank(),strip.text = element_text(size=16,color="black"), panel.grid = element_blank())
+
 ##facet by disturbance
 gl_bydist<- ggplot(overlap.table.long_cutoff,aes(x=as.factor(number),y=mean,color=factor(species.name, levels=pc1means.table$species.name),alpha=diff,shape=diff))+
   scale_color_manual(values = c("#F37408","#EFAB1A","#ECBF1E","#EBC021","#DCC340","#B7B66D","#B4B46F","#B0B372","#ABB177","#A7B077","#A6B282","#7FA698","#73A3A0","#6DA2A1","#3A9AB2"), name="Species")+
@@ -2929,35 +2950,78 @@ dev.off()
 
 ##see how many CIs are non-overlapping within disturbances
 
-a<- overlap.table.long %>% 
-  filter(disturbance == "fire" & type=="gained") %>% 
-  filter(species.name=="Douglas-fir")
-
-b<- overlap.table.long %>% 
-  filter(disturbance == "fire" & type=="gained") %>% 
-  filter(species.name=="western redcedar")
-
 species.pairs <- t(combn(unique(overlap.table.long$species.name),2))
 species.pairs[1,]
 
-ci_overlap <- data.frame(comp = NA, eval=NA)
+ci_overlap <- data.frame(comp = NA, eval=NA, dist=NA, type=NA)
+type_names<- c("gained","lost")
 
+for(k in 1:length(type_names)){
+for(j in 1:length(dist_names)){
 for(i in 1:nrow(species.pairs)){
-  a <- overlap.table.long %>% filter(disturbance=="fire", type=="gained") %>%  filter(species.name == species.pairs[i,1])
-  b <- overlap.table.long %>% filter(disturbance=="fire", type=="gained") %>%  filter(species.name == species.pairs[i,2])
+  a <- overlap.table.long %>% filter(disturbance==dist_names[j], type==type_names[k]) %>%  filter(species.name == species.pairs[i,1])
+  b <- overlap.table.long %>% filter(disturbance==dist_names[j], type==type_names[k]) %>%  filter(species.name == species.pairs[i,2])
   
 if(a %>% pull(mean) > b %>% pull(mean)){ 
     eval <- a %>% pull(lwr) >  b %>% pull(upr)
-    row <- data.frame(comp= paste(species.pairs[i,1],"_",species.pairs[i,2], sep=""), eval = eval)
+    row <- data.frame(comp= paste(species.pairs[i,1],"_",species.pairs[i,2], sep=""), eval = eval, dist=dist_names[j], type=type_names[k])
   ci_overlap<- bind_rows(ci_overlap, row)}
 
 if(a %>% pull(mean) <  b %>% pull(mean)){
   eval <- b %>% pull(lwr) > a %>% pull(upr)
-  row <- data.frame(comp= paste(species.pairs[i,1],"_",species.pairs[i,2], sep=""), eval = eval)
+  row <- data.frame(comp= paste(species.pairs[i,1],"_",species.pairs[i,2], sep=""), eval = eval,  dist=dist_names[j], type=type_names[k])
   ci_overlap<- bind_rows(ci_overlap, row)}
-}
+}}}
 
-ci_overlap
+View(ci_overlap)
+
+##see how many species have significant differences between disturbance types
+
+dist.pairs <- t(combn(unique(overlap.table.long$disturbance),2))
+
+ci_overlap_dist <- data.frame(comp = NA, eval=NA, species=NA, type=NA)
+type_names<- c("gained","lost")
+species_list <- unique(overlap.table.long$species.name)
+
+for(k in 1:length(type_names)){
+for(j in 1:length(species)){
+for(i in 1:nrow(dist.pairs)){
+  a <- overlap.table.long %>% filter(species.name==species_list[j], type==type_names[k]) %>%  filter(disturbance == dist.pairs[i,1])
+  b <- overlap.table.long %>% filter(species.name==species_list[j], type==type_names[k]) %>%  filter(disturbance == dist.pairs[i,2])
+  
+if(a %>% pull(mean) > b %>% pull(mean)){ 
+    eval <- a %>% pull(lwr) >  b %>% pull(upr)
+    row <- data.frame(comp= paste(dist.pairs[i,1],"_",dist.pairs[i,2], sep=""), eval = eval, species=species_list[j], type=type_names[k])
+  ci_overlap_dist<- bind_rows(ci_overlap_dist, row)}
+
+if(a %>% pull(mean) <  b %>% pull(mean)){
+  eval <- b %>% pull(lwr) > a %>% pull(upr)
+  row <- data.frame(comp= paste(dist.pairs[i,1],"_",dist.pairs[i,2], sep=""), eval = eval,  species=species_list[j], type=type_names[k])
+  ci_overlap_dist<- bind_rows(ci_overlap_dist, row)}
+}}}
+
+View(ci_overlap_dist)
+
+
+##see how many species have significant differences between gained vs. lost in each disturbance type
+
+ci_overlap_type <- data.frame(comp = NA, eval=NA, species=NA, dist=NA)
+
+for(j in 1:length(species)){
+for(i in 1:length(dist_names)){
+  a <- overlap.table.long %>% filter(species.name==species_list[j], type=="gained") %>%  filter(disturbance == dist_names[i])
+  b <- overlap.table.long %>% filter(species.name==species_list[j], type=="lost") %>%  filter(disturbance == dist_names[i])
+  
+if(a %>% pull(mean) > b %>% pull(mean)){ 
+    eval <- a %>% pull(lwr) >  b %>% pull(upr)
+    row <- data.frame(comp= paste(a$type,"_",b$type, sep=""), eval = eval, species=species_list[j], dist=dist_names[i], direction="gained>lost")
+  ci_overlap_type<- bind_rows(ci_overlap_type, row)}
+
+if(a %>% pull(mean) <  b %>% pull(mean)){
+  eval <- b %>% pull(lwr) > a %>% pull(upr)
+  row <- data.frame(comp= paste(a$type,"_",b$type, sep=""), eval = eval,  species=species_list[j], dist=dist_names[i],direction="gained<lost")
+  ci_overlap_type<- bind_rows(ci_overlap_type, row)}
+}}
 
 ###order by sample size
 ##include sample size as effect
@@ -2985,48 +3049,108 @@ n_seed_none<- sample.append %>% dplyr::select(c(species.name.x,number,disturbanc
   arrange(n.seed)
 
 #fire
-fireplot <- ggplot(overlap.table.long_cutoff %>% filter(disturbance=="fire"),aes(x=factor(species.name, levels=n_seed_fire$species.name, labels=n_seed_fire$number),y=mean,alpha=diff,shape=diff))+
-    # scale_color_manual(values = c("#F37408","#EFAB1A","#ECBF1E","#EBC021","#DCC340","#B7B66D","#B4B46F","#B0B372","#ABB177","#A7B077","#A6B282","#7FA698","#73A3A0","#6DA2A1","#3A9AB2"), name="Species")+
-  geom_hline(yintercept=0, linetype=2, size=0.8)+
-  geom_point(position = position_dodge(0.9),size=4)+
-  geom_errorbar(aes(ymin=lwr, ymax =upr), width=0, position = position_dodge(0.9),size=1)+
-  scale_alpha_manual(values=c(1,.7),labels=c("no","yes"),name="95% CI overlaps 0")+
-  scale_shape_manual(values=c(16,1),labels=c("no","yes"),name="95% CI overlaps 0")+
-  facet_grid(type~disturbance)+
-  ylim(c(-.1,.7))+
-  ylab("Proportion")+
-  theme_bw()+
-  theme(axis.text = element_text(size=24),legend.text = element_text(size=16),legend.title = element_text(size=24),legend.position = 'bottom',axis.title = element_text(size=24),plot.margin=margin(0,0.5,.6,.1,"cm"), axis.title.x = element_blank(),strip.text = element_text(size=16,color="black"), panel.grid.minor.x = element_blank(), panel.grid.major.x = element_blank(), axis.text.x = element_text(size=14, angle=60, color="black", hjust=1))
 
-#insect/disease
-idplot<- ggplot(overlap.table.long_cutoff %>% filter(disturbance=="insect.disease"),aes(x=factor(species.name, levels=n_seed_ID$species.name, labels=n_seed_ID$number),y=mean,alpha=diff,shape=diff))+
+##getting letters together
+overlap.table.long_cutoff %>% filter(disturbance=="fire" & type=="gained") %>% arrange(mean) %>% pull(species.name)
+View(ci_overlap %>% filter(dist=="fire",type=="gained" & eval=="TRUE"))
+
+star_table<- ci_overlap_dist %>% filter(eval==TRUE) %>% 
+  separate(comp, "_", into=c("dist1","dist2")) %>% 
+  mutate(star="yes")
+
+star_table2<- ci_overlap_type %>% filter(eval==TRUE) %>% 
+  mutate(star="yes")
+  
+
+##
+pc1means.table %>% filter(species.name%in% insectonlyspp)
+
+fire_data<- overlap.table.long_cutoff %>% filter(disturbance=="fire") %>% 
+  left_join(star_table, by=c("species.name"="species","disturbance"="dist1","type")) %>% 
+  mutate(star=ifelse(is.na(star), "no",
+                     ifelse(disturbance=="fire" &species.name%in%insectonlyspp,"no",star))) 
+
+fireplot <- ggplot(fire_data,aes(x=factor(species.name, levels=pc1means.table$species.name, labels=pc1means.table$number),color=factor(species.name, levels=pc1means.table$species.name, labels=pc1means.table$number),y=mean,alpha=diff,shape=diff))+
+  scale_color_manual(values = c("gray","#EFAB1A","#ECBF1E","gray","gray","#B7B66D","#B4B46F","gray","gray","#A7B077","#A6B282","#7FA698","#73A3A0","#6DA2A1","#3A9AB2"), name="Species")+
   geom_hline(yintercept=0, linetype=2, size=0.8)+
-  geom_point(position = position_dodge(0.9),size=4)+
-  geom_errorbar(aes(ymin=lwr, ymax =upr), width=0, position = position_dodge(0.9),size=1)+
+  geom_point(position = position_dodge(0.9),size=4, stroke=2)+
+  geom_errorbar(aes(ymin=lwr, ymax =upr), width=0, position = position_dodge(0.9),size=1.5)+
   scale_alpha_manual(values=c(1,.7),labels=c("no","yes"),name="95% CI overlaps 0")+
+  #scale_linetype_manual(values=c("solid","dotdash"),labels=c("no","yes"),name="95% CI overlaps 0")+
   scale_shape_manual(values=c(16,1),labels=c("no","yes"),name="95% CI overlaps 0")+
-  facet_grid(type~disturbance)+
+  facet_grid(factor(type,levels=c("lost","gained"))~disturbance)+
+  geom_segment(data=arrow_tips_table2, aes(xend=factor(species.name, levels=pc1means.table$species.name, labels=pc1means.table$number),y=.25,yend=.7,x=factor(species.name, levels=pc1means.table$species.name, labels=pc1means.table$number),color=factor(species.name, levels=pc1means.table$species.name, labels=pc1means.table$number),alpha=diff), arrow = arrow(length=unit(.4,"cm")),size=1.5)+
+  geom_text(data=fire_data %>% filter(star=="yes"), aes(x=factor(species.name, levels=pc1means.table$species.name, labels=pc1means.table$number), y=0.6, label="*"),size=11)+
+  geom_text(data=fire_data %>% filter(species.name%in% c(star_table2 %>% filter(dist=="fire") %>% pull(species)) & type=="lost" & !species.name %in%insectonlyspp), aes(x=factor(species.name, levels=pc1means.table$species.name, labels=pc1means.table$number), y=0.55, label="x"),size=6, col="black")+
   ylim(c(-.1,.7))+
   ylab("Proportion")+
   theme_bw()+
-  theme(axis.text = element_text(size=24),legend.text = element_text(size=16),legend.title = element_text(size=24),legend.position = 'bottom',axis.title = element_text(size=24),plot.margin=margin(0,0.5,.6,.1,"cm"), axis.title.x = element_blank(),strip.text = element_text(size=16,color="black"), panel.grid.minor.x = element_blank(), panel.grid.major.x = element_blank(),axis.text.x = element_text(size=14, angle=60, color="black", hjust=1))
+  theme(axis.text = element_text(size=24),legend.text = element_text(size=16),legend.title = element_text(size=24),legend.position = 'none',axis.title = element_text(size=24),plot.margin=margin(0,0.5,.6,.1,"cm"), axis.title.x = element_blank(),strip.text = element_text(size=20,color="black"), panel.grid.minor.x = element_blank(), panel.grid.major.x = element_blank(), axis.text.x = element_text(size=18, angle=60, color="black", hjust=1))
+
+
+pc1means.table %>% filter(species.name %in% fireonlyspp)
+    
+#insect/disease
+id_data<- overlap.table.long_cutoff %>% filter(disturbance=="insect.disease") %>% 
+  left_join(star_table, by=c("species.name"="species","disturbance"="dist1","type")) %>% 
+  mutate(star=ifelse(is.na(star), "no",
+                     ifelse(disturbance=="insect.disease" &species.name%in%fireonlyspp,"no",star))) 
+
+idplot<- ggplot(id_data,aes(x=factor(species.name, levels=pc1means.table$species.name, labels=pc1means.table$number),y=mean,col = factor(species.name, levels=pc1means.table$species.name, labels=pc1means.table$number), alpha=diff,shape=diff))+
+  geom_hline(yintercept=0, linetype=2, size=0.8)+
+  geom_point(position = position_dodge(0.9),size=4,stroke=2)+
+  geom_errorbar(aes(ymin=lwr, ymax =upr), width=0, position = position_dodge(0.9),size=1.5)+
+      scale_color_manual(values = c("#F37408","#EFAB1A","#ECBF1E","#EBC021","#DCC340","#B7B66D","#B4B46F","#B0B372","#ABB177","#A7B077","gray","#7FA698","#73A3A0","#6DA2A1","#3A9AB2"), name="Species")+
+  scale_alpha_manual(values=c(1,.7),labels=c("no","yes"),name="95% CI overlaps 0")+
+  scale_shape_manual(values=c(16,1),labels=c("no","yes"),name="95% CI overlaps 0")+
+  #scale_linetype_manual(values=c("solid","dotdash"),labels=c("no","yes"),name="95% CI overlaps 0")+
+  facet_grid(factor(type,levels=c("lost","gained"))~disturbance)+
+  geom_segment(data=arrow_tips_table1, aes(xend=factor(species.name, levels=pc1means.table$species.name, labels=pc1means.table$number),y=.25,yend=.7,x=factor(species.name, levels=pc1means.table$species.name, labels=pc1means.table$number),color=factor(species.name, levels=pc1means.table$species.name, labels=pc1means.table$number),alpha=diff), arrow = arrow(length=unit(.4,"cm")),size=1.5)+
+  geom_text(data=id_data %>% filter(star=="yes"), aes(x=factor(species.name, levels=pc1means.table$species.name, labels=pc1means.table$number), y=0.6, label="*"),size=11)+
+  geom_text(data=id_data %>% filter(species.name%in% c(star_table2 %>% filter(dist=="insect.disease") %>% pull(species)) & type=="lost" & !species.name %in% fireonlyspp), aes(x=factor(species.name, levels=pc1means.table$species.name, labels=pc1means.table$number), y=0.55, label="x"),size=6, col="black")+
+  ylim(c(-.1,.7))+
+  ylab("Proportion")+
+  theme_bw()+
+  theme(axis.text = element_text(size=24),legend.text = element_text(size=16),legend.title = element_text(size=24),legend.position = 'none',axis.title = element_text(size=24),plot.margin=margin(0,0.5,.6,.1,"cm"), axis.title.x = element_blank(),strip.text = element_text(size=20,color="black"), panel.grid.minor.x = element_blank(), panel.grid.major.x = element_blank(),axis.text.x = element_text(size=18, angle=60, color="black", hjust=1))
 
 #none
-noneplot<- ggplot(overlap.table.long_cutoff %>% filter(disturbance=="none"),aes(x=factor(species.name, levels=n_seed_none$species.name, labels=n_seed_none$number),y=mean,alpha=diff,shape=diff))+
+noneplot<- ggplot(overlap.table.long_cutoff %>% filter(disturbance=="none"),aes(x=factor(species.name, levels=pc1means.table$species.name, labels=pc1means.table$number),y=mean, col = factor(species.name, levels=pc1means.table$species.name, labels=pc1means.table$number), alpha=diff,shape=diff))+
   geom_hline(yintercept=0, linetype=2, size=0.8)+
-  geom_point(position = position_dodge(0.9),size=4)+
-  geom_errorbar(aes(ymin=lwr, ymax =upr), width=0, position = position_dodge(0.9),size=1)+
+  geom_point(position = position_dodge(0.9),size=4,stroke=2)+
+  geom_errorbar(aes(ymin=lwr, ymax =upr), width=0, position = position_dodge(0.9),size=1.5)+
+    scale_color_manual(values = c("#F37408","#EFAB1A","#ECBF1E","#EBC021","#DCC340","#B7B66D","#B4B46F","#B0B372","#ABB177","#A7B077","#A6B282","#7FA698","#73A3A0","#6DA2A1","#3A9AB2"), name="Species")+
   scale_alpha_manual(values=c(1,.7),labels=c("no","yes"),name="95% CI overlaps 0")+
   scale_shape_manual(values=c(16,1),labels=c("no","yes"),name="95% CI overlaps 0")+
-  facet_grid(type~disturbance)+
+  #scale_linetype_manual(values=c("solid","dotdash"),labels=c("no","yes"),name="95% CI overlaps 0")+
+  facet_grid(factor(type,levels=c("lost","gained"))~disturbance)+
+  geom_text(data=overlap.table.long_cutoff %>% filter(disturbance=="none") %>% filter(species.name%in% c(star_table2 %>% filter(dist=="none") %>% pull(species)) & type=="lost"), aes(x=factor(species.name, levels=pc1means.table$species.name, labels=pc1means.table$number), y=0.55, label="x"),size=6, col="black")+
   ylim(c(-.1,.7))+
   ylab("Proportion")+
   theme_bw()+
-  theme(axis.text = element_text(size=24),legend.text = element_text(size=16),legend.title = element_text(size=24),legend.position = 'bottom',axis.title = element_text(size=24),plot.margin=margin(0,0.5,.6,.1,"cm"),axis.title.x = element_blank(),strip.text = element_text(size=16,color="black"), panel.grid.minor.x = element_blank(), panel.grid.major.x = element_blank(),axis.text.x = element_text(size=14, angle=60, color="black", hjust=1))
+  theme(axis.text = element_text(size=24),legend.text = element_text(size=16),legend.title = element_text(size=24),legend.position = 'none',axis.title = element_text(size=24),plot.margin=margin(0,0.5,.6,.1,"cm"),axis.title.x = element_blank(),strip.text = element_text(size=20,color="black"), panel.grid.minor.x = element_blank(), panel.grid.major.x = element_blank(),axis.text.x = element_text(size=18, angle=60, color="black", hjust=1))
 
-png("figures/gl_byn.png", width = 1000, height = 400)
-ggarrange(fireplot, idplot, noneplot, nrow=1, common.legend = T)
+png("figures/gl_bypc1.png", width = 1200, height = 480)
+ggarrange(fireplot, idplot, noneplot, ncol=3)
 dev.off()
+
+legendplot<- ggplot(overlap.table.long_cutoff %>% filter(disturbance=="none"),aes(x=factor(species.name, levels=pc1means.table$species.name, labels=pc1means.table$number),y=mean, alpha=diff,shape=diff))+
+  geom_hline(yintercept=0, linetype=2, size=0.8)+
+  geom_point(position = position_dodge(0.9),size=3,stroke=2)+
+  geom_errorbar(aes(ymin=lwr, ymax =upr), width=0, position = position_dodge(0.9),size=1)+
+  scale_alpha_manual(values=c(1,.7),labels=c("no","yes"),name="95% CI overlaps 0")+
+  scale_shape_manual(values=c(16,1),labels=c("no","yes"),name="95% CI overlaps 0")+
+  #scale_linetype_manual(values=c("solid","dotdash"),labels=c("no","yes"),name="95% CI overlaps 0")+
+  facet_grid(factor(type,levels=c("lost","gained"))~disturbance)+
+  ylim(c(-.1,.7))+
+  ylab("Proportion")+
+  theme_bw()+
+  theme(axis.text = element_text(size=24),legend.text = element_text(size=16),legend.title = element_text(size=24),legend.position = 'right',axis.title = element_text(size=24),plot.margin=margin(0,0.5,.6,.1,"cm"),axis.title.x = element_blank(),strip.text = element_text(size=16,color="black"), panel.grid.minor.x = element_blank(), panel.grid.major.x = element_blank(),axis.text.x = element_text(size=14, angle=60, color="black", hjust=1))
+
+png("figures/gl_bypc1_legend.png", width = 1200, height = 480)
+ggarrange(fireplot, idplot, legendplot, ncol=3)
+dev.off()
+
+write.csv(ci_overlap,"supplemental/species_significance_table.csv")
 ```
 
 ```{r}
