@@ -1344,8 +1344,8 @@ for(i in 1:length(sp_codes)){
 
 ```{r}
 #messing with colors
-nrow(pca_pts_by_dist)/15
-nrow(pca_pts_by_dist) - length(rep(seq(1,15,1),1668))
+# nrow(pca_pts_by_dist)/15
+# nrow(pca_pts_by_dist) - length(rep(seq(1,15,1),1668))
 
 ggplot(data.frame(x=seq(1,15),y=rep(1,15)), aes(x=x, y=y, col=x))+
   geom_point(size=4)+
@@ -1451,6 +1451,11 @@ as.data.frame(clim_pca$rotation[,1:2]) %>%
 as.data.frame(clim_pca$rotation[,1:3]) %>% 
   tibble::rownames_to_column() %>% 
   arrange(desc(abs(PC3))) #PC3 separates monsoonal areas from dry summer/wet winter areas
+
+as.data.frame(clim_pca$rotation[,1:2]) %>% 
+  tibble::rownames_to_column() %>% 
+  mutate(diff=abs(abs(PC1)-abs(PC2))) %>% 
+  arrange(diff)
 ```
 
 ```{r, echo=FALSE}
@@ -2004,7 +2009,7 @@ ggplot(ellipse_margins_diff_props_clean_long, aes(x=dist, y=value, col=factor(sp
   facet_wrap(~factor(name,levels=c("x_low_prop","x_high_prop","y_low_prop","y_high_prop"), labels=c("PC1 2.5%", "PC1 97.5%", "PC2 2.5%","PC2 97.5%")))+
   geom_jitter(width=0.1,height=0)+
   geom_hline(yintercept = 0)+
-  scale_color_manual(values=pc1means.table$color, name="Species")+
+  scale_color_manual(values=spp.colors$color, name="Species")+
   theme_bw()+
   theme(axis.text.x = element_text(angle=45,hjust=1),axis.title.x = element_blank())
 ggplot(ellipse_margins_diff_props_clean_long %>% filter(dist=="fire" & x=="1"), aes(x=factor(species.name, levels=pc1means.table$species.name), y=value, col=factor(species.name, levels=pc1means.table$species.name)))+
@@ -2013,7 +2018,7 @@ ggplot(ellipse_margins_diff_props_clean_long %>% filter(dist=="fire" & x=="1"), 
   geom_hline(yintercept = 0)+
   geom_hline(yintercept = c(0.5,0.75), col="gray", lty=2)+
   #scale_color_gradientn(colors=wes_palette("Zissou1",100,type = "continuous"))+
-  scale_color_manual(values=pc1means.table$color, name="Species")+
+  scale_color_manual(values=spp.colors$color, name="Species")+
   coord_flip()+
   ggtitle("Fire")+
   theme_bw()+
@@ -2024,7 +2029,7 @@ ggplot(ellipse_margins_diff_props_clean_long %>% filter(dist=="insect.disease" &
   geom_hline(yintercept = 0)+
   geom_hline(yintercept = c(0.5,0.75), col="gray", lty=2)+
   #scale_color_gradientn(colors=wes_palette("Zissou1",100,type = "continuous"))+
-  scale_color_manual(values=pc1means.table$color, name="Species")+  
+  scale_color_manual(values=spp.colors$color, name="Species")+  
   coord_flip()+
   ggtitle("Insect/Disease")+
   theme_bw()+
@@ -2204,7 +2209,7 @@ ggplot(min1_rel_df, aes(x=factor(species.name,levels=pc1means.table$species.name
   geom_errorbar(aes(ymin=lwr,ymax=upr, col=sig))+
     geom_point(pch=21)+
   geom_hline(yintercept=0)+
-  scale_fill_manual(values=pc1means.table$color, name="Species")+
+  scale_fill_manual(values=spp.colors$color, name="Species")+
   scale_color_manual(values=c("gray","black"))+
   facet_wrap(~dist)+
   ggtitle("PC1 2.5%")+
@@ -2214,7 +2219,7 @@ ggplot(max1_rel_df, aes(x=factor(species.name,levels=pc1means.table$species.name
   geom_errorbar(aes(ymin=lwr,ymax=upr, col=sig))+
     geom_point(pch=21)+
   geom_hline(yintercept=0)+
-  scale_fill_manual(values=pc1means.table$color, name="Species")+
+  scale_fill_manual(values=spp.colors$color, name="Species")+
   scale_color_manual(values=c("gray","black"))+
   facet_wrap(~dist)+
   ggtitle("PC1 97.5%")+
@@ -2224,7 +2229,7 @@ ggplot(min2_rel_df, aes(x=factor(species.name,levels=pc1means.table$species.name
   geom_errorbar(aes(ymin=lwr,ymax=upr, col=sig))+
     geom_point(pch=21)+
   geom_hline(yintercept=0)+
-  scale_fill_manual(values=pc1means.table$color, name="Species")+
+  scale_fill_manual(values=spp.colors$color, name="Species")+
   scale_color_manual(values=c("gray","black"))+
   facet_wrap(~dist)+
   ggtitle("PC2 2.5%")+
@@ -2234,7 +2239,7 @@ ggplot(max2_rel_df, aes(x=factor(species.name,levels=pc1means.table$species.name
   geom_errorbar(aes(ymin=lwr,ymax=upr, col=sig))+
     geom_point(pch=21)+
   geom_hline(yintercept=0)+
-  scale_fill_manual(values=pc1means.table$color, name="Species")+
+  scale_fill_manual(values=spp.colors$color, name="Species")+
   scale_color_manual(values=c("gray","black"))+
   facet_wrap(~dist)+
   ggtitle("PC2 97.5%")+
@@ -2338,7 +2343,7 @@ ggplot(pc1_df, aes(x=dist, y=mean, fill=factor(species.name,levels=pc1means.tabl
   geom_errorbar(aes(ymin=lwr,ymax=upr, col=sig),width=0.2)+
     geom_point(pch=21)+
   geom_hline(yintercept=c(-3,0,3),lty=1)+
-  scale_fill_manual(values=pc1means.table$color, name="Species")+
+  scale_fill_manual(values=spp.colors$color, name="Species")+
   scale_color_manual(values=c("gray","black"),name="Significance")+
   facet_wrap(~factor(species.name,levels=pc1means.table %>% arrange(pc1speciesmean) %>% pull(species.name)))+
   ggtitle("PC1")+
@@ -2348,7 +2353,7 @@ ggplot(pc1_df, aes(x=factor(species.name,levels=pc1means.table$species.name), y=
   geom_errorbar(aes(ymin=lwr,ymax=upr, col=sig),width=0.2,size=1)+
     geom_point(pch=21, size=3)+
   geom_hline(yintercept=c(-3,0,3),lty=1)+
-  scale_fill_manual(values=pc1means.table$color, name="Species")+
+  scale_fill_manual(values=spp.colors$color, name="Species")+
   scale_color_manual(values=c("gray","black"),name="Significance")+
   facet_wrap(~dist)+
   scale_y_continuous(breaks=seq(-5,5,1))+
@@ -2371,7 +2376,7 @@ ggplot(pc2_df, aes(x=factor(species.name,levels=pc1means.table$species.name), y=
   geom_errorbar(aes(ymin=lwr,ymax=upr, col=sig),width=0.2,size=1)+
     geom_point(pch=21, size=3)+
   geom_hline(yintercept=c(-3,0,3),lty=1)+
-  scale_fill_manual(values=pc1means.table$color, name="Species")+
+  scale_fill_manual(values=spp.colors$color, name="Species")+
   scale_color_manual(values=c("gray","black"),name="Significance")+
   scale_y_continuous(breaks=seq(-5,5,1))+
   annotate(geom="text",x=4, y=-5, label="hot/wet",col="black", size=5 )+
@@ -2395,7 +2400,7 @@ ggplot(pc1_df_rel, aes(x=factor(number,levels=pc1means.table %>% arrange(pc1spec
   geom_errorbar(aes(ymin=lwr,ymax=upr, col=sig),width=0.2,size=1)+
     geom_point(pch=21, size=2)+
   geom_hline(yintercept=0,lty=1)+
-  scale_fill_manual(values=pc1means.table$color, name="Species")+
+  scale_fill_manual(values=spp.colors$color, name="Species")+
   scale_color_manual(values=c("lightgray","black"),name="Significance")+
   facet_grid(factor(var, levels=c("PC1 max","PC1 centroid","PC1 min"), labels=c("97.5%","centroid","2.5%"))~dist, scales = "free")+
   #scale_y_continuous(breaks=seq(-5,5,1))+
@@ -2406,7 +2411,117 @@ ggplot(pc1_df_rel, aes(x=factor(number,levels=pc1means.table %>% arrange(pc1spec
   ggtitle("PC1")+
   theme_bw()+
   theme(axis.text.x = element_text(angle=60, hjust=1,size=9, color="black"),axis.title.x = element_text(size=12, color="black"),axis.text.y = element_text(size=10, colour = "black"),axis.title.y = element_text(size=12, color="black"), strip.text = element_text(size = 12), title=element_text(size=14), legend.position = "right", legend.text = element_text(size=14), legend.title = element_text(size=16))
+```
 
+###Shift types
+
+```{r}
+#classify shift types
+shifts<- read.csv("C:/Users/katie/OneDrive - Colostate/OneDrive/FIA project/shift_type_fia.csv")
+
+ggarrange(
+ggplot(data=shifts, aes(x=disturbance, fill=factor(type, levels=c("march","expansion","contraction","lean","no change"))))+
+  geom_bar(stat="count")+
+  scale_fill_grey(name="Shift Type")+
+  facet_wrap(~pc)+
+  theme_bw()+
+  theme(strip.text = element_text(size=14, color="black"), axis.text = element_text(size=12, color="black"), axis.title = element_text(size=14, color="black"), legend.text = element_text(size=12, color="black"), legend.title = element_text(size=14, color="black")),
+shifts %>% 
+  filter(!direction=="") %>% 
+  ggplot(aes(x=disturbance, fill=direction))+
+  geom_bar(position="stack")+
+  facet_wrap(~pc)+
+  scale_fill_manual(values=c("gray","#CBEBE5","#E2C98A","#F6BC94","turquoise","turquoise4"), name="Direction")+
+  scale_y_continuous(breaks=c(2,4,6,8,10))+
+  theme_bw()+
+  theme(strip.text = element_text(size=14, color="black"), axis.text = element_text(size=12, color="black"), axis.title = element_text(size=14, color="black"), legend.text = element_text(size=12, color="black"), legend.title = element_text(size=14, color="black"))
+, nrow=2, align = "hv")
+
+shifts %>% 
+  group_by(type) %>% 
+  dplyr::summarise(n=n())
+
+shifts_byspecies<- shifts %>% 
+  dplyr::select(-direction) %>% 
+  pivot_wider(id_cols=c(species,disturbance), names_from = pc, values_from = type) %>% 
+  mutate(shift=ifelse(PC1 == "no change" & PC2 == "no change", "no", "yes")) %>% 
+  left_join(pc1means.table, by=c("species" = "species.name")) %>% 
+  mutate(overallshift = 
+           ifelse(PC1==PC2, PC1,
+           ifelse(PC1=="no change" & PC2=="march" | PC1=="march" & PC2 == "no change", "march",
+           ifelse(PC1=="no change" & PC2=="expansion" | PC1=="expansion" & PC2 == "no change", "expansion",
+           ifelse(PC1=="no change" & PC2=="lean" | PC1=="lean" & PC2 == "no change", "lean",
+           ifelse(PC1=="no change" & PC2=="contraction" | PC1=="contraction" & PC2 == "no change", "contraction",
+           ifelse(PC1=="lean" & PC2=="contraction" | PC1=="contraction" & PC2 == "lean", "contraction",
+           ifelse(PC1=="expansion" & PC2=="contraction" | PC1=="contraction" & PC2 == "expansion", "expansion+contraction", NA))))))))
+  
+
+ggplot(shifts_byspecies, aes(x=shift, fill=factor(species,levels=pc1means.table %>% arrange(pc1speciesmean) %>% pull(species.name))))+
+  geom_bar(stat="count") +
+  facet_wrap(~disturbance)+
+  scale_fill_manual(values = spp.colors$color, name="Species")+
+  theme_bw()+
+  theme(text=element_text(size=14,color="black"))
+
+shifts_byspecies_longer <- shifts_byspecies %>% 
+  pivot_longer(cols=c(PC1,PC2), names_to = "pc", values_to = "type")
+
+ggplot(shifts_byspecies_longer, aes(x=shift, fill=factor(type, levels=c("march","expansion","contraction","lean","no change"))))+
+  geom_bar(stat="count") +
+  scale_fill_grey(name="Shift Type")+
+  facet_grid(pc~disturbance)+
+  theme_bw()+
+  theme(text=element_text(size=14,color="black"))
+
+
+
+shift_colors<- c(brewer.pal(n=5, name="BrBG")[c(5,4,2,1)],"gray")
+shift_colors2 <- c(brewer.pal(n=12, "Paired")[7],brewer.pal(n=12, "Paired")[10],brewer.pal(n=12, "Paired")[9],brewer.pal(n=11, "BrBG")[9],brewer.pal(n=11, "BrBG")[7],"gray")
+
+
+ggplot(shifts_byspecies_longer, aes(x=shift, fill=factor(type, levels=c("march","expansion","lean","contraction","no change"))))+
+  geom_bar(stat="count") +
+  scale_fill_manual(name="Shift Type", values=shift_colors)+
+  facet_grid(pc~disturbance)+
+  xlab("Shift")+
+  ylab("Count")+
+  theme_bw()+
+  theme(text=element_text(size=14,color="black"))
+
+ggplot(shifts_byspecies_longer %>% 
+         mutate(shiftbypc = ifelse(type=="no change","no","yes")), aes(x=shiftbypc, fill=factor(type, levels=c("march","expansion","lean","contraction","no change"))))+
+  geom_bar(stat="count") +
+  scale_fill_manual(name="Shift Type", values=shift_colors)+
+  facet_grid(pc~disturbance)+
+  xlab("Shift")+
+  ylab("Count")+
+  theme_bw()+
+  theme(text=element_text(size=14,color="black"), strip.text = element_text(size=14), axis.text = element_text(size=14), legend.text = element_text(size=14), legend.title = element_text(size=14), legend.position = "bottom")
+
+
+overall_summary_shifts <- shifts_byspecies %>% 
+  dplyr::group_by(overallshift,disturbance) %>% 
+  dplyr::summarise(n=n())
+
+shifts_byspecies %>% 
+  dplyr::group_by(overallshift) %>% 
+  dplyr::summarise(n=n())
+
+
+
+png("figures/shifttype.png",width=500,height=400)
+ggplot(shifts_byspecies, aes(x=disturbance, fill=factor(overallshift, levels=c("contraction", "march","expansion+contraction", "expansion", "lean", "no change"))))+
+  geom_bar(stat="count") +
+  scale_fill_manual(name="Shift Type", values=shift_colors2)+
+  xlab("Shift")+
+  ylab("Count")+
+  theme_bw()+
+  theme(text=element_text(size=14,color="black"), strip.text = element_text(size=14), axis.text = element_text(size=14, color="black"), legend.text = element_text(size=14, color="black"), legend.title = element_text(size=14, color="black"), legend.position = "bottom")
+dev.off()
+```
+
+
+```{r}
 
 ##new
 
@@ -2420,7 +2535,7 @@ pc1_reldiff<- ggplot(pc1_df_rel_new, aes(x=number, y=mean))+
   ggnewscale::new_scale_fill()+
   geom_point(aes(fill=factor(number, levels=pc1means.table$number), col=sig), pch=21, size=2)+
   geom_hline(yintercept=0,lty=1)+
-  scale_fill_manual(values=pc1means.table$color, name="Species")+
+  scale_fill_manual(values=spp.colors$color, name="Species")+
   scale_color_manual(values=c("lightgray","black"),name="Significance")+
   facet_grid(factor(var, levels=c("PC1 max","PC1 centroid","PC1 min"), labels=c("upper","centroid","lower"))~dist, scales = "free")+
   scale_y_continuous(breaks=seq(-.8,.8,.4))+
@@ -2448,7 +2563,7 @@ ggplot(pc2_df_rel, aes(x=factor(number,levels=pc1means.table %>% arrange(pc1spec
   geom_errorbar(aes(ymin=lwr,ymax=upr, col=sig),width=0.2,size=1)+
   geom_point(pch=21, size=2)+
   geom_hline(yintercept=0,lty=1)+
-  scale_fill_manual(values=pc1means.table$color, name="Species")+
+  scale_fill_manual(values=spp.colors$color, name="Species")+
   scale_color_manual(values=c("lightgray","black"),name="Significance")+
   facet_grid(factor(var, levels=c("pc2 max","pc2 centroid","pc2 min"), labels=c("upper","centroid","lower"))~dist, scales = "free")+
   scale_y_continuous(breaks=seq(-.8,.8,.4))+
@@ -2460,7 +2575,6 @@ ggplot(pc2_df_rel, aes(x=factor(number,levels=pc1means.table %>% arrange(pc1spec
   theme_bw()+
   theme(axis.text.x = element_text(angle=60, hjust=1,size=9, color="black"),axis.title.x = element_text(size=12, color="black"),axis.text.y = element_text(size=10, colour = "black"),axis.title.y = element_text(size=12, color="black"), strip.text = element_text(size = 12), title=element_text(size=14), legend.position = "right", legend.text = element_text(size=14), legend.title = element_text(size=16))
 
-shift_colors2 <- c(brewer.pal(n=12, "Paired")[7],brewer.pal(n=12, "Paired")[10],brewer.pal(n=12, "Paired")[9],brewer.pal(n=11, "BrBG")[9],brewer.pal(n=11, "BrBG")[7],"gray")
 
 pc2_df_rel_new <- pc2_df_rel %>%  
     left_join(shifts_byspecies %>% dplyr::select(disturbance,species,PC2), by=c("dist"="disturbance","species.name"="species")) %>% 
@@ -2480,7 +2594,7 @@ pc2_reldiff<- ggplot(pc2_df_rel_new, aes(x=number, y=mean))+
   ggnewscale::new_scale_fill()+
   geom_point(aes(fill=factor(number, levels=pc1means.table$number), col=sig), pch=21, size=2)+
   geom_hline(yintercept=0,lty=1)+
-  scale_fill_manual(values=pc1means.table$color, name="Species")+
+  scale_fill_manual(values=spp.colors$color, name="Species")+
   scale_color_manual(values=c("lightgray","black"),name="Significance")+
   facet_grid(factor(var, levels=c("pc2 max","pc2 centroid","pc2 min"), labels=c("upper","centroid","lower"))~dist, scales = "free")+
   scale_y_continuous(breaks=seq(-.8,.8,.4))+
@@ -2515,7 +2629,7 @@ both_pc_plot <- ggplot(both_pc, aes(x=number, y=mean))+
   geom_point(aes(fill=factor(number, levels=pc1means.table$number), alpha=pc, col=sig),pch=21, size=2, position = position_dodge(width=1))+
   geom_hline(yintercept=0,lty=1)+
   scale_color_manual(values=c("gray","black"),name="Significance")+
-  scale_fill_manual(values=pc1means.table$color, name="Species")+
+  scale_fill_manual(values=spp.colors$color, name="Species")+
   scale_alpha_manual(values=c(1,1))+
   facet_grid(factor(margin, levels=c("upper","centroid","lower"))~dist, scales = "free")+
   #ylim(c(-.25,.5))+
@@ -2561,7 +2675,7 @@ both_pc_plot_zoom_specieslabel <- ggplot(both_pc_zoom, aes(x=number, y=mean, gro
   ggnewscale::new_scale_fill()+
   geom_point(aes(fill=factor(number, levels=pc1means.table$number, labels=species.label), group=pc, col=sig),pch=21, size=2, position = position_dodge(width=1))+
   scale_color_manual(values=c("gray","black"),name="Significance", guide="none")+
-  scale_fill_manual(values=pc1means.table$color, name="Species")+
+  scale_fill_manual(values=spp.colors$color, name="Species")+
   facet_grid(factor(margin, levels=c("upper","centroid","lower"))~dist, scales = "free")+
   ylim(c(-.4,.5))+
   scale_x_continuous(breaks=seq(1,15,1))+
@@ -2585,7 +2699,7 @@ both_pc_plot_zoom_otherlabel <- ggplot(both_pc_zoom, aes(x=number, y=mean, group
   ggnewscale::new_scale_fill()+
   geom_point(aes(fill=factor(number, levels=pc1means.table$number, labels=species.label), group=pc, col=sig),pch=21, size=2, position = position_dodge(width=1))+
   scale_color_manual(values=c("gray","black"),name="Significance")+
-  scale_fill_manual(values=pc1means.table$color, name="Species", guide="none")+
+  scale_fill_manual(values=spp.colors$color, name="Species", guide="none")+
   facet_grid(factor(margin, levels=c("upper","centroid","lower"))~dist, scales = "free")+
   ylim(c(-.4,.5))+
   scale_x_continuous(breaks=seq(1,15,1))+
@@ -2597,6 +2711,60 @@ both_pc_plot_zoom_otherlabel <- ggplot(both_pc_zoom, aes(x=number, y=mean, group
 png("new_fia_figure_combined_zoom_other.png", width=8000, height=5000, res = 600)
 both_pc_plot_zoom_otherlabel
 dev.off()
+
+#remove small sample size species
+both_pc_bign <- both_pc %>% 
+  filter(! (species.name %in% insectonlyspp & dist == "fire") ) %>% 
+  filter(! (species.name %in% fireonlyspp & dist == "insect.disease"))
+
+both_pc_bign %>% 
+  group_by(species.name, dist) %>% 
+  dplyr::summarise(n=n()) %>% View()
+
+both_pc_plot_bign_otherlabel <- ggplot(both_pc_bign, aes(x=number, y=mean, group=pc))+
+  geom_rect(data = both_pc_bign, aes(xmin=number - 0.5, xmax=number + 0.5, ymin=-Inf, ymax=Inf, fill=factor(overallshift,levels=c("contraction","expansion+contraction","expansion","lean","no change"))),alpha=.2, col="white") +
+  geom_hline(yintercept=0,lty=1)+
+  geom_errorbar(aes(ymin=lwr,ymax=upr, col=sig, group=pc),width=0.2,size=1, position=position_dodge(width=1))+
+  scale_fill_manual(values= c(shift_colors2[c(1,3,4,5)],"white"), name="Shift Type")+
+  ggnewscale::new_scale_fill()+
+  geom_point(aes(fill=factor(number, levels=pc1means.table$number, labels=species.label), group=pc, col=sig, shape=pc),size=2, position = position_dodge(width=1))+
+  scale_shape_manual(values=c(21,25), guide="none")+
+  scale_color_manual(values=c("gray","black"),name="Significant")+
+  scale_fill_manual(values=spp.colors$color, name="Species", guide="none")+
+  facet_grid(factor(margin, levels=c("upper","centroid","lower"))~dist, scales = "free")+
+  scale_x_continuous(breaks=seq(1,15,1))+
+  #ylim(c(-.25,.35))+
+  ylab("Relativized Difference in Margin Position")+
+  xlab("Species")+
+  theme_bw()+
+  theme(axis.text.x = element_text(angle=60, hjust=1,size=11, color="black"),axis.title.x = element_text(size=12, color="black"),axis.text.y = element_text(size=12, colour = "black"),axis.title.y = element_text(size=12, color="black"), strip.text = element_text(size = 12), title=element_text(size=14), legend.position = "bottom", legend.text = element_text(size=12), legend.title = element_text(size=12),panel.grid.major = element_blank(), panel.grid.minor = element_blank())
+
+both_pc_plot_bign_spplabel <- ggplot(both_pc_bign, aes(x=number, y=mean, group=pc))+
+  geom_rect(data = both_pc_bign, aes(xmin=number - 0.5, xmax=number + 0.5, ymin=-Inf, ymax=Inf, fill=factor(overallshift,levels=c("contraction","expansion+contraction","expansion","lean","no change"))),alpha=.2, col="white") +
+  geom_hline(yintercept=0,lty=1)+
+  geom_errorbar(aes(ymin=lwr,ymax=upr, col=sig, group=pc),width=0.2,size=1, position=position_dodge(width=1))+
+  scale_fill_manual(values= c(shift_colors2[c(1,3,4,5)],"white"), name="Shift Type", guide="none")+
+  ggnewscale::new_scale_fill()+
+  geom_point(aes(fill=factor(number, levels=pc1means.table$number, labels=species.label), group=pc, col=sig),shape=21,size=2, position = position_dodge(width=1))+
+  scale_color_manual(values=c("gray","black"),name="Significance", guide="none")+
+  scale_fill_manual(values=spp.colors$color, name="Species")+
+  facet_grid(factor(margin, levels=c("upper","centroid","lower"))~dist, scales = "free")+
+  scale_x_continuous(breaks=seq(1,15,1))+
+  #ylim(c(-.25,.35))+
+  ylab("Relativized Difference in Margin Position")+
+  xlab("Species")+
+  theme_bw()+
+  theme(axis.text.x = element_text(angle=60, hjust=1,size=11, color="black"),axis.title.x = element_text(size=12, color="black"),axis.text.y = element_text(size=12, colour = "black"),axis.title.y = element_text(size=12, color="black"), strip.text = element_text(size = 12), title=element_text(size=14), legend.position = "bottom", legend.text = element_text(size=12), legend.title = element_text(size=12),panel.grid.major = element_blank(), panel.grid.minor = element_blank())
+
+
+png("new_fia_figure_combined_bign_spp.png", width=8000, height=5000, res = 600)
+both_pc_plot_bign_spplabel
+dev.off()
+
+png("new_fia_figure_combined_bign_other.png", width=8000, height=5000, res = 600)
+both_pc_plot_bign_otherlabel
+dev.off()
+
 ```
 
 ```{r}
@@ -2755,111 +2923,6 @@ ggplot(margins_bydist, aes(x=dist, y=mean, col=dist))+
 
 ```
 
-###Shift types
-
-```{r}
-#classify shift types
-shifts<- read.csv("C:/Users/katie/OneDrive - Colostate/OneDrive/FIA project/shift_type_fia.csv")
-
-ggarrange(
-ggplot(data=shifts, aes(x=disturbance, fill=factor(type, levels=c("march","expansion","contraction","lean","no change"))))+
-  geom_bar(stat="count")+
-  scale_fill_grey(name="Shift Type")+
-  facet_wrap(~pc)+
-  theme_bw()+
-  theme(strip.text = element_text(size=14, color="black"), axis.text = element_text(size=12, color="black"), axis.title = element_text(size=14, color="black"), legend.text = element_text(size=12, color="black"), legend.title = element_text(size=14, color="black")),
-shifts %>% 
-  filter(!direction=="") %>% 
-  ggplot(aes(x=disturbance, fill=direction))+
-  geom_bar(position="stack")+
-  facet_wrap(~pc)+
-  scale_fill_manual(values=c("gray","#CBEBE5","#E2C98A","#F6BC94","turquoise","turquoise4"), name="Direction")+
-  scale_y_continuous(breaks=c(2,4,6,8,10))+
-  theme_bw()+
-  theme(strip.text = element_text(size=14, color="black"), axis.text = element_text(size=12, color="black"), axis.title = element_text(size=14, color="black"), legend.text = element_text(size=12, color="black"), legend.title = element_text(size=14, color="black"))
-, nrow=2, align = "hv")
-
-shifts %>% 
-  group_by(type) %>% 
-  dplyr::summarise(n=n())
-
-shifts_byspecies<- shifts %>% 
-  dplyr::select(-direction) %>% 
-  pivot_wider(id_cols=c(species,disturbance), names_from = pc, values_from = type) %>% 
-  mutate(shift=ifelse(PC1 == "no change" & PC2 == "no change", "no", "yes")) %>% 
-  left_join(pc1means.table, by=c("species" = "species.name")) %>% 
-  mutate(overallshift = 
-           ifelse(PC1==PC2, PC1,
-           ifelse(PC1=="no change" & PC2=="march" | PC1=="march" & PC2 == "no change", "march",
-           ifelse(PC1=="no change" & PC2=="expansion" | PC1=="expansion" & PC2 == "no change", "expansion",
-           ifelse(PC1=="no change" & PC2=="lean" | PC1=="lean" & PC2 == "no change", "lean",
-           ifelse(PC1=="no change" & PC2=="contraction" | PC1=="contraction" & PC2 == "no change", "contraction",
-           ifelse(PC1=="lean" & PC2=="contraction" | PC1=="contraction" & PC2 == "lean", "contraction",
-           ifelse(PC1=="expansion" & PC2=="contraction" | PC1=="contraction" & PC2 == "expansion", "expansion+contraction", NA))))))))
-  
-
-ggplot(shifts_byspecies, aes(x=shift, fill=factor(species,levels=pc1means.table %>% arrange(pc1speciesmean) %>% pull(species.name))))+
-  geom_bar(stat="count") +
-  facet_wrap(~disturbance)+
-  scale_fill_manual(values = spp.colors$color, name="Species")+
-  theme_bw()+
-  theme(text=element_text(size=14,color="black"))
-
-shifts_byspecies_longer <- shifts_byspecies %>% 
-  pivot_longer(cols=c(PC1,PC2), names_to = "pc", values_to = "type")
-
-ggplot(shifts_byspecies_longer, aes(x=shift, fill=factor(type, levels=c("march","expansion","contraction","lean","no change"))))+
-  geom_bar(stat="count") +
-  scale_fill_grey(name="Shift Type")+
-  facet_grid(pc~disturbance)+
-  theme_bw()+
-  theme(text=element_text(size=14,color="black"))
-
-
-
-shift_colors<- c(brewer.pal(n=5, name="BrBG")[c(5,4,2,1)],"gray")
-
-
-ggplot(shifts_byspecies_longer, aes(x=shift, fill=factor(type, levels=c("march","expansion","lean","contraction","no change"))))+
-  geom_bar(stat="count") +
-  scale_fill_manual(name="Shift Type", values=shift_colors)+
-  facet_grid(pc~disturbance)+
-  xlab("Shift")+
-  ylab("Count")+
-  theme_bw()+
-  theme(text=element_text(size=14,color="black"))
-
-ggplot(shifts_byspecies_longer %>% 
-         mutate(shiftbypc = ifelse(type=="no change","no","yes")), aes(x=shiftbypc, fill=factor(type, levels=c("march","expansion","lean","contraction","no change"))))+
-  geom_bar(stat="count") +
-  scale_fill_manual(name="Shift Type", values=shift_colors)+
-  facet_grid(pc~disturbance)+
-  xlab("Shift")+
-  ylab("Count")+
-  theme_bw()+
-  theme(text=element_text(size=14,color="black"), strip.text = element_text(size=14), axis.text = element_text(size=14), legend.text = element_text(size=14), legend.title = element_text(size=14), legend.position = "bottom")
-
-
-overall_summary_shifts <- shifts_byspecies %>% 
-  dplyr::group_by(overallshift,disturbance) %>% 
-  dplyr::summarise(n=n())
-
-shifts_byspecies %>% 
-  dplyr::group_by(overallshift) %>% 
-  dplyr::summarise(n=n())
-
-
-
-png("figures/shifttype.png",width=500,height=400)
-ggplot(shifts_byspecies, aes(x=disturbance, fill=factor(overallshift, levels=c("contraction", "march","expansion+contraction", "expansion", "lean", "no change"))))+
-  geom_bar(stat="count") +
-  scale_fill_manual(name="Shift Type", values=shift_colors2)+
-  xlab("Shift")+
-  ylab("Count")+
-  theme_bw()+
-  theme(text=element_text(size=14,color="black"), strip.text = element_text(size=14), axis.text = element_text(size=14, color="black"), legend.text = element_text(size=14, color="black"), legend.title = element_text(size=14, color="black"), legend.position = "bottom")
-dev.off()
-```
 
 ###Ellipse size
 
@@ -5623,3 +5686,451 @@ ggplot(comb_table, aes(x=pc1speciesmean, y=pc2diff_97.5,color=disturbance))+
   geom_smooth(method="lm")
 ```
 
+
+## Hot Axis
+
+```{r}
+#left join the positions on the PCA for adults and seedlings in all disturbance types by their plot ID #s
+
+clim_data <- list()
+for(i in 1:length(adult_data)){
+    temp_clim <- rbind(adult_data[[i]],seedling_data[[i]]) %>%
+      mutate(dd_0_log=log(dd_0), ppt_wt_log = log(ppt_wt)) %>% 
+      dplyr::select(dd_0_log,ppt_wt_log) %>% 
+  mutate(group=c(rep(1,nrow(adult_data[[i]])),rep(2,nrow(seedling_data[[i]]))),community=1) %>% 
+    dplyr::rename(iso1=dd_0_log,iso2=ppt_wt_log)
+    clim_data[[i]]<- temp_clim
+}
+names(clim_data)<-names(adult_data)
+
+clim_data
+```
+
+
+```{r, echo=FALSE}
+#make iso data into list of SIBER objects
+
+siber.objs.hot <- list()
+for(i in 1:length(clim_data)){
+  temp.obj<- createSiberObject(as.data.frame(clim_data[[i]]))
+  siber.objs.hot[[i]]<- temp.obj
+}
+names(siber.objs.hot)<-names(adult_data)
+#
+```
+
+```{r, echo=FALSE}
+#estimate multivariate normal ellipses for each group using bayesian estimation
+
+# options for running jags
+
+parms <- list()
+parms$n.iter <- 2 * 10^4   # number of iterations to run the model for
+parms$n.burnin <- 1 * 10^3 # discard the first set of values
+parms$n.thin <- 10     # thin the posterior by this many
+parms$n.chains <- 2        # run this many chains
+
+
+# set save.output = TRUE
+parms$save.output = TRUE
+parms$save.dir = getwd()
+
+# # define the priors
+#
+priors <- list()
+priors$R <- 1 * diag(2)
+priors$k <- 2
+priors$tau.mu <- 1.0E-3
+
+# # fit the ellipses which uses an Inverse Wishart prior on the covariance matrix Sigma, and a vague normal prior on the means. Fitting is via the JAGS method.
+
+ellipses.posterior.list.hot <- list()
+for(i in 1:length(siber.objs.hot)){
+  temp.mvn <- siberMVN(siber.objs.hot[[i]], parms, priors)
+  ellipses.posterior.list.hot[[i]] <- temp.mvn
+  }
+names(ellipses.posterior.list.hot)<-names(siber.objs.hot)
+
+SEA.B.list.hot <- list()
+for(i in 1:length(ellipses.posterior.list.hot)){
+  temp.SEA.B <- siberEllipses(ellipses.posterior.list.hot[[i]])
+  SEA.B.list.hot[[i]] <- temp.SEA.B
+}
+ names(SEA.B.list.hot)<-names(siber.objs.hot)
+
+```
+
+```{r, echo=FALSE}
+#save model output
+ saveRDS(clim_data, file="clim_data.2023.rds")
+ saveRDS(siber.objs.hot, file="siber.objs.hot.2023.rds")
+ saveRDS(ellipses.posterior.list.hot, file="ellipses.posterior.list.hot.2023.rds")
+ saveRDS(SEA.B.list.hot, file="SEA.B.list.hot.2023.rds")
+```
+
+```{r}
+#read in siber files
+clim_data <- readRDS("clim_data.2023.rds")
+siber.objs.hot <- readRDS("siber.objs.hot.2023.rds")
+ellipses.posterior.list.hot<- readRDS("ellipses.posterior.list.hot.2023.rds")
+SEA.B.list.hot <- readRDS("SEA.B.list.hot.2023.rds")
+```
+
+```{r}
+#look at trace plots for bayesian models
+
+pdf("trace.plots.hot_2023.pdf")
+
+par(mfrow=c(3,2))
+for(i in 1:length(ellipses.posterior.list.hot)){
+  for (j in 1:2){
+    for(k in 1:6){
+      plot(ellipses.posterior.list.hot[[i]][[j]][,k],type="l")
+    }
+  }
+}
+
+dev.off()
+```
+
+Plotting ellipses for each species
+
+```{r}
+siber.objs.hot.names<- data.frame(name = names(siber.objs.hot)) %>% 
+  mutate(species = substr(name,0,3), dist =  str_extract(name,"_.+_")) %>% 
+  mutate(dist= gsub("_","",dist),
+         species = as.numeric(gsub("_","",species))) %>% 
+  left_join(species.names %>% mutate(species.code=as.numeric(species.code)),by=c("species"="species.code"))
+
+
+disturbance.colors_names <- data.frame(fire = disturbance.colors[1], insect.disease = disturbance.colors[2], none = disturbance.colors[3])
+
+ellipse.colors <- data.frame(fire = "#D9A59B", insect.disease = "#C8B0D8", none = "#B8CFA9")
+
+for(i in 1:length(siber.objs)){
+  
+  xrange= as.data.frame(siber.objs.hot[[i]]$iso.summary) %>% mutate(name=rownames(as.data.frame(siber.objs.hot[[i]]$iso.summary)))  %>% filter(name %in% c("min","max"))%>% dplyr::pull(iso1)
+xadd = c(-abs(xrange[1]-xrange[2])*.15,abs(xrange[1]-xrange[2])*.15)
+     
+yrange = as.data.frame(siber.objs.hot[[i]]$iso.summary) %>% mutate(name=rownames(as.data.frame(siber.objs.hot[[i]]$iso.summary)))  %>% filter(name %in% c("min","max")) %>% dplyr::pull(iso2)
+yadd = c(-abs(yrange[1]-yrange[2])*.1,abs(yrange[1]-yrange[2])*.1)
+
+  png(file=paste("C:/Users/katie/OneDrive - Colostate/OneDrive/FIA project/FIA_rproject/ellipses/ellipses_hot_2023/ellipses_hot_2023_",names(siber.objs.hot)[i],".png", sep=""), res=120)
+plot(x=unlist(c(siber.objs.hot[[i]]$original.data %>% filter(group==1) %>% dplyr::select(iso1))),
+     y=unlist(c(siber.objs.hot[[i]]$original.data %>% filter(group==1)%>% dplyr::select(iso2))),col="black", xlim=xrange+xadd,ylim=yrange+yadd,pch=16, xlab="Log(Degree Days Below 0)",ylab="Log(Winter PPT)",mgp=c(2,1,0),main=NA,cex=1.2)
+title(paste(siber.objs.hot.names$species.name[i], siber.objs.hot.names$dist[i], sep=" "), line=0.5)+
+points(x=unlist(c(siber.objs.hot[[i]]$original.data %>% filter(group==2) %>% dplyr::select(iso1))),
+     y=unlist(c(siber.objs.hot[[i]]$original.data %>% filter(group==2)%>% dplyr::select(iso2))),col=alpha(disturbance.colors_names %>% dplyr::pull(siber.objs.hot.names$dist[i]),0.6),pch=16)+
+points(x=mean(unlist(c(siber.objs.hot[[i]]$original.data %>% filter(group==1) %>% dplyr::select(iso1)))), y = mean(unlist(c(siber.objs.hot[[i]]$original.data %>% filter(group==1)%>% dplyr::select(iso2)))), bg = "black", col = "white", pch = 23, cex=1.5, lwd=3)+
+points(x=mean(unlist(c(siber.objs.hot[[i]]$original.data %>% filter(group==2) %>% dplyr::select(iso1)))), y = mean(unlist(c(siber.objs.hot[[i]]$original.data %>% filter(group==2)%>% dplyr::select(iso2)))), col = "white", bg = disturbance.colors_names %>% dplyr::pull(siber.objs.hot.names$dist[i]), pch = 23, cex = 1.5, lwd = 3)
+addEllipse(siber.objs.hot[[i]]$ML.mu[[1]][ , , 1],
+                     siber.objs.hot[[i]]$ML.cov[[1]][ , , 1],
+                     m = NULL,
+                     n = 100,
+                     p.interval = 0.95,
+                     ci.mean = FALSE,
+                     col = "grey44",
+                     lty = 1,
+                     lwd = 2)
+addEllipse(siber.objs.hot[[i]]$ML.mu[[1]][ , , 2],
+                     siber.objs.hot[[i]]$ML.cov[[1]][ , , 2],
+                     m = NULL,
+                     n = 100,
+                     p.interval = 0.95,
+                     ci.mean = FALSE,
+                     col = ellipse.colors %>% dplyr::pull(siber.objs.hot.names$dist[i]),
+                     lty = 1,
+                     lwd = 2)
+dev.off()
+}
+
+
+```
+
+```{r}
+#making legend for figure
+plot(x=unlist(c(siber.objs[[22]]$original.data %>% filter(group==1) %>% dplyr::select(iso1))),
+     y=unlist(c(siber.objs[[22]]$original.data %>% filter(group==1)%>% dplyr::select(iso2))),col="black", xlim=c(-4,6),ylim=c(-4,3),pch=16, xlab="PC1",ylab="PC2", mgp=c(2,1,0),main=NA)
+title("two needle pinyon Fire", line=0.5)+
+points(x=unlist(c(siber.objs[[22]]$original.data %>% filter(group==2) %>% dplyr::select(iso1))),
+     y=unlist(c(siber.objs[[22]]$original.data %>% filter(group==2)%>% dplyr::select(iso2))),col=alpha(disturbance.colors[1],0.6),pch=16)+
+points(x=mean(unlist(c(siber.objs[[22]]$original.data %>% filter(group==1) %>% dplyr::select(iso1)))), y = mean(unlist(c(siber.objs[[22]]$original.data %>% filter(group==1)%>% dplyr::select(iso2)))), col = "white", bg = "black", pch = 23, cex=1, lwd=2)+
+points(x=mean(unlist(c(siber.objs[[22]]$original.data %>% filter(group==2) %>% dplyr::select(iso1)))), y = mean(unlist(c(siber.objs[[22]]$original.data %>% filter(group==2)%>% dplyr::select(iso2)))), col = "white", bg = disturbance.colors_names %>% dplyr::pull(siber.objs.names$dist[1]), pch = 23, cex = 1, lwd = 2)
+
+
+legend_df<- data.frame(x=c(1,2,3,4), y=c(1,2,3,4), name=c("adult centroid", "none seedling centroid", "fire seedling centroid","insect.disease seedling centroid"))
+
+legend_df<- expand.grid(x=c(1,2,3,4), y=c(1,2,3,4), dist=c("seedling - none","seedling - fire","seedling - insect.disease"), type=c("plot","centroid"), age=c("seedling","adult")) %>% 
+  mutate(dist = ifelse(age=="adult","adult",as.character(dist)))
+
+png("figures/shifttypelegend.png", width=500, height=400) 
+ggplot(legend_df)+
+  geom_point(aes(x=x,y=y,fill=str_wrap(dist,11)), shape=23, col="white", size=4, stroke=2)+
+  scale_fill_manual(values=c("black",disturbance.colors[1],disturbance.colors[2],disturbance.colors[3]), name="Age -\nDisturbance")+
+  facet_wrap(~dist)+
+  theme(legend.position = "bottom", legend.key = element_rect(fill="#E6C3BC"), legend.text = element_text(size=14),legend.key.height=unit(1, "cm"), legend.title = element_text(size=14))
+dev.off()
+
+#D4C1E1
+#E6C3BC
+```
+
+```{r}
+###look at mean and 95% percentiles of posterior estimates of difference between adult and seedling niche margins
+###calculate with relativizing by adult niche width. 
+
+##THIS TAKES 2.5 HOURS
+# ellipse_margins_list_hot<- lapply(X = ellipses.posterior.list.hot, FUN=ellipmargfun)
+# saveRDS(ellipse_margins_list_hot, file = "ellipse_margins_list_hot.RDS")
+ellipse_margins_list_hot <- readRDS("ellipse_margins_list_hot.RDS")
+##order by individual climate vars
+dd0.means<- vector()
+for(i in 1:length(adult_data)){
+  temp.mean <- adult_data[[i]] %>% 
+    dplyr::summarise(mean(dd_0))
+  dd0.means[i]<-temp.mean 
+}
+unlist(dd0.means)
+
+dd0means.table <- as.data.frame(matrix(unlist(dd0.means),nrow=length(dd0.means),ncol=1))  %>% 
+  mutate(names =  names(adult_data)) %>% 
+  tidyr::separate(names,into=c("species.code","disturbance","extra"),sep="_") %>% 
+  mutate(species.code = species.code) %>% 
+  left_join(species.names) %>% 
+  dplyr::rename(dd0mean = V1) %>% 
+  group_by(species.name) %>% 
+  dplyr::summarise(dd0speciesmean = mean(dd0mean)) %>% ungroup() %>% 
+  filter(!species.name == "singleleaf pinyon") %>% 
+  arrange(dd0speciesmean) %>% 
+  mutate(number=seq(1:15))
+
+
+ellipse_margins_list_hot
+
+max1_rel_hot<- matrix(nrow=length(ellipse_margins_list_hot),ncol=4)
+min1_rel_hot<- matrix(nrow=length(ellipse_margins_list_hot),ncol=4)
+
+max2_rel_hot<- matrix(nrow=length(ellipse_margins_list_hot),ncol=4)
+min2_rel_hot<- matrix(nrow=length(ellipse_margins_list_hot),ncol=4)
+
+for(i in 1:length(ellipse_margins_list_hot)){
+max1diff_hot<- (ellipse_margins_list_hot[[i]][,'xmax_seed'] - ellipse_margins_list_hot[[i]][,'xmax_adult'])/ (ellipse_margins_list_hot[[i]][,'xmax_adult'] - ellipse_margins_list_hot[[i]][,'xmin_adult'])
+max1sum<- c(names(ellipse_margins_list_hot)[i],mean(max1diff_hot),quantile(max1diff_hot, c(.025,.975)))
+max1_rel_hot[i,]<- max1sum
+min1diff<- (ellipse_margins_list_hot[[i]][,'xmin_seed'] - ellipse_margins_list_hot[[i]][,'xmin_adult'])/(ellipse_margins_list_hot[[i]][,'xmax_adult'] - ellipse_margins_list_hot[[i]][,'xmin_adult'])
+min1sum<- c(names(ellipse_margins_list_hot)[i],mean(min1diff),quantile(min1diff, c(.025,.975)))
+min1_rel_hot[i,]<- min1sum
+
+max2diff_hot<- (ellipse_margins_list_hot[[i]][,'ymax_seed'] - ellipse_margins_list_hot[[i]][,'ymax_adult'])/(ellipse_margins_list_hot[[i]][,'ymax_adult'] - ellipse_margins_list_hot[[i]][,'ymin_adult'])
+max2sum<- c(names(ellipse_margins_list_hot)[i],mean(max2diff_hot),quantile(max2diff_hot, c(.025,.975)))
+max2_rel_hot[i,]<- max2sum
+min2diff<- (ellipse_margins_list_hot[[i]][,'ymin_seed'] - ellipse_margins_list_hot[[i]][,'ymin_adult'])/(ellipse_margins_list_hot[[i]][,'ymax_adult'] - ellipse_margins_list_hot[[i]][,'ymin_adult'])
+min2sum<- c(names(ellipse_margins_list_hot)[i],mean(min2diff),quantile(min2diff, c(.025,.975)))
+min2_rel_hot[i,]<- min2sum
+}
+
+
+max1_rel_hot_df <- as.data.frame(max1_rel_hot) %>% dplyr::rename(group=V1, mean=V2, lwr = V3, upr = V4) %>% mutate(mean=as.numeric(mean),lwr=as.numeric(lwr),upr=as.numeric(upr)) %>% 
+  mutate(sig = ifelse(lwr>0&upr>0, "yes", ifelse(lwr<0 & upr<0, "yes", "no"))) %>% 
+  mutate(species= substr(group, 0,3),
+         dist =  str_extract(group,"_.+_")) %>% 
+  mutate(dist= gsub("_","",dist),
+         species = as.numeric(gsub("_","",species))) %>% 
+  left_join(species.names %>% mutate(species.code=as.numeric(species.code)),by=c("species"="species.code")) %>% 
+  left_join(pc1means.table) %>% 
+  filter(!species.name == "singleleaf pinyon")
+
+min1_rel_hot_df <- as.data.frame(min1_rel_hot) %>% dplyr::rename(group=V1, mean=V2, lwr = V3, upr = V4) %>% mutate(mean=as.numeric(mean),lwr=as.numeric(lwr),upr=as.numeric(upr)) %>% 
+  mutate(sig = ifelse(lwr>0&upr>0, "yes", ifelse(lwr<0 & upr<0, "yes", "no"))) %>% 
+  mutate(species= substr(group, 0,3),
+         dist =  str_extract(group,"_.+_")) %>% 
+  mutate(dist= gsub("_","",dist),
+         species = as.numeric(gsub("_","",species))) %>% 
+  left_join(species.names %>% mutate(species.code=as.numeric(species.code)),by=c("species"="species.code")) %>% 
+  left_join(pc1means.table)%>% 
+  filter(!species.name == "singleleaf pinyon")
+
+max2_rel_hot_df <- as.data.frame(max2_rel_hot) %>% dplyr::rename(group=V1, mean=V2, lwr = V3, upr = V4) %>% mutate(mean=as.numeric(mean),lwr=as.numeric(lwr),upr=as.numeric(upr)) %>% 
+  mutate(sig = ifelse(lwr>0&upr>0, "yes", ifelse(lwr<0 & upr<0, "yes", "no"))) %>% 
+  mutate(species= substr(group, 0,3),
+         dist =  str_extract(group,"_.+_")) %>% 
+  mutate(dist= gsub("_","",dist),
+         species = as.numeric(gsub("_","",species))) %>% 
+  left_join(species.names %>% mutate(species.code=as.numeric(species.code)),by=c("species"="species.code")) %>% 
+  left_join(pc1means.table)%>% 
+  filter(!species.name == "singleleaf pinyon")
+
+min2_rel_hot_df <- as.data.frame(min2_rel_hot) %>% dplyr::rename(group=V1, mean=V2, lwr = V3, upr = V4) %>% mutate(mean=as.numeric(mean),lwr=as.numeric(lwr),upr=as.numeric(upr)) %>% 
+  mutate(sig = ifelse(lwr>0&upr>0, "yes", ifelse(lwr<0 & upr<0, "yes", "no"))) %>% 
+  mutate(species= substr(group, 0,3),
+         dist =  str_extract(group,"_.+_")) %>% 
+  mutate(dist= gsub("_","",dist),
+         species = as.numeric(gsub("_","",species))) %>% 
+  left_join(species.names %>% mutate(species.code=as.numeric(species.code)),by=c("species"="species.code")) %>% 
+  left_join(pc1means.table)%>% 
+  filter(!species.name == "singleleaf pinyon")
+
+
+ggplot(min1_rel_hot_df, aes(x=factor(species.name,levels=pc1means.table$species.name), y=mean, fill=factor(species.name,levels=pc1means.table$species.name), col=sig))+
+  geom_errorbar(aes(ymin=lwr,ymax=upr, col=sig))+
+    geom_point(pch=21)+
+  geom_hline(yintercept=0)+
+  scale_fill_manual(values=spp.colors$color, name="Species")+
+  scale_color_manual(values=c("gray","black"))+
+  facet_wrap(~dist)+
+  ggtitle("Log(Degree Days Below 0) 2.5%")+
+  theme(axis.text.x = element_text(angle=50, hjust=1,size=8),axis.title.x = element_blank())
+
+ggplot(max1_rel_hot_df, aes(x=factor(species.name,levels=pc1means.table$species.name), y=mean, fill=factor(species.name,levels=pc1means.table$species.name), col=sig))+
+  geom_errorbar(aes(ymin=lwr,ymax=upr, col=sig))+
+    geom_point(pch=21)+
+  geom_hline(yintercept=0)+
+  scale_fill_manual(values=spp.colors$color, name="Species")+
+  scale_color_manual(values=c("gray","black"))+
+  facet_wrap(~dist)+
+  ggtitle("Log(Degree Days Below 0) 97.5%")+
+  theme(axis.text.x = element_text(angle=50, hjust=1,size=8),axis.title.x = element_blank())
+
+ggplot(min2_rel_hot_df, aes(x=factor(species.name,levels=pc1means.table$species.name), y=mean, fill=factor(species.name,levels=pc1means.table$species.name), col=sig))+
+  geom_errorbar(aes(ymin=lwr,ymax=upr, col=sig))+
+    geom_point(pch=21)+
+  geom_hline(yintercept=0)+
+  scale_fill_manual(values=spp.colors$color, name="Species")+
+  scale_color_manual(values=c("gray","black"))+
+  facet_wrap(~dist)+
+  ggtitle("Log(Winter PPT) 2.5%")+
+  theme(axis.text.x = element_text(angle=50, hjust=1,size=8),axis.title.x = element_blank())
+
+ggplot(max2_rel_hot_df, aes(x=factor(species.name,levels=pc1means.table$species.name), y=mean, fill=factor(species.name,levels=pc1means.table$species.name), col=sig))+
+  geom_errorbar(aes(ymin=lwr,ymax=upr, col=sig))+
+    geom_point(pch=21)+
+  geom_hline(yintercept=0)+
+  scale_fill_manual(values=spp.colors$color, name="Species")+
+  scale_color_manual(values=c("gray","black"))+
+  facet_wrap(~dist)+
+  ggtitle("Log(Winter PPT) 97.5%")+
+  theme(axis.text.x = element_text(angle=50, hjust=1,size=8),axis.title.x = element_blank())
+
+```
+
+combine centroid and margins
+
+```{r}
+
+#relativized
+mu1_rel_hot<- matrix(nrow=length(ellipses.posterior.list.hot),ncol=4)
+mu2_rel_hot<- matrix(nrow=length(ellipses.posterior.list.hot),ncol=4)
+
+for(i in 1:length(ellipses.posterior.list.hot)){
+mu1_rel_hotdiff<- (ellipses.posterior.list.hot[[i]]$`1.2`[,'mu[1]'] - ellipses.posterior.list.hot[[i]]$`1.1`[,'mu[1]'])/(ellipse_margins_list_hot[[i]][,'xmax_adult'] - ellipse_margins_list_hot[[i]][,'xmin_adult'])
+mu1_rel_hotsum<- c(names(ellipses.posterior.list.hot)[i],mean(mu1_rel_hotdiff),quantile(mu1_rel_hotdiff, c(.025,.975)))
+mu1_rel_hot[i,]<- mu1_rel_hotsum
+
+mu2_rel_hotdiff<- (ellipses.posterior.list.hot[[i]]$`1.2`[,'mu[2]'] - ellipses.posterior.list.hot[[i]]$`1.1`[,'mu[2]'])/ (ellipse_margins_list_hot[[i]][,'ymax_adult'] - ellipse_margins_list_hot[[i]][,'ymin_adult'])
+mu2_rel_hotsum<- c(names(ellipses.posterior.list.hot)[i],mean(mu2_rel_hotdiff),quantile(mu2_rel_hotdiff, c(.025,.975)))
+mu2_rel_hot[i,]<- mu2_rel_hotsum
+}
+mu1_rel_hot_df<- as.data.frame(mu1_rel_hot) %>% dplyr::rename(group=V1, mean=V2, lwr = V3, upr = V4) %>% mutate(mean=as.numeric(mean),lwr=as.numeric(lwr),upr=as.numeric(upr)) %>%
+  mutate(sig = ifelse(lwr>0&upr>0, "yes", ifelse(lwr<0 & upr<0, "yes", "no"))) %>%
+  mutate(species= substr(group, 0,3),
+         dist =  str_extract(group,"_.+_")) %>%
+  mutate(dist= gsub("_","",dist),
+         species = gsub("_","",species)) %>%
+  left_join(species.names,by=c("species"="species.code")) %>%
+    left_join(pc1means.table)%>%
+    filter(!species.name == "singleleaf pinyon")
+
+mu2_rel_hot_df<- as.data.frame(mu2_rel_hot) %>% dplyr::rename(group=V1, mean=V2, lwr = V3, upr = V4) %>% mutate(mean=as.numeric(mean),lwr=as.numeric(lwr),upr=as.numeric(upr)) %>%
+  mutate(sig = ifelse(lwr>0&upr>0, "yes", ifelse(lwr<0 & upr<0, "yes", "no"))) %>%
+  mutate(species= substr(group, 0,3),
+         dist =  str_extract(group,"_.+_")) %>%
+  mutate(dist= gsub("_","",dist),
+         species = gsub("_","",species)) %>%
+  left_join(species.names,by=c("species"="species.code")) %>%
+      left_join(pc1means.table)%>%
+    filter(!species.name == "singleleaf pinyon")
+
+#combine centroid with margins
+
+dd0_df<- bind_rows(mu1_df %>% mutate(var="dd0 centroid", species=species),
+max1_df %>% mutate(var="dd0 max"),
+min1_df %>% mutate(var="dd0 min")) %>%
+  mutate(mean=ifelse(var=="dd0 max",mean+3,ifelse(var=="dd0 min", mean-3,mean)),
+         lwr=ifelse(var=="dd0 max",lwr+3,ifelse(var=="dd0 min", lwr-3,lwr)),
+         upr=ifelse(var=="dd0 max",upr+3,ifelse(var=="dd0 min", upr-3,upr)))
+
+ggplot(pc1_df, aes(x=dist, y=mean, fill=factor(species.name,levels=pc1means.table$species.name), col=sig))+
+  geom_errorbar(aes(ymin=lwr,ymax=upr, col=sig),width=0.2)+
+    geom_point(pch=21)+
+  geom_hline(yintercept=c(-3,0,3),lty=1)+
+  scale_fill_manual(values=spp.colors$color, name="Species")+
+  scale_color_manual(values=c("gray","black"),name="Significance")+
+  facet_wrap(~factor(species.name,levels=pc1means.table %>% arrange(pc1speciesmean) %>% pull(species.name)))+
+  ggtitle("dd0")+
+  theme(axis.text.x = element_text(angle=50, hjust=1,size=8),axis.title.x = element_blank())
+
+ggplot(pc1_df, aes(x=factor(species.name,levels=pc1means.table$species.name), y=mean, fill=factor(species.name,levels=pc1means.table$species.name), col=sig))+
+  geom_errorbar(aes(ymin=lwr,ymax=upr, col=sig),width=0.2,size=1)+
+    geom_point(pch=21, size=3)+
+  geom_hline(yintercept=c(-3,0,3),lty=1)+
+  scale_fill_manual(values=spp.colors$color, name="Species")+
+  scale_color_manual(values=c("gray","black"),name="Significance")+
+  facet_wrap(~dist)+
+  scale_y_continuous(breaks=seq(-5,5,1))+
+  annotate(geom="text",x=4, y=-4.5, label="hot/dry",col="black", size=5 )+
+  annotate(geom="text", x=4, y=6,label="cold/wet",col="black", size=5)+
+  ylab("Difference in Margin Position (Seedling - Adult)")+
+  ggtitle("dd0")+
+  theme_bw()+
+  theme(axis.text.x = element_text(angle=60, hjust=1,size=10, color="black"),axis.title.x = element_blank(),axis.text.y = element_text(size=10, colour = "black"),axis.title.y = element_text(size=12, color="black"), strip.text = element_text(size = 12), title=element_text(size=14), legend.position = "top")
+
+
+pc2_df<- bind_rows(mu2_df %>% mutate(var="PC2 centroid", species=species),
+max2_df %>% mutate(var="PC2 max"),
+min2_df %>% mutate(var="PC2 min")) %>%
+  mutate(mean=ifelse(var=="PC2 max",mean+3,ifelse(var=="PC2 min", mean-3,mean)),
+         lwr=ifelse(var=="PC2 max",lwr+3,ifelse(var=="PC2 min", lwr-3,lwr)),
+         upr=ifelse(var=="PC2 max",upr+3,ifelse(var=="PC2 min", upr-3,upr)))
+
+ggplot(pc2_df, aes(x=factor(species.name,levels=pc1means.table$species.name), y=mean, fill=factor(species.name,levels=pc1means.table$species.name), col=sig))+
+  geom_errorbar(aes(ymin=lwr,ymax=upr, col=sig),width=0.2,size=1)+
+    geom_point(pch=21, size=3)+
+  geom_hline(yintercept=c(-3,0,3),lty=1)+
+  scale_fill_manual(values=spp.colors$color, name="Species")+
+  scale_color_manual(values=c("gray","black"),name="Significance")+
+  scale_y_continuous(breaks=seq(-5,5,1))+
+  annotate(geom="text",x=4, y=-5, label="hot/wet",col="black", size=5 )+
+  annotate(geom="text", x=4, y=5.5,label="cold/dry",col="black", size=5)+
+  ylab("Difference in Margin Position (Seedling - Adult)")+
+  facet_wrap(~dist)+
+  ggtitle("PC2")+
+  theme_bw()+
+  theme(axis.text.x = element_text(angle=60, hjust=1,size=10, color="black"),axis.title.x = element_blank(),axis.text.y = element_text(size=10, colour = "black"),axis.title.y = element_text(size=12, color="black"), strip.text = element_text(size = 12), title=element_text(size=14), legend.position = "top")
+
+######relativized
+pc1_df_rel<- bind_rows(mu1_rel_hot_df %>% mutate(var="dd0 centroid", species=as.numeric(species)),
+max1_rel_df %>% mutate(var="dd0 max"),
+ min1_rel_df %>% mutate(var="dd0 min")) %>%
+#   mutate(mean=ifelse(var=="dd0 max",mean+.8,ifelse(var=="dd0 min", mean-.8,mean)),
+#          lwr=ifelse(var=="dd0 max",lwr+.8,ifelse(var=="dd0 min", lwr-.8,lwr)),
+#          upr=ifelse(var=="dd0 max",upr+.8,ifelse(var=="dd0 min", upr-.8,upr)))
+  left_join(pc1means.table)
+
+ggplot(pc1_df_rel, aes(x=factor(number,levels=pc1means.table %>% arrange(pc1speciesmean) %>% pull(number)), y=mean, fill=factor(number,levels=pc1means.table %>% arrange(pc1speciesmean) %>% pull(number)), col=sig))+
+  geom_errorbar(aes(ymin=lwr,ymax=upr, col=sig),width=0.2,size=1)+
+    geom_point(pch=21, size=2)+
+  geom_hline(yintercept=0,lty=1)+
+  scale_fill_manual(values=spp.colors$color, name="Species")+
+  scale_color_manual(values=c("lightgray","black"),name="Significance")+
+  facet_grid(factor(var, levels=c("dd0 max","dd0 centroid","dd0 min"), labels=c("97.5%","centroid","2.5%"))~dist, scales = "free")+
+  #scale_y_continuous(breaks=seq(-5,5,1))+
+  #annotate(geom="text",x=4, y=-4.5, label="hot/dry",col="black", size=5 )+
+  #annotate(geom="text", x=4, y=6,label="cold/wet",col="black", size=5)+
+  ylab("Relativized Difference in Margin Position")+
+  xlab("Species")+
+  ggtitle("dd0")+
+  theme_bw()+
+  theme(axis.text.x = element_text(angle=60, hjust=1,size=9, color="black"),axis.title.x = element_text(size=12, color="black"),axis.text.y = element_text(size=10, colour = "black"),axis.title.y = element_text(size=12, color="black"), strip.text = element_text(size = 12), title=element_text(size=14), legend.position = "right", legend.text = element_text(size=14), legend.title = element_text(size=16))
+
+
+```
