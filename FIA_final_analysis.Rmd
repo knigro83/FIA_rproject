@@ -944,6 +944,7 @@ library(rjags)
 library(MuMIn)
 library(stringr)
 library(RColorBrewer)
+library(MVN)
 ```
 
 Let's first read in the data.
@@ -1722,6 +1723,196 @@ ellipses.posterior.list<- readRDS("ellipses.posterior.list.2023.rds")
 SEA.B.list <- readRDS("SEA.B.list.2023.rds")
 ```
 
+####checking normality
+```{r}
+##this takes about 10min
+mvn_test_adult <- data.frame()
+for(i in 1:length(iso_data)){
+  testdata <- siber.objs[[i]]$zscore.data[[1]] %>% 
+    as.data.frame() %>% 
+    filter(group==1) %>% 
+    dplyr::select(iso1,iso2)
+  mardia<- mvn(testdata, mvnTest = "mardia")
+mardia$multivariateNormality
+
+dh<- mvn(testdata, mvnTest = "dh")
+dh$multivariateNormality
+
+energy<- mvn(testdata, mvnTest = "energy")
+energy$multivariateNormality
+
+combo<- bind_rows(mardia$multivariateNormality %>% mutate(`p value` = as.numeric(`p value`),Statistic=as.numeric(Statistic), MVN = Result), dh$multivariateNormality, energy$multivariateNormality) %>%
+  mutate(id=i)
+
+if(nrow(testdata)<2000){
+  royston<- mvn(testdata, mvnTest = "royston")
+royston$multivariateNormality
+
+combo<- bind_rows(combo, royston$multivariateNormality) %>%
+  mutate(id=i)
+}
+mvn_test_adult <- bind_rows(mvn_test_adult,combo)
+}
+
+mvn_test_adult_sum <- mvn_test_adult %>%  
+  group_by(id) %>% 
+  dplyr::summarise(count(MVN)) %>% 
+  pivot_wider(names_from=x, values_from=freq, id_cols=id) 
+
+View(mvn_test_adult_sum)
+
+nos<- mvn_test_adult_sum %>% 
+  filter(is.na(YES)) %>% 
+  pull(id)
+
+for(i in nos){
+mvn(siber.objs[[i]]$zscore.data[[1]] %>% 
+    as.data.frame() %>% 
+    filter(group==1) %>% 
+    dplyr::select(iso1,iso2) , multivariatePlot = "qq")
+}
+
+names(iso_data)[c(45,44,39,38,36,35,17,12,10)]
+species.names
+
+mvn(as.data.frame(iso_data[[45]][,1:2]), multivariatePlot = "contour")
+
+
+##this takes about 2 minutes
+mvn_test_seedling <- data.frame()
+for(i in 1:length(iso_data)){
+  testdata <- siber.objs[[i]]$zscore.data[[1]] %>% 
+    as.data.frame() %>% 
+    filter(group==2) %>% 
+    dplyr::select(iso1,iso2)
+  mardia<- mvn(testdata, mvnTest = "mardia")
+mardia$multivariateNormality
+
+dh<- mvn(testdata, mvnTest = "dh")
+dh$multivariateNormality
+
+energy<- mvn(testdata, mvnTest = "energy")
+energy$multivariateNormality
+
+combo<- bind_rows(mardia$multivariateNormality %>% mutate(`p value` = as.numeric(`p value`),Statistic=as.numeric(Statistic), MVN = Result), dh$multivariateNormality, energy$multivariateNormality) %>%
+  mutate(id=i)
+
+if(nrow(testdata)<2000){
+  royston<- mvn(testdata, mvnTest = "royston")
+royston$multivariateNormality
+
+combo<- bind_rows(combo, royston$multivariateNormality) %>%
+  mutate(id=i)
+}
+mvn_test_seedling <- bind_rows(mvn_test_seedling,combo)
+}
+
+mvn_test_seedling_sum <- mvn_test_seedling %>%  
+  group_by(id) %>% 
+  dplyr::summarise(count(MVN)) %>% 
+  pivot_wider(names_from=x, values_from=freq, id_cols=id) 
+
+View(mvn_test_seedling_sum)
+
+nos_seed<- mvn_test_seedling_sum %>% 
+  filter(is.na(YES)) %>% 
+  pull(id)
+
+for(i in nos_seed){
+mvn(siber.objs[[i]]$zscore.data[[1]] %>% 
+    as.data.frame() %>% 
+    filter(group==2) %>% 
+    dplyr::select(iso1,iso2) , multivariatePlot = "qq")
+}
+
+names(iso_data)[c(44,39,38,37,36,28,27,12,7,6)]
+species.names
+
+mvn(as.data.frame(iso_data[[45]][,1:2]), multivariatePlot = "contour")
+
+```
+
+####univariate models
+
+```{r}
+require(rjags)
+require(coda)
+
+#figure out priors
+clim_data
+
+# simulatee data
+set.seed(4444)
+N <- 100 
+Mu <- 100
+Sigma <- 15
+y <- rnorm(n=N, mean=Mu, sd=Sigma)
+jagsdata <- list(y=y)
+
+
+jagsdata_adult <- list(y=iso_data[[24]][,1] %>% dplyr::pull(iso1))
+
+jags.script <- "
+model {
+    for (i in 1:length(y)) {
+        y[i]  ~ dnorm(mu, tau)
+    }
+    mu  ~ dnorm(0, 0.001)    
+    sigma ~ dunif(0, 1000)
+    tau <- 1/sigma^2
+}"
+
+
+mod1_adult <- jags.model(textConnection(jags.script), data=jagsdata_adult, n.chains=4, n.adapt=1000)
+
+update(mod1_adult, 200)
+mod1.adult.samples<- coda.samples(model=mod1_adult, variable.names=c('mu','sigma'), n.iter=1000)
+plot(mod1.adult.samples)
+
+library(MCMCvis)
+mu.x.adult = MCMCchains(mod1.adult.samples, params="mu")
+
+as.data.frame(quantile(mu.x.adult, c(0.025,0.975)))[1,]
+
+ggplot()+
+  geom_histogram(data=as.data.frame(mu.x.adult), aes(x=mu))+
+  geom_vline(xintercept = mean(mu.x.adult), col="red")+
+  geom_vline(xintercept = as.data.frame(quantile(mu.x.adult, c(0.025,0.975)))[1,], col="red", lty=2)+
+  geom_vline(xintercept = as.data.frame(quantile(mu.x.adult, c(0.025,0.975)))[2,], col="red", lty=2)
+
+##seedling
+
+jagsdata_seedling <- list(y=iso_data[[24]][,1] %>% dplyr::pull(iso1))
+
+jags.script <- "
+model {
+    for (i in 1:length(y)) {
+        y[i]  ~ dnorm(mu, tau)
+    }
+    mu  ~ dnorm(0, 0.001)    
+    sigma ~ dunif(0, 1000)
+    tau <- 1/sigma^2
+}"
+
+
+mod1_seedling <- jags.model(textConnection(jags.script), data=jagsdata_seedling, n.chains=4, n.adapt=1000)
+
+update(mod1_seedling, 200)
+mod1.seedling.samples<- coda.samples(model=mod1_seedling, variable.names=c('mu','sigma'), n.iter=1000)
+plot(mod1.seedling.samples)
+
+library(MCMCvis)
+mu.x.seedling = MCMCchains(mod1.seedling.samples, params="mu")
+
+as.data.frame(quantile(mu.x.seedling, c(0.025,0.975)))[1,]
+
+ggplot()+
+  geom_histogram(data=as.data.frame(mu.x.seedling), aes(x=mu))+
+  geom_vline(xintercept = mean(mu.x.seedling), col="red")+
+  geom_vline(xintercept = as.data.frame(quantile(mu.x.seedling, c(0.025,0.975)))[1,], col="red", lty=2)+
+  geom_vline(xintercept = as.data.frame(quantile(mu.x.seedling, c(0.025,0.975)))[2,], col="red", lty=2)
+
+```
 
 ```{r,echo=FALSE, eval=FALSE}
 #look at trace plots for bayesian models
@@ -5692,31 +5883,31 @@ ggplot(comb_table, aes(x=pc1speciesmean, y=pc2diff_97.5,color=disturbance))+
 ```{r}
 #left join the positions on the PCA for adults and seedlings in all disturbance types by their plot ID #s
 
-clim_data <- list()
-for(i in 1:length(adult_data)){
-    temp_clim <- rbind(adult_data[[i]],seedling_data[[i]]) %>%
-      mutate(dd_0_log=log(dd_0), ppt_wt_log = log(ppt_wt)) %>% 
-      dplyr::select(dd_0_log,ppt_wt_log) %>% 
-  mutate(group=c(rep(1,nrow(adult_data[[i]])),rep(2,nrow(seedling_data[[i]]))),community=1) %>% 
-    dplyr::rename(iso1=dd_0_log,iso2=ppt_wt_log)
-    clim_data[[i]]<- temp_clim
-}
-names(clim_data)<-names(adult_data)
-
-clim_data
+# clim_data <- list()
+# for(i in 1:length(adult_data)){
+#     temp_clim <- rbind(adult_data[[i]],seedling_data[[i]]) %>%
+#       mutate(dd_0_log=log(dd_0), ppt_wt_log = log(ppt_wt)) %>% 
+#       dplyr::select(dd_0_log,ppt_wt_log) %>% 
+#   mutate(group=c(rep(1,nrow(adult_data[[i]])),rep(2,nrow(seedling_data[[i]]))),community=1) %>% 
+#     dplyr::rename(iso1=dd_0_log,iso2=ppt_wt_log)
+#     clim_data[[i]]<- temp_clim
+# }
+# names(clim_data)<-names(adult_data)
+# 
+# clim_data
 ```
 
 
 ```{r, echo=FALSE}
 #make iso data into list of SIBER objects
 
-siber.objs.hot <- list()
-for(i in 1:length(clim_data)){
-  temp.obj<- createSiberObject(as.data.frame(clim_data[[i]]))
-  siber.objs.hot[[i]]<- temp.obj
-}
-names(siber.objs.hot)<-names(adult_data)
-#
+# siber.objs.hot <- list()
+# for(i in 1:length(clim_data)){
+#   temp.obj<- createSiberObject(as.data.frame(clim_data[[i]]))
+#   siber.objs.hot[[i]]<- temp.obj
+# }
+# names(siber.objs.hot)<-names(adult_data)
+# #
 ```
 
 ```{r, echo=FALSE}
@@ -5724,48 +5915,48 @@ names(siber.objs.hot)<-names(adult_data)
 
 # options for running jags
 
-parms <- list()
-parms$n.iter <- 2 * 10^4   # number of iterations to run the model for
-parms$n.burnin <- 1 * 10^3 # discard the first set of values
-parms$n.thin <- 10     # thin the posterior by this many
-parms$n.chains <- 2        # run this many chains
-
-
-# set save.output = TRUE
-parms$save.output = TRUE
-parms$save.dir = getwd()
-
-# # define the priors
-#
-priors <- list()
-priors$R <- 1 * diag(2)
-priors$k <- 2
-priors$tau.mu <- 1.0E-3
-
-# # fit the ellipses which uses an Inverse Wishart prior on the covariance matrix Sigma, and a vague normal prior on the means. Fitting is via the JAGS method.
-
-ellipses.posterior.list.hot <- list()
-for(i in 1:length(siber.objs.hot)){
-  temp.mvn <- siberMVN(siber.objs.hot[[i]], parms, priors)
-  ellipses.posterior.list.hot[[i]] <- temp.mvn
-  }
-names(ellipses.posterior.list.hot)<-names(siber.objs.hot)
-
-SEA.B.list.hot <- list()
-for(i in 1:length(ellipses.posterior.list.hot)){
-  temp.SEA.B <- siberEllipses(ellipses.posterior.list.hot[[i]])
-  SEA.B.list.hot[[i]] <- temp.SEA.B
-}
- names(SEA.B.list.hot)<-names(siber.objs.hot)
+# parms <- list()
+# parms$n.iter <- 2 * 10^4   # number of iterations to run the model for
+# parms$n.burnin <- 1 * 10^3 # discard the first set of values
+# parms$n.thin <- 10     # thin the posterior by this many
+# parms$n.chains <- 2        # run this many chains
+# 
+# 
+# # set save.output = TRUE
+# parms$save.output = TRUE
+# parms$save.dir = getwd()
+# 
+# # # define the priors
+# #
+# priors <- list()
+# priors$R <- 1 * diag(2)
+# priors$k <- 2
+# priors$tau.mu <- 1.0E-3
+# 
+# # # fit the ellipses which uses an Inverse Wishart prior on the covariance matrix Sigma, and a vague normal prior on the means. Fitting is via the JAGS method.
+# 
+# ellipses.posterior.list.hot <- list()
+# for(i in 1:length(siber.objs.hot)){
+#   temp.mvn <- siberMVN(siber.objs.hot[[i]], parms, priors)
+#   ellipses.posterior.list.hot[[i]] <- temp.mvn
+#   }
+# names(ellipses.posterior.list.hot)<-names(siber.objs.hot)
+# 
+# SEA.B.list.hot <- list()
+# for(i in 1:length(ellipses.posterior.list.hot)){
+#   temp.SEA.B <- siberEllipses(ellipses.posterior.list.hot[[i]])
+#   SEA.B.list.hot[[i]] <- temp.SEA.B
+# }
+#  names(SEA.B.list.hot)<-names(siber.objs.hot)
 
 ```
 
 ```{r, echo=FALSE}
 #save model output
- saveRDS(clim_data, file="clim_data.2023.rds")
- saveRDS(siber.objs.hot, file="siber.objs.hot.2023.rds")
- saveRDS(ellipses.posterior.list.hot, file="ellipses.posterior.list.hot.2023.rds")
- saveRDS(SEA.B.list.hot, file="SEA.B.list.hot.2023.rds")
+ # saveRDS(clim_data, file="clim_data.2023.rds")
+ # saveRDS(siber.objs.hot, file="siber.objs.hot.2023.rds")
+ # saveRDS(ellipses.posterior.list.hot, file="ellipses.posterior.list.hot.2023.rds")
+ # saveRDS(SEA.B.list.hot, file="SEA.B.list.hot.2023.rds")
 ```
 
 ```{r}
@@ -5774,6 +5965,48 @@ clim_data <- readRDS("clim_data.2023.rds")
 siber.objs.hot <- readRDS("siber.objs.hot.2023.rds")
 ellipses.posterior.list.hot<- readRDS("ellipses.posterior.list.hot.2023.rds")
 SEA.B.list.hot <- readRDS("SEA.B.list.hot.2023.rds")
+```
+
+####checking normality
+```{r}
+## this takes more than 15 minutes
+# mvn_test_hot <- data.frame()
+# for(i in 1:length(clim_data)){
+#   testdata <- clim_data[[i]][,1:2]
+#   mardia<- mvn(testdata, mvnTest = "mardia")
+# mardia$multivariateNormality
+# 
+# dh<- mvn(testdata, mvnTest = "dh")
+# dh$multivariateNormality
+# 
+# energy<- mvn(testdata, mvnTest = "energy")
+# energy$multivariateNormality
+# 
+# combo<- bind_rows(mardia$multivariateNormality %>% mutate(`p value` = as.numeric(`p value`),Statistic=as.numeric(Statistic), MVN = Result), dh$multivariateNormality, energy$multivariateNormality) %>% 
+#   mutate(id=i)
+# 
+# if(nrow(testdata)<2000){
+#   royston<- mvn(testdata, mvnTest = "royston")
+# royston$multivariateNormality
+# 
+# combo<- bind_rows(combo, royston$multivariateNormality) %>% 
+#   mutate(id=i)
+# }
+# mvn_test_hot <- bind_rows(mvn_test_hot,combo) 
+# }
+# 
+# 
+# saveRDS(mvn_test_hot, "mvn_test.hot.RDS")
+
+mvn_test_hot<- readRDS("mvn_test.hot.RDS")
+
+mvn_test_hot_sum<- mvn_test_hot %>%
+  group_by(id) %>%
+  dplyr::summarise(count(MVN)) %>%
+  pivot_wider(names_from=x, values_from=freq, id_cols=id) 
+
+View(mvn_test_hot_sum)
+
 ```
 
 ```{r}
@@ -6052,63 +6285,8 @@ mu2_rel_hot_df<- as.data.frame(mu2_rel_hot) %>% dplyr::rename(group=V1, mean=V2,
 
 #combine centroid with margins
 
-dd0_df<- bind_rows(mu1_df %>% mutate(var="dd0 centroid", species=species),
-max1_df %>% mutate(var="dd0 max"),
-min1_df %>% mutate(var="dd0 min")) %>%
-  mutate(mean=ifelse(var=="dd0 max",mean+3,ifelse(var=="dd0 min", mean-3,mean)),
-         lwr=ifelse(var=="dd0 max",lwr+3,ifelse(var=="dd0 min", lwr-3,lwr)),
-         upr=ifelse(var=="dd0 max",upr+3,ifelse(var=="dd0 min", upr-3,upr)))
-
-ggplot(pc1_df, aes(x=dist, y=mean, fill=factor(species.name,levels=pc1means.table$species.name), col=sig))+
-  geom_errorbar(aes(ymin=lwr,ymax=upr, col=sig),width=0.2)+
-    geom_point(pch=21)+
-  geom_hline(yintercept=c(-3,0,3),lty=1)+
-  scale_fill_manual(values=spp.colors$color, name="Species")+
-  scale_color_manual(values=c("gray","black"),name="Significance")+
-  facet_wrap(~factor(species.name,levels=pc1means.table %>% arrange(pc1speciesmean) %>% pull(species.name)))+
-  ggtitle("dd0")+
-  theme(axis.text.x = element_text(angle=50, hjust=1,size=8),axis.title.x = element_blank())
-
-ggplot(pc1_df, aes(x=factor(species.name,levels=pc1means.table$species.name), y=mean, fill=factor(species.name,levels=pc1means.table$species.name), col=sig))+
-  geom_errorbar(aes(ymin=lwr,ymax=upr, col=sig),width=0.2,size=1)+
-    geom_point(pch=21, size=3)+
-  geom_hline(yintercept=c(-3,0,3),lty=1)+
-  scale_fill_manual(values=spp.colors$color, name="Species")+
-  scale_color_manual(values=c("gray","black"),name="Significance")+
-  facet_wrap(~dist)+
-  scale_y_continuous(breaks=seq(-5,5,1))+
-  annotate(geom="text",x=4, y=-4.5, label="hot/dry",col="black", size=5 )+
-  annotate(geom="text", x=4, y=6,label="cold/wet",col="black", size=5)+
-  ylab("Difference in Margin Position (Seedling - Adult)")+
-  ggtitle("dd0")+
-  theme_bw()+
-  theme(axis.text.x = element_text(angle=60, hjust=1,size=10, color="black"),axis.title.x = element_blank(),axis.text.y = element_text(size=10, colour = "black"),axis.title.y = element_text(size=12, color="black"), strip.text = element_text(size = 12), title=element_text(size=14), legend.position = "top")
-
-
-pc2_df<- bind_rows(mu2_df %>% mutate(var="PC2 centroid", species=species),
-max2_df %>% mutate(var="PC2 max"),
-min2_df %>% mutate(var="PC2 min")) %>%
-  mutate(mean=ifelse(var=="PC2 max",mean+3,ifelse(var=="PC2 min", mean-3,mean)),
-         lwr=ifelse(var=="PC2 max",lwr+3,ifelse(var=="PC2 min", lwr-3,lwr)),
-         upr=ifelse(var=="PC2 max",upr+3,ifelse(var=="PC2 min", upr-3,upr)))
-
-ggplot(pc2_df, aes(x=factor(species.name,levels=pc1means.table$species.name), y=mean, fill=factor(species.name,levels=pc1means.table$species.name), col=sig))+
-  geom_errorbar(aes(ymin=lwr,ymax=upr, col=sig),width=0.2,size=1)+
-    geom_point(pch=21, size=3)+
-  geom_hline(yintercept=c(-3,0,3),lty=1)+
-  scale_fill_manual(values=spp.colors$color, name="Species")+
-  scale_color_manual(values=c("gray","black"),name="Significance")+
-  scale_y_continuous(breaks=seq(-5,5,1))+
-  annotate(geom="text",x=4, y=-5, label="hot/wet",col="black", size=5 )+
-  annotate(geom="text", x=4, y=5.5,label="cold/dry",col="black", size=5)+
-  ylab("Difference in Margin Position (Seedling - Adult)")+
-  facet_wrap(~dist)+
-  ggtitle("PC2")+
-  theme_bw()+
-  theme(axis.text.x = element_text(angle=60, hjust=1,size=10, color="black"),axis.title.x = element_blank(),axis.text.y = element_text(size=10, colour = "black"),axis.title.y = element_text(size=12, color="black"), strip.text = element_text(size = 12), title=element_text(size=14), legend.position = "top")
-
 ######relativized
-pc1_df_rel<- bind_rows(mu1_rel_hot_df %>% mutate(var="dd0 centroid", species=as.numeric(species)),
+dd0_df_rel<- bind_rows(mu1_rel_hot_df %>% mutate(var="dd0 centroid", species=as.numeric(species)),
 max1_rel_df %>% mutate(var="dd0 max"),
  min1_rel_df %>% mutate(var="dd0 min")) %>%
 #   mutate(mean=ifelse(var=="dd0 max",mean+.8,ifelse(var=="dd0 min", mean-.8,mean)),
@@ -6116,7 +6294,7 @@ max1_rel_df %>% mutate(var="dd0 max"),
 #          upr=ifelse(var=="dd0 max",upr+.8,ifelse(var=="dd0 min", upr-.8,upr)))
   left_join(pc1means.table)
 
-ggplot(pc1_df_rel, aes(x=factor(number,levels=pc1means.table %>% arrange(pc1speciesmean) %>% pull(number)), y=mean, fill=factor(number,levels=pc1means.table %>% arrange(pc1speciesmean) %>% pull(number)), col=sig))+
+ggplot(dd0_df_rel, aes(x=factor(number,levels=pc1means.table %>% arrange(pc1speciesmean) %>% pull(number)), y=mean, fill=factor(number,levels=pc1means.table %>% arrange(pc1speciesmean) %>% pull(number)), col=sig))+
   geom_errorbar(aes(ymin=lwr,ymax=upr, col=sig),width=0.2,size=1)+
     geom_point(pch=21, size=2)+
   geom_hline(yintercept=0,lty=1)+
@@ -6131,6 +6309,98 @@ ggplot(pc1_df_rel, aes(x=factor(number,levels=pc1means.table %>% arrange(pc1spec
   ggtitle("dd0")+
   theme_bw()+
   theme(axis.text.x = element_text(angle=60, hjust=1,size=9, color="black"),axis.title.x = element_text(size=12, color="black"),axis.text.y = element_text(size=10, colour = "black"),axis.title.y = element_text(size=12, color="black"), strip.text = element_text(size = 12), title=element_text(size=14), legend.position = "right", legend.text = element_text(size=14), legend.title = element_text(size=16))
+
+
+
+##
+
+wintppt_df_rel<- bind_rows(mu2_rel_hot_df %>% mutate(var="winter ppt centroid", species=as.numeric(species)),
+max2_rel_df %>% mutate(var="winter ppt max"),
+ min2_rel_df %>% mutate(var="winter ppt min")) %>%
+#   mutate(mean=ifelse(var=="pc2 max",mean+.8,ifelse(var=="pc2 min", mean-.8,mean)),
+#          lwr=ifelse(var=="pc2 max",lwr+.8,ifelse(var=="pc2 min", lwr-.8,lwr)),
+#          upr=ifelse(var=="pc2 max",upr+.8,ifelse(var=="pc2 min", upr-.8,upr)))
+  left_join(pc1means.table)
+
+
+ggplot(wintppt_df_rel, aes(x=factor(number,levels=pc1means.table %>% arrange(pc1speciesmean) %>% pull(number)), y=mean, fill=factor(number,levels=pc1means.table %>% arrange(pc1speciesmean) %>% pull(number)), col=sig))+
+  geom_errorbar(aes(ymin=lwr,ymax=upr, col=sig),width=0.2,size=1)+
+  geom_point(pch=21, size=2)+
+  geom_hline(yintercept=0,lty=1)+
+  scale_fill_manual(values=spp.colors$color, name="Species")+
+  scale_color_manual(values=c("lightgray","black"),name="Significance")+
+  facet_grid(factor(var, levels=c("winter ppt max","winter ppt centroid","winter ppt min"), labels=c("upper","centroid","lower"))~dist, scales = "free")+
+  scale_y_continuous(breaks=seq(-.8,.8,.4))+
+  #annotate(geom="text",x=4, y=-4.5, label="hot/dry",col="black", size=5 )+
+  #annotate(geom="text", x=4, y=6,label="cold/wet",col="black", size=5)+
+  ylab("Relativized Difference in Margin Position")+
+  xlab("Species")+
+  ggtitle("Winter PPT")+
+  theme_bw()+
+  theme(axis.text.x = element_text(angle=60, hjust=1,size=9, color="black"),axis.title.x = element_text(size=12, color="black"),axis.text.y = element_text(size=10, colour = "black"),axis.title.y = element_text(size=12, color="black"), strip.text = element_text(size = 12), title=element_text(size=14), legend.position = "right", legend.text = element_text(size=14), legend.title = element_text(size=16))
+
+
+
+##classify shift types
+
+
+
+
+##new
+
+pc1_df_rel_new <- pc1_df_rel %>%  
+    left_join(shifts_byspecies %>% dplyr::select(disturbance,species,PC1), by=c("dist"="disturbance","species.name"="species")) 
+
+pc1_reldiff<- ggplot(pc1_df_rel_new, aes(x=number, y=mean))+
+  geom_rect(data = pc1_df_rel_new, aes(xmin=number - 0.25, xmax=number + 0.25, ymin=-Inf, ymax=Inf, fill=PC1),alpha=.5) +
+  geom_errorbar(aes(ymin=lwr,ymax=upr, col=sig),width=0.2,size=1)+
+  scale_fill_manual(values= c(shift_colors2[c(1,4,5,2)],"white"), name="Shift Type")+
+  ggnewscale::new_scale_fill()+
+  geom_point(aes(fill=factor(number, levels=pc1means.table$number), col=sig), pch=21, size=2)+
+  geom_hline(yintercept=0,lty=1)+
+  scale_fill_manual(values=spp.colors$color, name="Species")+
+  scale_color_manual(values=c("lightgray","black"),name="Significance")+
+  facet_grid(factor(var, levels=c("PC1 max","PC1 centroid","PC1 min"), labels=c("upper","centroid","lower"))~dist, scales = "free")+
+  scale_y_continuous(breaks=seq(-.8,.8,.4))+
+  scale_x_continuous(breaks=seq(1,15,1))+
+  ylab("Relativized Difference in Margin Position")+
+  xlab("Species")+
+  ggtitle("PC1")+
+  theme_bw()+
+  theme(axis.text.x = element_text(angle=60, hjust=1,size=9, color="black"),axis.title.x = element_text(size=12, color="black"),axis.text.y = element_text(size=10, colour = "black"),axis.title.y = element_text(size=12, color="black"), strip.text = element_text(size = 12), title=element_text(size=14), legend.position = "right", legend.text = element_text(size=14), legend.title = element_text(size=16),panel.grid.major = element_blank(), panel.grid.minor = element_blank())
+
+pc2_df_rel_new <- pc2_df_rel %>%  
+    left_join(shifts_byspecies %>% dplyr::select(disturbance,species,PC2), by=c("dist"="disturbance","species.name"="species")) %>% 
+  mutate(colPC2 = case_when(
+    PC2 == "contraction" ~ shift_colors2[1],
+    PC2 == "march" ~ shift_colors2[2],
+    PC2 == "expansion" ~ shift_colors2[4],
+    PC2 == "lean" ~ shift_colors2[5],
+    PC2 == "no change" ~shift_colors2[6]
+  )) %>% 
+  mutate(xmin = as.numeric(number)-.25, xmax=as.numeric(number)+.25)
+
+pc2_reldiff<- ggplot(pc2_df_rel_new, aes(x=number, y=mean))+
+  geom_rect(data = pc2_df_rel_new, aes(xmin=number - 0.25, xmax=number + 0.25, ymin=-Inf, ymax=Inf, fill=PC2),alpha=.5) +
+  geom_errorbar(aes(ymin=lwr,ymax=upr, col=sig),width=0.2,size=1)+
+  scale_fill_manual(values= c(shift_colors2[c(1,5)],"white"), name="Shift Type")+
+  ggnewscale::new_scale_fill()+
+  geom_point(aes(fill=factor(number, levels=pc1means.table$number), col=sig), pch=21, size=2)+
+  geom_hline(yintercept=0,lty=1)+
+  scale_fill_manual(values=spp.colors$color, name="Species")+
+  scale_color_manual(values=c("lightgray","black"),name="Significance")+
+  facet_grid(factor(var, levels=c("pc2 max","pc2 centroid","pc2 min"), labels=c("upper","centroid","lower"))~dist, scales = "free")+
+  scale_y_continuous(breaks=seq(-.8,.8,.4))+
+  scale_x_continuous(breaks=seq(1,15,1))+
+  ylab("Relativized Difference in Margin Position")+
+  xlab("Species")+
+  ggtitle("PC2")+
+  theme_bw()+
+  theme(axis.text.x = element_text(angle=60, hjust=1,size=9, color="black"),axis.title.x = element_text(size=12, color="black"),axis.text.y = element_text(size=10, colour = "black"),axis.title.y = element_text(size=12, color="black"), strip.text = element_text(size = 12), title=element_text(size=14), legend.position = "right", legend.text = element_text(size=14), legend.title = element_text(size=16),panel.grid.major = element_blank(), panel.grid.minor = element_blank())
+
+png("new_fia_figure_bright.png", width=4500, height=6000, res = 600)
+ggarrange(pc1_reldiff, pc2_reldiff, nrow=2, common.legend = T, labels = c("A)","B)"), legend = "right")
+dev.off()
 
 
 ```
