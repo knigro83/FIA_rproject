@@ -1829,6 +1829,7 @@ names(iso_data)[c(44,39,38,37,36,28,27,12,7,6)]
 species.names
 
 mvn(as.data.frame(iso_data[[45]][,1:2]), multivariatePlot = "contour")
+mvn(as.data.frame(iso_data[[5]][,1:2]), multivariatePlot = "contour")
 
 ```
 
@@ -1841,16 +1842,10 @@ require(coda)
 #figure out priors
 clim_data
 
-# simulatee data
-set.seed(4444)
-N <- 100 
-Mu <- 100
-Sigma <- 15
-y <- rnorm(n=N, mean=Mu, sd=Sigma)
-jagsdata <- list(y=y)
-
-
-jagsdata_adult <- list(y=iso_data[[24]][,1] %>% dplyr::pull(iso1))
+jagsdata_adult <- list(y=c(siber.objs[[24]]$raw.data[[1]] %>% 
+    as.data.frame() %>% 
+    filter(group==1) %>% 
+    dplyr::pull(iso1)))
 
 jags.script <- "
 model {
@@ -1882,7 +1877,10 @@ ggplot()+
 
 ##seedling
 
-jagsdata_seedling <- list(y=iso_data[[24]][,1] %>% dplyr::pull(iso1))
+jagsdata_seedling <- list(y=c(siber.objs[[24]]$raw.data[[1]] %>% 
+    as.data.frame() %>% 
+    filter(group==2) %>% 
+    dplyr::pull(iso1)))
 
 jags.script <- "
 model {
@@ -1907,10 +1905,28 @@ mu.x.seedling = MCMCchains(mod1.seedling.samples, params="mu")
 as.data.frame(quantile(mu.x.seedling, c(0.025,0.975)))[1,]
 
 ggplot()+
+  geom_histogram(data=as.data.frame(mu.x.adult), aes(x=mu))+
+  geom_vline(xintercept = mean(mu.x.adult), col="red")+
+  geom_vline(xintercept = as.data.frame(quantile(mu.x.adult, c(0.025,0.975)))[1,], col="red", lty=2)+
+  geom_vline(xintercept = as.data.frame(quantile(mu.x.adult, c(0.025,0.975)))[2,], col="red", lty=2)+
   geom_histogram(data=as.data.frame(mu.x.seedling), aes(x=mu))+
-  geom_vline(xintercept = mean(mu.x.seedling), col="red")+
-  geom_vline(xintercept = as.data.frame(quantile(mu.x.seedling, c(0.025,0.975)))[1,], col="red", lty=2)+
-  geom_vline(xintercept = as.data.frame(quantile(mu.x.seedling, c(0.025,0.975)))[2,], col="red", lty=2)
+  geom_vline(xintercept = mean(mu.x.seedling), col="blue")+
+  geom_vline(xintercept = as.data.frame(quantile(mu.x.seedling, c(0.025,0.975)))[1,], col="blue", lty=2)+
+  geom_vline(xintercept = as.data.frame(quantile(mu.x.seedling, c(0.025,0.975)))[2,], col="blue", lty=2)
+
+
+###check model fit
+library(DHARMa)
+library(BayesianTools)
+
+x = BayesianTools::getSample(mod1.seedling.samples)
+
+colnames(x) # problem: all the variables are in one array - this is better in STAN, where this is a list - have to extract the right columns by hand
+posteriorPredDistr = x[,3:202] # this is the uncertainty of the mean prediction (lambda)
+posteriorPredSim = x[,203:402] # these are the simulations 
+
+sim = createDHARMa(simulatedResponse = t(posteriorPredSim), observedResponse = dat$observedResponse, fittedPredictedResponse = apply(posteriorPredDistr, 2, median), integerResponse = T)
+plot(sim)
 
 ```
 
@@ -1943,15 +1959,15 @@ Checking models for convergence
 # 
 # **_N.B._** the parameter estimates we are performing these convergence tests on are the based on the estimates for the *z-scored* data as fitted by the `jags` model and as saved to file, and so are not the same scale as your actual raw data. In this regard, the means should approximate 0, and the diagonals of the covariance matrix close to 1, with a non-zero off-diagonal. These are back-transformed within SIBER when calculating the subsequent statistics such as SEA or shifts in the bivariate means.
 
-# # get a list of all the files in the save directory
-# all.files <- dir(parms$save.dir, full.names = TRUE)
-# # find which ones are jags model files
-# model.files <- all.files[grep("jags_output", all.files)]
-# # test convergence for the first one
-# do.this <- 1
-# load(model.files[do.this])
-# gelman.diag(output, multivariate = FALSE) #looking for scale reduction factors less than 1.1
-# gelman.plot(output, auto.layout = FALSE)
+# get a list of all the files in the save directory
+all.files <- dir(parms$save.dir, full.names = TRUE)
+# find which ones are jags model files
+model.files <- all.files[grep("jags_output", all.files)]
+# test convergence for the first one
+do.this <- 2
+load(model.files[do.this])
+gelman.diag(output, multivariate = FALSE) #looking for scale reduction factors less than 1.1
+gelman.plot(output, auto.layout = FALSE)
 
 
 # Repeat for whichever or all ellipses you want to test convergence. There are other convergence tests available within the `coda` package and beyond, which you may use with the `mcmc.list` object called `output` that is saved in the various `*.RData` files produced.
@@ -6128,7 +6144,7 @@ unlist(dd0.means)
 dd0means.table <- as.data.frame(matrix(unlist(dd0.means),nrow=length(dd0.means),ncol=1))  %>% 
   mutate(names =  names(adult_data)) %>% 
   tidyr::separate(names,into=c("species.code","disturbance","extra"),sep="_") %>% 
-  mutate(species.code = species.code) %>% 
+  mutate(species.code = as.numeric(species.code)) %>% 
   left_join(species.names) %>% 
   dplyr::rename(dd0mean = V1) %>% 
   group_by(species.name) %>% 
@@ -6268,7 +6284,7 @@ mu1_rel_hot_df<- as.data.frame(mu1_rel_hot) %>% dplyr::rename(group=V1, mean=V2,
   mutate(species= substr(group, 0,3),
          dist =  str_extract(group,"_.+_")) %>%
   mutate(dist= gsub("_","",dist),
-         species = gsub("_","",species)) %>%
+         species = as.numeric(gsub("_","",species))) %>%
   left_join(species.names,by=c("species"="species.code")) %>%
     left_join(pc1means.table)%>%
     filter(!species.name == "singleleaf pinyon")
@@ -6278,7 +6294,7 @@ mu2_rel_hot_df<- as.data.frame(mu2_rel_hot) %>% dplyr::rename(group=V1, mean=V2,
   mutate(species= substr(group, 0,3),
          dist =  str_extract(group,"_.+_")) %>%
   mutate(dist= gsub("_","",dist),
-         species = gsub("_","",species)) %>%
+         species = as.numeric(gsub("_","",species))) %>%
   left_join(species.names,by=c("species"="species.code")) %>%
       left_join(pc1means.table)%>%
     filter(!species.name == "singleleaf pinyon")
@@ -6287,14 +6303,14 @@ mu2_rel_hot_df<- as.data.frame(mu2_rel_hot) %>% dplyr::rename(group=V1, mean=V2,
 
 ######relativized
 dd0_df_rel<- bind_rows(mu1_rel_hot_df %>% mutate(var="dd0 centroid", species=as.numeric(species)),
-max1_rel_df %>% mutate(var="dd0 max"),
- min1_rel_df %>% mutate(var="dd0 min")) %>%
+max1_rel_hot_df %>% mutate(var="dd0 max"),
+ min1_rel_hot_df %>% mutate(var="dd0 min")) %>%
 #   mutate(mean=ifelse(var=="dd0 max",mean+.8,ifelse(var=="dd0 min", mean-.8,mean)),
 #          lwr=ifelse(var=="dd0 max",lwr+.8,ifelse(var=="dd0 min", lwr-.8,lwr)),
 #          upr=ifelse(var=="dd0 max",upr+.8,ifelse(var=="dd0 min", upr-.8,upr)))
-  left_join(pc1means.table)
+  left_join(dd0means.table, by="species.name")
 
-ggplot(dd0_df_rel, aes(x=factor(number,levels=pc1means.table %>% arrange(pc1speciesmean) %>% pull(number)), y=mean, fill=factor(number,levels=pc1means.table %>% arrange(pc1speciesmean) %>% pull(number)), col=sig))+
+ggplot(dd0_df_rel, aes(x=factor(number.y,levels=pc1means.table %>% arrange(pc1speciesmean) %>% pull(number)), y=mean, fill=factor(number.y,levels=pc1means.table %>% arrange(pc1speciesmean) %>% pull(number)), col=sig))+
   geom_errorbar(aes(ymin=lwr,ymax=upr, col=sig),width=0.2,size=1)+
     geom_point(pch=21, size=2)+
   geom_hline(yintercept=0,lty=1)+
@@ -6315,8 +6331,8 @@ ggplot(dd0_df_rel, aes(x=factor(number,levels=pc1means.table %>% arrange(pc1spec
 ##
 
 wintppt_df_rel<- bind_rows(mu2_rel_hot_df %>% mutate(var="winter ppt centroid", species=as.numeric(species)),
-max2_rel_df %>% mutate(var="winter ppt max"),
- min2_rel_df %>% mutate(var="winter ppt min")) %>%
+max2_rel_hot_df %>% mutate(var="winter ppt max"),
+ min2_rel_hot_df %>% mutate(var="winter ppt min")) %>%
 #   mutate(mean=ifelse(var=="pc2 max",mean+.8,ifelse(var=="pc2 min", mean-.8,mean)),
 #          lwr=ifelse(var=="pc2 max",lwr+.8,ifelse(var=="pc2 min", lwr-.8,lwr)),
 #          upr=ifelse(var=="pc2 max",upr+.8,ifelse(var=="pc2 min", upr-.8,upr)))
@@ -6339,13 +6355,61 @@ ggplot(wintppt_df_rel, aes(x=factor(number,levels=pc1means.table %>% arrange(pc1
   theme_bw()+
   theme(axis.text.x = element_text(angle=60, hjust=1,size=9, color="black"),axis.title.x = element_text(size=12, color="black"),axis.text.y = element_text(size=10, colour = "black"),axis.title.y = element_text(size=12, color="black"), strip.text = element_text(size = 12), title=element_text(size=14), legend.position = "right", legend.text = element_text(size=14), legend.title = element_text(size=16))
 
+wintppt_df_rel_wremoval<- wintppt_df_rel %>% 
+  filter(! (dist=="fire" & species.name %in% insectonlyspp)) %>% 
+  filter(! (dist=="insect.disease" & species.name %in% fireonlyspp))
 
+ggplot(data=wintppt_df_rel_wremoval)+
+  geom_errorbar(aes(x=factor(number,levels=pc1means.table %>% arrange(pc1speciesmean) %>% pull(number)), ymin=lwr,ymax=upr, col=sig, group=dist),width=0.2,size=1,position=position_dodge(.8))+
+  geom_point(aes(x=factor(number,levels=pc1means.table %>% arrange(pc1speciesmean) %>% pull(number)), y=mean, fill=dist, col=sig), pch=21, size=2, position=position_dodge(.8))+
+  geom_hline(yintercept=0,lty=1)+
+  scale_fill_manual(values=disturbance.colors, name="Disturbance")+
+  scale_color_manual(values=c("lightgray","black"),name="Significance")+
+  facet_wrap(~factor(var, levels=c("winter ppt max","winter ppt centroid","winter ppt min"), labels=c("upper","centroid","lower")), scales = "free", nrow=3)+
+  scale_y_continuous(breaks=seq(-.8,.8,.4))+
+  #annotate(geom="text",x=4, y=-4.5, label="hot/dry",col="black", size=5 )+
+  #annotate(geom="text", x=4, y=6,label="cold/wet",col="black", size=5)+
+  ylab("Relativized Difference in Margin Position")+
+  xlab("Species")+
+  ggtitle("Winter PPT")+
+  theme_bw()+
+  theme(axis.text.x = element_text(angle=60, hjust=1,size=9, color="black"),axis.title.x = element_text(size=12, color="black"),axis.text.y = element_text(size=10, colour = "black"),axis.title.y = element_text(size=12, color="black"), strip.text = element_text(size = 12), title=element_text(size=14), legend.position = "right", legend.text = element_text(size=14), legend.title = element_text(size=16))
+
+dd0_df_rel_wremoval<- dd0_df_rel %>% 
+  filter(! (dist=="fire" & species.name %in% insectonlyspp)) %>% 
+  filter(! (dist=="insect.disease" & species.name %in% fireonlyspp)) %>% 
+  left_join(dd0_df_rel_wremoval %>% 
+  ungroup() %>% 
+  group_by(species.name) %>% 
+  dplyr::summarise(n.sig = length(unique(sig))), by="species.name")
+
+
+ggplot(data=dd0_df_rel_wremoval)+
+    geom_rect(aes(xmin=number.y - 0.5, xmax=number.y + 0.5, ymin=-Inf, ymax=Inf, fill=n.sig>1),alpha=.5) +
+  scale_fill_manual(values=c(NA,"orange"))+
+      ggnewscale::new_scale_fill()+
+  geom_errorbar(aes(x=number.y, ymin=lwr,ymax=upr, col=sig, group=dist),width=0.2,size=1,position=position_dodge(.8))+
+  geom_point(aes(x=number.y, y=mean, fill=dist, col=sig), pch=21, size=2, position=position_dodge(.8))+
+  geom_hline(yintercept=0,lty=1)+
+  scale_fill_manual(values=disturbance.colors, name="Disturbance")+
+  scale_color_manual(values=c("lightgray","black"),name="Significance")+
+  facet_wrap(~factor(var, levels=c("dd0 max","dd0 centroid","dd0 min"), labels=c("97.5%","centroid","2.5%")), scales = "free",nrow=3)+
+  #scale_y_continuous(breaks=seq(-5,5,1))+
+  #annotate(geom="text",x=4, y=-4.5, label="hot/dry",col="black", size=5 )+
+  #annotate(geom="text", x=4, y=6,label="cold/wet",col="black", size=5)+
+  ylab("Relativized Difference in Margin Position")+
+  xlab("Species")+
+  ggtitle("dd0")+
+  theme_bw()+
+  theme(axis.text.x = element_text(angle=60, hjust=1,size=9, color="black"),axis.title.x = element_text(size=12, color="black"),axis.text.y = element_text(size=10, colour = "black"),axis.title.y = element_text(size=12, color="black"), strip.text = element_text(size = 12), title=element_text(size=14), legend.position = "right", legend.text = element_text(size=14), legend.title = element_text(size=16))
 
 ##classify shift types
 
 
 
+```
 
+```{r}
 ##new
 
 pc1_df_rel_new <- pc1_df_rel %>%  
