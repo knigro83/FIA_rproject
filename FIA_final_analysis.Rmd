@@ -3537,6 +3537,8 @@ if(a %>% pull(mean) <  b %>% pull(mean)){
 ###order by sample size
 ##include sample size as effect
 #looking at sample size 
+##full set analysis 
+
 sample.append<- niche.shift.trait.table %>% 
   mutate(species = as.character(species)) %>% 
   left_join(sample_size %>% 
@@ -6124,6 +6126,34 @@ dev.off()
 #E6C3BC
 ```
 
+
+```{r}
+#thinking about using some kind of indication of cold vs. warm adapted species. Let's look at mean position of adults on PC1 for each species to rank them
+
+pc1.means<- vector()
+for(i in 1:length(adult_data_pcapts)){
+  temp.mean <- adult_data_pcapts[[i]] %>% 
+    dplyr::summarise(mean(PC1))
+  pc1.means[i]<-temp.mean 
+}
+unlist(pc1.means)
+
+pc1means.table <- as.data.frame(matrix(unlist(pc1.means),nrow=length(pc1.means),ncol=1)) %>% 
+  mutate(names =  names(adult_data_pcapts)) %>% 
+  tidyr::separate(names,into=c("species.code","disturbance","extra"),sep="_") %>% 
+  mutate(species.code = as.numeric(species.code)) %>% 
+  left_join(species.names) %>% 
+  dplyr::rename(pc1mean = V1) %>% 
+  group_by(species.name) %>% 
+  dplyr::summarise(pc1speciesmean = mean(pc1mean)) %>% ungroup() %>% 
+  filter(!species.name=="singleleaf pinyon") %>% 
+  arrange(pc1speciesmean) %>% 
+  mutate(number=seq(1:15)) %>% 
+  left_join(spp.colors, by=c("number"="x"))
+
+
+```
+
 ```{r}
 ###look at mean and 95% percentiles of posterior estimates of difference between adult and seedling niche margins
 ###calculate with relativizing by adult niche width. 
@@ -6459,7 +6489,7 @@ dev.off()
 ##include smaller sample size species
 
 dd0_df_rel_noremoval <- dd0_df_rel %>% 
-  left_join(dd0_df_rel_noremoval %>% 
+  left_join(dd0_df_rel %>% 
   ungroup() %>% 
   group_by(species.name) %>% 
   dplyr::summarise(n.sig = length(unique(sig))), by="species.name")
@@ -6685,77 +6715,52 @@ overlap.list.hot <- readRDS("overlap.list.hot.RDS")
 
 ```{r}
 #calculate net expansion for each replicate
-overlap.list2<- lapply(overlap.list, function(x) {mutate(x, net.expansion = exp.prop.adult - contr.prop.adult)}) 
+overlap.list.hot2<- lapply(overlap.list.hot, function(x) {mutate(x, net.expansion = exp.prop.adult - contr.prop.adult)}) 
 #summarize overlap by taking mean
-overlap.summary<-list()
-for(i in 1:length(overlap.list2)){
-  temp.summary<- overlap.list2[[i]] %>%
+overlap.summary.hot<-list()
+for(i in 1:length(overlap.list.hot2)){
+  temp.summary<- overlap.list.hot2[[i]] %>%
     dplyr::summarise(adult.mean.area = mean(area1), seed.mean.area = mean(area2),overlap.mean.area=mean(overlap),
                      mean.exp.prop.adult=mean(exp.prop.adult),mean.contr.prop.adult=mean(contr.prop.adult), lwr.expansion = quantile(exp.prop.adult, 0.025),upr.expansion = quantile(exp.prop.adult, 0.975),lwr.contraction = quantile(contr.prop.adult, 0.025),upr.contraction = quantile(contr.prop.adult, 0.975),
                      mean.net.expansion = mean(net.expansion), lwr.net.expansion = quantile(net.expansion, 0.025),upr.net.expansion = quantile(net.expansion, 0.975))
-  overlap.summary[[i]]<- temp.summary
+  overlap.summary.hot[[i]]<- temp.summary
   }#### calculate 95% credible intervals 
-overlap.table <- as.data.frame(matrix(unlist(overlap.summary),nrow = 48, ncol=12,byrow=TRUE))  
-colnames(overlap.table)<-names(overlap.summary[[1]])
-overlap.table<- overlap.table %>% 
-  mutate(names = names(overlap.list)) %>% 
+overlap.table.hot <- as.data.frame(matrix(unlist(overlap.summary.hot),nrow = 48, ncol=12,byrow=TRUE))  
+colnames(overlap.table.hot)<-names(overlap.summary.hot[[1]])
+overlap.table.hot<- overlap.table.hot %>% 
+  mutate(names = names(overlap.list.hot)) %>% 
   separate(names,into=c("species","disturbance","extra"),sep="_") %>% 
   mutate(species = as.numeric(species)) %>% 
   left_join(species.names,by=c("species"="species.code")) %>% 
   filter(!species.name=="singleleaf pinyon")
 ```
 
-###Net expansion
-
-```{r}
-#calculate net expansion for each replicate
-overlap.list2<- lapply(overlap.list, function(x) {mutate(x, net.expansion = exp.prop.adult - contr.prop.adult)}) 
-
-#summarize overlap by taking mean
-overlap.summary<-list()
-for(i in 1:length(overlap.list2)){
-  temp.summary<- overlap.list2[[i]] %>%
-    dplyr::summarise(adult.mean.area = mean(area1), seed.mean.area = mean(area2),overlap.mean.area=mean(overlap),
-                     mean.exp.prop.adult=mean(exp.prop.adult),mean.contr.prop.adult=mean(contr.prop.adult), lwr.expansion = quantile(exp.prop.adult, 0.025),upr.expansion = quantile(exp.prop.adult, 0.975),lwr.contraction = quantile(contr.prop.adult, 0.025),upr.contraction = quantile(contr.prop.adult, 0.975),
-                     mean.net.expansion = mean(net.expansion), lwr.net.expansion = quantile(net.expansion, 0.025),upr.net.expansion = quantile(net.expansion, 0.975))
-  overlap.summary[[i]]<- temp.summary
-  }#### calculate 95% credible intervals 
-
-overlap.table <- as.data.frame(matrix(unlist(overlap.summary),nrow = 48, ncol=12,byrow=TRUE))  
-colnames(overlap.table)<-names(overlap.summary[[1]])
-overlap.table<- overlap.table %>% 
-  mutate(names = names(overlap.list)) %>% 
-  separate(names,into=c("species","disturbance","extra"),sep="_") %>% 
-  mutate(species = as.numeric(species)) %>% 
-  left_join(species.names,by=c("species"="species.code")) %>% 
-  filter(!species.name=="singleleaf pinyon")
-```
 
 Lets look at some plots of expansion and contraction across species and disturbances. 
 
 ```{r}
 #some plots
-ggplot(overlap.table %>% filter(!(disturbance == 'fire' & species.name %in% insectonlyspp)) %>% filter(!(disturbance=="insect.disease" & species.name %in% fireonlyspp)),aes(x=species.name,y=mean.exp.prop.adult,fill=disturbance))+
+ggplot(overlap.table.hot %>% filter(!(disturbance == 'fire' & species.name %in% insectonlyspp)) %>% filter(!(disturbance=="insect.disease" & species.name %in% fireonlyspp)),aes(x=species.name,y=mean.exp.prop.adult,fill=disturbance))+
   geom_bar(stat='identity',position='dodge')+
   scale_fill_manual(values=disturbance.colors)+
   theme(axis.text.x = element_text(angle=45,vjust=0.9,hjust=0.8))
 
-ggplot(overlap.table %>% filter(!(disturbance == 'fire' & species.name %in% insectonlyspp)) %>% filter(!(disturbance=="insect.disease" & species.name %in% fireonlyspp)),aes(x=species.name,y=mean.contr.prop.adult,fill=disturbance))+
+ggplot(overlap.table.hot %>% filter(!(disturbance == 'fire' & species.name %in% insectonlyspp)) %>% filter(!(disturbance=="insect.disease" & species.name %in% fireonlyspp)),aes(x=species.name,y=mean.contr.prop.adult,fill=disturbance))+
   geom_bar(stat='identity',position='dodge')+
   scale_fill_manual(values=disturbance.colors)+
   theme(axis.text.x = element_text(angle=45,vjust=0.9,hjust=0.8))
 
 #look at expansion - contraction
-overlap.table$diff = overlap.table$mean.exp.prop.adult - overlap.table$mean.contr.prop.adult
+overlap.table.hot$diff = overlap.table.hot$mean.exp.prop.adult - overlap.table.hot$mean.contr.prop.adult
 
 #add column for difference from 0 net expansion
-overlap.table <- overlap.table %>% 
+overlap.table.hot <- overlap.table.hot %>% 
   mutate(nodiff = ifelse(lwr.net.expansion <0 & upr.net.expansion>0, "nodiff", "diff")) %>% 
   mutate(nodiff.exp = ifelse(lwr.expansion <0 & upr.expansion>0, "nodiff", "diff")) %>% 
   mutate(nodiff.con = ifelse(lwr.contraction <0 & upr.contraction>0, "nodiff", "diff"))
 
 #for species with all 3 disturbances
-diff.plot<- ggplot(overlap.table %>% filter(!species.name %in% c(insectonlyspp,fireonlyspp)),aes(x=disturbance,y=mean.net.expansion,color=disturbance, alpha=nodiff))+
+diff.plot<- ggplot(overlap.table.hot %>% filter(!species.name %in% c(insectonlyspp,fireonlyspp)),aes(x=disturbance,y=mean.net.expansion,color=disturbance, alpha=nodiff))+
   geom_hline(yintercept=0, linetype=2, size=0.8)+
   geom_point(position = position_dodge(0.9),size=4)+
   geom_errorbar(aes(ymin=lwr.net.expansion, ymax =upr.net.expansion), width=.5, position = position_dodge(0.9),size=1)+
@@ -6770,7 +6775,7 @@ diff.plot<- ggplot(overlap.table %>% filter(!species.name %in% c(insectonlyspp,f
   theme(axis.text = element_text(size=24),legend.text = element_text(size=24),legend.title = element_text(size=24),legend.position = 'none',axis.title = element_text(size=24),plot.margin=margin(0,0.5,.6,.1,"cm"), axis.text.x=element_blank(), axis.ticks.x=element_blank(),axis.title.x = element_blank(),strip.text = element_text(size=16,color="black"))
 
 #for all species
-diff.plot_all<- ggplot(overlap.table,aes(x=disturbance,y=mean.net.expansion,color=disturbance, alpha=nodiff,shape=nodiff))+
+diff.plot_all<- ggplot(overlap.table.hot,aes(x=disturbance,y=mean.net.expansion,color=disturbance, alpha=nodiff,shape=nodiff))+
   geom_hline(yintercept=0, linetype=2, size=0.8)+
   geom_point(position = position_dodge(0.9),size=4)+
   geom_errorbar(aes(ymin=lwr.net.expansion, ymax =upr.net.expansion), width=.5, position = position_dodge(0.9),size=1)+
@@ -6785,4 +6790,1160 @@ diff.plot_all<- ggplot(overlap.table,aes(x=disturbance,y=mean.net.expansion,colo
   # annotate("text",x=8.5,y=-0.4,label="contraction",size=7)+
   theme_bw()+
   theme(axis.text = element_text(size=24),legend.text = element_text(size=24),legend.title = element_text(size=24),legend.position = 'bottom',axis.title = element_text(size=24),plot.margin=margin(0,0.5,.6,.1,"cm"), axis.text.x=element_blank(), axis.ticks.x=element_blank(),axis.title.x = element_blank(),strip.text = element_text(size=16,color="black"))
+```
+
+
+###Gains vs. Losses
+```{r}
+##experimenting
+##combine the new and lost area into one plot
+overlap.table.hot.long<- overlap.table.hot %>% 
+  dplyr::select(species,species.name,disturbance,mean.exp.prop.adult,mean.contr.prop.adult, lwr.expansion, lwr.contraction, upr.expansion,upr.contraction) %>% 
+  pivot_longer(c(mean.exp.prop.adult,mean.contr.prop.adult), values_to = "mean", names_to = "type") %>% 
+  mutate(lwr = ifelse(type=="mean.exp.prop.adult", lwr.expansion,
+                      ifelse(type=="mean.contr.prop.adult",lwr.contraction,NA)),
+         upr = ifelse(type=="mean.exp.prop.adult", upr.expansion,
+                      ifelse(type=="mean.contr.prop.adult",upr.contraction,NA))) %>% 
+  mutate(diff = ifelse(lwr>0 & upr>0, "diff", "nodiff")) %>% 
+  mutate(typen = as.numeric(as.factor(type))) %>% 
+  mutate(type=ifelse(type=="mean.exp.prop.adult", "gained",
+                      ifelse(type=="mean.contr.prop.adult", "lost", NA))) %>% 
+  left_join(pc1means.table)
+
+overlap.table.hot.long_cutoff<- 
+  overlap.table.hot.long %>% 
+  mutate(upr = ifelse(upr>0.7,.7,upr))
+
+arrow_tips_table1 <- overlap.table.hot.long %>% 
+  filter(upr>0.7 & species.name=="western larch") 
+arrow_tips_table2 <- overlap.table.hot.long %>% 
+  filter(upr>0.7 & species.name=="western redcedar")
+
+comb.p.plot<- ggplot(overlap.table.hot.long_cutoff,aes(x=typen,y=mean,color=disturbance,alpha=diff,shape=diff))+
+  geom_rect(aes(xmin=0.5, xmax=1.5, ymin=-Inf, ymax=Inf, fill = typen), alpha=0.3, stat="identity", col="black") +
+  geom_hline(yintercept=0, linetype=2, size=0.8)+
+  geom_vline(xintercept=1.5)+
+  geom_point(position = position_dodge(0.9),size=4)+
+  geom_errorbar(aes(ymin=lwr, ymax =upr), width=0, position = position_dodge(0.9),size=1)+
+  scale_color_manual(values=disturbance.colors, name="Disturbance",labels=c("fire","insect/disease","none"))+
+  scale_alpha_manual(values=c(1,.7),labels=c("no","yes"),name="95% CI overlaps 0")+
+  scale_shape_manual(values=c(16,1),labels=c("no","yes"),name="95% CI overlaps 0")+
+  facet_wrap(~factor(species.name, levels=pc1means.table$species.name), nrow=3, labeller = labeller(species.name = label_wrap_gen(20)))+
+  ylab("Proportion")+
+  scale_y_continuous(limits=c(-.1,.7)) +
+  scale_x_continuous(breaks=overlap.table.hot.long$typen, labels=overlap.table.hot.long$type)+
+  scale_fill_gradient(low="grey",high="white", guide="none")+
+  geom_segment(data=arrow_tips_table1, aes(x=typen,xend=typen,y=.25,yend=.7,color=disturbance,alpha=diff), arrow = arrow(length=unit(.2,"cm")),size=1)+
+    geom_segment(data=arrow_tips_table2, aes(x=typen-.3,xend=typen-.3,y=.25,yend=.7,color=disturbance,alpha=diff), arrow = arrow(length=unit(.2,"cm")),size=1)+
+  theme_bw()+
+  theme(axis.text = element_text(size=24),legend.text = element_text(size=24),legend.title = element_text(size=24),legend.position = 'bottom',axis.title = element_text(size=24),plot.margin=margin(0,0.5,.6,.1,"cm"), axis.text.x=element_text(color="black",size=20), axis.title.x = element_blank(),strip.text = element_text(size=16,color="black"), panel.grid = element_blank())
+
+comb.p.plot
+
+# png("figures/comb.prop.plot.png", width = 1000, height = 600)
+# comb.p.plot
+# dev.off()
+
+#compare lost vs. gain within disturbance within species
+ggplot(overlap.table.hot.long_cutoff,aes(x=disturbance,y=mean,color=factor(type, levels=c("lost","gained")),alpha=diff,shape=diff))+
+  #geom_rect(aes(xmin=0.5, xmax=1.5, ymin=-Inf, ymax=Inf, fill = typen), alpha=0.3, stat="identity", col="black") +
+  geom_hline(yintercept=0, linetype=2, size=0.8)+
+  #geom_vline(xintercept=1.5)+
+  geom_point(position = position_dodge(0.5),size=4)+
+  geom_errorbar(aes(ymin=lwr, ymax =upr), width=0, position = position_dodge(0.5),size=1)+
+  scale_color_manual(values=shift_colors[c(4,2)])+
+  #scale_color_manual(values=disturbance.colors, name="Disturbance",labels=c("fire","insect/disease","none"))+
+  scale_alpha_manual(values=c(1,.7),labels=c("no","yes"),name="95% CI overlaps 0")+
+  scale_shape_manual(values=c(16,1),labels=c("no","yes"),name="95% CI overlaps 0")+
+  facet_wrap(~factor(species.name, levels=pc1means.table$species.name), nrow=3, labeller = labeller(species.name = label_wrap_gen(20)))+
+  ylab("Proportion")+
+  scale_y_continuous(limits=c(-.1,.7)) +
+  #scale_x_continuous(breaks=overlap.table.hot.long$typen, labels=overlap.table.hot.long$type)+
+  scale_fill_gradient(low="grey",high="white", guide="none")+
+  #geom_segment(data=arrow_tips_table1, aes(x=typen,xend=typen,y=.25,yend=.7,color=disturbance,alpha=diff), arrow = arrow(length=unit(.2,"cm")),size=1)+
+   #geom_segment(data=arrow_tips_table2, aes(x=typen-.3,xend=typen-.3,y=.25,yend=.7,color=disturbance,alpha=diff), arrow = arrow(length=unit(.2,"cm")),size=1)+
+  theme_bw()+
+  theme(axis.text = element_text(size=24),legend.text = element_text(size=24),legend.title = element_text(size=24),legend.position = 'bottom',axis.title = element_text(size=24),plot.margin=margin(0,0.5,.6,.1,"cm"), axis.text.x=element_text(color="black",size=20), axis.title.x = element_blank(),strip.text = element_text(size=16,color="black"), panel.grid = element_blank())
+
+##facet by disturbance
+gl_bydist<- ggplot(overlap.table.hot.long_cutoff,aes(x=as.factor(number),y=mean,color=factor(species.name, levels=pc1means.table$species.name),alpha=diff,shape=diff))+
+  scale_color_manual(values = spp.colors$color, name="Species")+
+  geom_hline(yintercept=0, linetype=2, size=0.8)+
+  geom_point(position = position_dodge(0.9),size=4)+
+  geom_errorbar(aes(ymin=lwr, ymax =upr), width=0, position = position_dodge(0.9),size=1)+
+  scale_alpha_manual(values=c(1,.7),labels=c("no","yes"),name="95% CI overlaps 0")+
+  scale_shape_manual(values=c(16,1),labels=c("no","yes"),name="95% CI overlaps 0")+
+  facet_grid(type~disturbance)+
+  ylim(c(-.1,.7))+
+  ylab("Proportion")+
+  geom_segment(data=arrow_tips_table1, aes(x=11,xend=11,y=.25,yend=.7,color=factor(species.name, levels=pc1means.table$species.name),alpha=diff), arrow = arrow(length=unit(.2,"cm")),size=1)+
+    geom_segment(data=arrow_tips_table2, aes(x=8,xend=8,y=.25,yend=.7,color=factor(species.name, levels=pc1means.table$species.name),alpha=diff), arrow = arrow(length=unit(.2,"cm")),size=1)+
+  theme_bw()+
+  theme(axis.text = element_text(size=24),legend.text = element_text(size=16),legend.title = element_text(size=24),legend.position = 'right',axis.title = element_text(size=24),plot.margin=margin(0,0.5,.6,.1,"cm"), axis.title.x = element_blank(),strip.text = element_text(size=16,color="black"), panel.grid.minor.x = element_blank(), panel.grid.major.x = element_blank(), axis.text.x=element_text(size=16, angle=60,hjust=1))
+
+png("figures/gl_bydist.png", width = 900, height = 400)
+gl_bydist
+dev.off()
+
+
+##see how many CIs are non-overlapping within disturbances
+
+species.pairs <- t(combn(unique(overlap.table.hot.long$species.name),2))
+species.pairs[1,]
+
+ci_overlap_hot <- data.frame(comp = NA, eval=NA, dist=NA, type=NA)
+type_names<- c("gained","lost")
+
+for(k in 1:length(type_names)){
+for(j in 1:length(dist_names)){
+for(i in 1:nrow(species.pairs)){
+  a <- overlap.table.hot.long %>% filter(disturbance==dist_names[j], type==type_names[k]) %>%  filter(species.name == species.pairs[i,1])
+  b <- overlap.table.hot.long %>% filter(disturbance==dist_names[j], type==type_names[k]) %>%  filter(species.name == species.pairs[i,2])
+  
+if(a %>% pull(mean) > b %>% pull(mean)){ 
+    eval <- a %>% pull(lwr) >  b %>% pull(upr)
+    row <- data.frame(comp= paste(species.pairs[i,1],"_",species.pairs[i,2], sep=""), eval = eval, dist=dist_names[j], type=type_names[k])
+  ci_overlap_hot<- bind_rows(ci_overlap_hot, row)}
+
+if(a %>% pull(mean) <  b %>% pull(mean)){
+  eval <- b %>% pull(lwr) > a %>% pull(upr)
+  row <- data.frame(comp= paste(species.pairs[i,1],"_",species.pairs[i,2], sep=""), eval = eval,  dist=dist_names[j], type=type_names[k])
+  ci_overlap_hot<- bind_rows(ci_overlap_hot, row)}
+}}}
+
+View(ci_overlap_hot)
+
+##see how many species have significant differences between disturbance types
+
+dist.pairs <- t(combn(unique(overlap.table.hot.long$disturbance),2))
+
+ci_overlap_hot_dist <- data.frame(comp = NA, eval=NA, species=NA, type=NA)
+type_names<- c("gained","lost")
+species_list <- unique(overlap.table.hot.long$species.name)
+
+for(k in 1:length(type_names)){
+for(j in 1:length(species_list)){
+for(i in 1:nrow(dist.pairs)){
+  a <- overlap.table.hot.long %>% filter(species.name==species_list[j], type==type_names[k]) %>%  filter(disturbance == dist.pairs[i,1])
+  b <- overlap.table.hot.long %>% filter(species.name==species_list[j], type==type_names[k]) %>%  filter(disturbance == dist.pairs[i,2])
+  
+if(a %>% pull(mean) > b %>% pull(mean)){ 
+    eval <- a %>% pull(lwr) >  b %>% pull(upr)
+    row <- data.frame(comp= paste(dist.pairs[i,1],"_",dist.pairs[i,2], sep=""), eval = eval, species=species_list[j], type=type_names[k])
+  ci_overlap_hot_dist<- bind_rows(ci_overlap_hot_dist, row)}
+
+if(a %>% pull(mean) <  b %>% pull(mean)){
+  eval <- b %>% pull(lwr) > a %>% pull(upr)
+  row <- data.frame(comp= paste(dist.pairs[i,1],"_",dist.pairs[i,2], sep=""), eval = eval,  species=species_list[j], type=type_names[k])
+  ci_overlap_hot_dist<- bind_rows(ci_overlap_hot_dist, row)}
+}}}
+
+View(ci_overlap_hot_dist)
+
+
+##see how many species have significant differences between gained vs. lost in each disturbance type
+
+ci_overlap_hot_type <- data.frame(comp = NA, eval=NA, species=NA, dist=NA)
+
+for(j in 1:length(species_list)){
+for(i in 1:length(dist_names)){
+  a <- overlap.table.hot.long %>% filter(species.name==species_list[j], type=="gained") %>%  filter(disturbance == dist_names[i])
+  b <- overlap.table.hot.long %>% filter(species.name==species_list[j], type=="lost") %>%  filter(disturbance == dist_names[i])
+  
+if(a %>% pull(mean) > b %>% pull(mean)){ 
+    eval <- a %>% pull(lwr) >  b %>% pull(upr)
+    row <- data.frame(comp= paste(a$type,"_",b$type, sep=""), eval = eval, species=species_list[j], dist=dist_names[i], direction="gained>lost")
+  ci_overlap_hot_type<- bind_rows(ci_overlap_hot_type, row)}
+
+if(a %>% pull(mean) <  b %>% pull(mean)){
+  eval <- b %>% pull(lwr) > a %>% pull(upr)
+  row <- data.frame(comp= paste(a$type,"_",b$type, sep=""), eval = eval,  species=species_list[j], dist=dist_names[i],direction="gained<lost")
+  ci_overlap_hot_type<- bind_rows(ci_overlap_hot_type, row)}
+}}
+
+
+#fire
+
+##getting letters together
+overlap.table.hot.long_cutoff %>% filter(disturbance=="fire" & type=="gained") %>% arrange(mean) %>% pull(species.name)
+View(ci_overlap_hot %>% filter(dist=="fire",type=="gained" & eval=="TRUE"))
+
+star_table<- ci_overlap_hot_dist %>% filter(eval==TRUE) %>% 
+  separate(comp, "_", into=c("dist1","dist2")) %>% 
+  mutate(star="yes")
+
+star_table2<- ci_overlap_hot_type %>% filter(eval==TRUE) %>% 
+  mutate(star="yes")
+  
+
+##
+pc1means.table %>% filter(species.name%in% insectonlyspp)
+
+fire_data<- overlap.table.hot.long_cutoff %>% filter(disturbance=="fire") %>% 
+  left_join(star_table, by=c("species.name"="species","disturbance"="dist1","type")) %>% 
+  mutate(star=ifelse(is.na(star), "no",
+                     ifelse(disturbance=="fire" &species.name%in%insectonlyspp,"no",star))) 
+
+fireplot <- ggplot(fire_data,aes(x=factor(species.name, levels=pc1means.table$species.name, labels=pc1means.table$number),color=factor(species.name, levels=pc1means.table$species.name, labels=pc1means.table$number),y=mean,alpha=diff,shape=diff))+
+  scale_color_manual(values = c("gray",spp.colors$color[2:3],"gray","gray",spp.colors$color[6:7],"gray","gray",spp.colors$color[10:15]), name="Species")+
+  geom_hline(yintercept=0, linetype=2, size=0.8)+
+  geom_point(position = position_dodge(0.9),size=4, stroke=2)+
+  geom_errorbar(aes(ymin=lwr, ymax =upr), width=0, position = position_dodge(0.9),size=1.5)+
+  scale_alpha_manual(values=c(1,.7),labels=c("no","yes"),name="95% CI overlaps 0")+
+  #scale_linetype_manual(values=c("solid","dotdash"),labels=c("no","yes"),name="95% CI overlaps 0")+
+  scale_shape_manual(values=c(16,1),labels=c("no","yes"),name="95% CI overlaps 0")+
+  facet_grid(factor(type,levels=c("lost","gained"))~disturbance)+
+  geom_segment(data=arrow_tips_table2, aes(xend=factor(species.name, levels=pc1means.table$species.name, labels=pc1means.table$number),y=.25,yend=.7,x=factor(species.name, levels=pc1means.table$species.name, labels=pc1means.table$number),color=factor(species.name, levels=pc1means.table$species.name, labels=pc1means.table$number),alpha=diff), arrow = arrow(length=unit(.4,"cm")),size=1.5)+
+  geom_text(data=fire_data %>% filter(star=="yes"), aes(x=factor(species.name, levels=pc1means.table$species.name, labels=pc1means.table$number), y=0.6, label="*"),size=11)+
+  geom_text(data=fire_data %>% filter(species.name%in% c(star_table2 %>% filter(dist=="fire") %>% pull(species)) & type=="lost" & !species.name %in%insectonlyspp), aes(x=factor(species.name, levels=pc1means.table$species.name, labels=pc1means.table$number), y=0.55, label="x"),size=6, col="black")+
+  ylim(c(-.1,.7))+
+  ylab("Proportion")+
+  theme_bw()+
+  theme(axis.text = element_text(size=24),legend.text = element_text(size=16),legend.title = element_text(size=24),legend.position = 'none',axis.title = element_text(size=24),plot.margin=margin(0,0.5,.6,.1,"cm"), axis.title.x = element_blank(),strip.text = element_text(size=20,color="black"), panel.grid.minor.x = element_blank(), panel.grid.major.x = element_blank(), axis.text.x = element_text(size=18, angle=60, color="black", hjust=1))
+
+
+pc1means.table %>% filter(species.name %in% fireonlyspp)
+    
+#insect/disease
+id_data<- overlap.table.hot.long_cutoff %>% filter(disturbance=="insect.disease") %>% 
+  left_join(star_table, by=c("species.name"="species","disturbance"="dist1","type")) %>% 
+  mutate(star=ifelse(is.na(star), "no",
+                     ifelse(disturbance=="insect.disease" &species.name%in%fireonlyspp,"no",star))) 
+
+idplot<- ggplot(id_data,aes(x=factor(species.name, levels=pc1means.table$species.name, labels=pc1means.table$number),y=mean,col = factor(species.name, levels=pc1means.table$species.name, labels=pc1means.table$number), alpha=diff,shape=diff))+
+  geom_hline(yintercept=0, linetype=2, size=0.8)+
+  geom_point(position = position_dodge(0.9),size=4,stroke=2)+
+  geom_errorbar(aes(ymin=lwr, ymax =upr), width=0, position = position_dodge(0.9),size=1.5)+
+      scale_color_manual(values = c(spp.colors$color[1:10],"gray",spp.colors$color[12:15]), name="Species")+
+  scale_alpha_manual(values=c(1,.7),labels=c("no","yes"),name="95% CI overlaps 0")+
+  scale_shape_manual(values=c(16,1),labels=c("no","yes"),name="95% CI overlaps 0")+
+  #scale_linetype_manual(values=c("solid","dotdash"),labels=c("no","yes"),name="95% CI overlaps 0")+
+  facet_grid(factor(type,levels=c("lost","gained"))~disturbance)+
+  geom_segment(data=arrow_tips_table1, aes(xend=factor(species.name, levels=pc1means.table$species.name, labels=pc1means.table$number),y=.25,yend=.7,x=factor(species.name, levels=pc1means.table$species.name, labels=pc1means.table$number),color=factor(species.name, levels=pc1means.table$species.name, labels=pc1means.table$number),alpha=diff), arrow = arrow(length=unit(.4,"cm")),size=1.5)+
+  geom_text(data=id_data %>% filter(star=="yes"), aes(x=factor(species.name, levels=pc1means.table$species.name, labels=pc1means.table$number), y=0.6, label="*"),size=11)+
+  geom_text(data=id_data %>% filter(species.name%in% c(star_table2 %>% filter(dist=="insect.disease") %>% pull(species)) & type=="lost" & !species.name %in% fireonlyspp), aes(x=factor(species.name, levels=pc1means.table$species.name, labels=pc1means.table$number), y=0.55, label="x"),size=6, col="black")+
+  ylim(c(-.1,.7))+
+  ylab("Proportion")+
+  theme_bw()+
+  theme(axis.text = element_text(size=24),legend.text = element_text(size=16),legend.title = element_text(size=24),legend.position = 'none',axis.title = element_text(size=24),plot.margin=margin(0,0.5,.6,.1,"cm"), axis.title.x = element_blank(),strip.text = element_text(size=20,color="black"), panel.grid.minor.x = element_blank(), panel.grid.major.x = element_blank(),axis.text.x = element_text(size=18, angle=60, color="black", hjust=1))
+
+#none
+noneplot<- ggplot(overlap.table.hot.long_cutoff %>% filter(disturbance=="none"),aes(x=factor(species.name, levels=pc1means.table$species.name, labels=pc1means.table$number),y=mean, col = factor(species.name, levels=pc1means.table$species.name, labels=pc1means.table$number), alpha=diff,shape=diff))+
+  geom_hline(yintercept=0, linetype=2, size=0.8)+
+  geom_point(position = position_dodge(0.9),size=4,stroke=2)+
+  geom_errorbar(aes(ymin=lwr, ymax =upr), width=0, position = position_dodge(0.9),size=1.5)+
+    scale_color_manual(values = spp.colors$color, name="Species")+
+  scale_alpha_manual(values=c(1,.7),labels=c("no","yes"),name="95% CI overlaps 0")+
+  scale_shape_manual(values=c(16,1),labels=c("no","yes"),name="95% CI overlaps 0")+
+  #scale_linetype_manual(values=c("solid","dotdash"),labels=c("no","yes"),name="95% CI overlaps 0")+
+  facet_grid(factor(type,levels=c("lost","gained"))~disturbance)+
+  geom_text(data=overlap.table.hot.long_cutoff %>% filter(disturbance=="none") %>% filter(species.name%in% c(star_table2 %>% filter(dist=="none") %>% pull(species)) & type=="lost"), aes(x=factor(species.name, levels=pc1means.table$species.name, labels=pc1means.table$number), y=0.55, label="x"),size=6, col="black")+
+  ylim(c(-.1,.7))+
+  ylab("Proportion")+
+  theme_bw()+
+  theme(axis.text = element_text(size=24),legend.text = element_text(size=16),legend.title = element_text(size=24),legend.position = 'none',axis.title = element_text(size=24),plot.margin=margin(0,0.5,.6,.1,"cm"),axis.title.x = element_blank(),strip.text = element_text(size=20,color="black"), panel.grid.minor.x = element_blank(), panel.grid.major.x = element_blank(),axis.text.x = element_text(size=18, angle=60, color="black", hjust=1))
+
+png("figures/gl_bypc1.png", width = 1200, height = 480)
+ggarrange(fireplot, idplot, noneplot, ncol=3)
+dev.off()
+
+legendplot<- ggplot(overlap.table.hot.long_cutoff %>% filter(disturbance=="none"),aes(x=factor(species.name, levels=pc1means.table$species.name, labels=pc1means.table$number),y=mean, alpha=diff,shape=diff))+
+  geom_hline(yintercept=0, linetype=2, size=0.8)+
+  geom_point(position = position_dodge(0.9),size=3,stroke=2)+
+  geom_errorbar(aes(ymin=lwr, ymax =upr), width=0, position = position_dodge(0.9),size=1)+
+  scale_alpha_manual(values=c(1,.7),labels=c("no","yes"),name="95% CI overlaps 0")+
+  scale_shape_manual(values=c(16,1),labels=c("no","yes"),name="95% CI overlaps 0")+
+  #scale_linetype_manual(values=c("solid","dotdash"),labels=c("no","yes"),name="95% CI overlaps 0")+
+  facet_grid(factor(type,levels=c("lost","gained"))~disturbance)+
+  ylim(c(-.1,.7))+
+  ylab("Proportion")+
+  theme_bw()+
+  theme(axis.text = element_text(size=24),legend.text = element_text(size=16),legend.title = element_text(size=24),legend.position = 'right',axis.title = element_text(size=24),plot.margin=margin(0,0.5,.6,.1,"cm"),axis.title.x = element_blank(),strip.text = element_text(size=16,color="black"), panel.grid.minor.x = element_blank(), panel.grid.major.x = element_blank(),axis.text.x = element_text(size=14, angle=60, color="black", hjust=1))
+
+png("figures/gl_bypc1_legend.png", width = 1200, height = 480)
+ggarrange(fireplot, idplot, legendplot, ncol=3)
+dev.off()
+
+write.csv(ci_overlap_hot,"supplemental/species_significance_table_hot.csv")
+
+#calculating some stats
+bind_rows(fire_data %>% 
+  filter(!species.name %in% insectonlyspp) %>% 
+  dplyr::group_by(type) %>% 
+  dplyr::summarise(mean2 = mean(mean), min=min(mean), max=max(mean)) %>% 
+  mutate(dist="fire"),
+id_data %>% 
+  filter(!species.name %in% fireonlyspp) %>% 
+  dplyr::group_by(type) %>% 
+  dplyr::summarise(mean2 = mean(mean), min=min(mean), max=max(mean)) %>% 
+  mutate(dist="id"),
+overlap.table.hot.long_cutoff %>% filter(disturbance=="none") %>% 
+  dplyr::group_by(type) %>% 
+  dplyr::summarise(mean2 = mean(mean), min=min(mean), max=max(mean)) %>% 
+  mutate(dist="none")) %>% 
+  arrange(type)
+
+
+#####only excluding the two species with extremely low sample size
+
+star_table_all <- star_table %>% 
+  filter(dist2=="none") %>% 
+  left_join(overlap.table.hot.long, by=c("dist1"="disturbance", "species"="species.name", "type")) %>% 
+  dplyr::rename(disturbance=dist1)
+
+gl_bypc1_hot<- ggplot(overlap.table.hot.long %>% 
+  filter(!(disturbance=="fire" & species.name =="western redcedar")) %>% 
+  filter(!(disturbance=="insect.disease" & species.name=="western larch")),
+  aes(x=factor(number),y=mean, col =factor(number), alpha=diff,shape=diff))+
+  geom_hline(yintercept=0, linetype=2, size=0.8)+
+  geom_point(position = position_dodge(0.9),size=4,stroke=2)+
+  geom_errorbar(aes(ymin=lwr, ymax =upr), width=0, position = position_dodge(0.9),size=1.5)+
+  scale_color_manual(values = spp.colors$color, name="Species")+
+  scale_alpha_manual(values=c(1,.7),labels=c("no","yes"),name="95% CI overlaps 0")+
+  scale_shape_manual(values=c(16,1),labels=c("no","yes"),name="95% CI overlaps 0")+
+  #scale_linetype_manual(values=c("solid","dotdash"),labels=c("no","yes"),name="95% CI overlaps 0")+
+  geom_text(data=star_table2  %>% inner_join(overlap.table.hot.long, by=c("species"="species.name","dist"="disturbance")) %>% filter(type=="lost") %>% dplyr::rename(disturbance=dist) , aes(x=factor(number), y=0.75, label="x"),size=6, col="black")+
+  geom_text(data=star_table_all, aes(x=factor(number), y=0.77, label="*"),size=11)+
+  facet_grid(factor(type,levels=c("lost","gained"))~disturbance)+
+  ylim(c(-.01,0.8))+
+  ylab("Proportion")+
+  theme_bw()+
+  theme(axis.text = element_text(size=24),legend.text = element_text(size=16),legend.title = element_text(size=24),legend.position = 'none',axis.title = element_text(size=24),plot.margin=margin(0,0.5,.6,.1,"cm"),axis.title.x = element_blank(),strip.text = element_text(size=20,color="black"), panel.grid.minor.x = element_blank(), panel.grid.major.x = element_blank(),axis.text.x = element_text(size=18, angle=60, color="black", hjust=1))
+
+
+png("figures/gl_bypc1_hot.png", width = 900, height = 480)
+gl_bypc1_hot
+dev.off()
+
+png("figures/gl_bypc1_hot_legend.png", width = 900, height = 500)
+ggplot(overlap.table.hot.long %>% 
+  filter(!(disturbance=="fire" & species.name =="western redcedar")) %>% 
+  filter(!(disturbance=="insect.disease" & species.name=="western larch")),
+  aes(x=factor(number),y=mean, col =factor(number), alpha=diff,shape=diff))+
+  geom_hline(yintercept=0, linetype=2, size=0.8)+
+  geom_point(position = position_dodge(0.9),size=4,stroke=2)+
+  geom_errorbar(aes(ymin=lwr, ymax =upr), width=0, position = position_dodge(0.9),size=1.5)+
+  scale_color_manual(values = spp.colors$color, name="Species")+
+  scale_alpha_manual(values=c(1,.7),labels=c("no","yes"),name="95% CI overlaps 0")+
+  scale_shape_manual(values=c(16,1),labels=c("no","yes"),name="95% CI overlaps 0")+
+  #scale_linetype_manual(values=c("solid","dotdash"),labels=c("no","yes"),name="95% CI overlaps 0")+
+  facet_grid(~disturbance)+
+  ylim(c(-.01,0.8))+
+  ylab("Proportion")+
+  theme_bw()+
+  theme(axis.text = element_text(size=28),legend.text = element_text(size=20),legend.title = element_text(size=24),legend.position = 'right',axis.title = element_text(size=24),plot.margin=margin(0,0.5,.6,.1,"cm"),axis.title.x = element_blank(),strip.text = element_text(size=20,color="black"), panel.grid.minor.x = element_blank(), panel.grid.major.x = element_blank(),axis.text.x = element_text(size=18, angle=60, color="black", hjust=1))
+dev.off()
+
+###stats
+overlap.table.hot.long %>% 
+  filter(!(disturbance=="fire" & species.name =="western redcedar")) %>% 
+  filter(!(disturbance=="insect.disease" & species.name=="western larch")) %>% 
+  dplyr::group_by(disturbance,type) %>% 
+  dplyr::summarise(mean2 = mean(mean), min=min(mean), max=max(mean))
+
+```
+
+#####Traits
+```{r}
+#summarise by traits
+niche.shift.trait.table.hot <- overlap.table.hot %>% 
+  left_join(trait.data,by="species.name")
+
+sample.append.hot <- niche.shift.trait.table.hot %>% 
+  mutate(species = as.character(species)) %>% 
+  left_join(sample_size %>% 
+              mutate(SPCD = as.character(SPCD)), by = c("species"="SPCD","disturbance"="Agent")) %>% 
+  left_join(niche.areas %>% 
+  separate(col= name, into=c("species","disturbance","extra"), sep="_",remove = TRUE), by=c("species","disturbance","extra"))
+
+####
+overlap.table.hot_traits_raw <- as.data.frame(matrix(unlist(overlap.list.hot),nrow = 192000, ncol=5,byrow=FALSE))  
+colnames(overlap.table.hot_traits_raw)<-names(overlap.list.hot[[1]])
+overlap.table.hot_traits<- overlap.table.hot_traits_raw %>% 
+  mutate(names = rep(names(overlap.list.hot), each=4000)) %>% 
+  separate(names,into=c("species","disturbance","extra"),sep="_") %>% 
+  mutate(species = as.numeric(species)) %>% 
+  left_join(species.names,by=c("species"="species.code")) %>% 
+  filter(!species.name=="singleleaf pinyon")
+
+overlap.df.hot <- data.frame(area1=NA, area2=NA, overlap=NA, exp.prop.adult=NA, contr.prop.adult=NA)
+for(i in 1:length(overlap.list.hot)){
+  data <- overlap.list.hot[[i]] %>% mutate(name=names(overlap.list.hot)[i])
+  overlap.df.hot <- overlap.df.hot %>% bind_rows(data)
+}
+
+overlap.df.hot.traits<- overlap.df.hot %>% 
+  filter(!is.na(area1)) %>% 
+  mutate(species= substr(name, 0,3),
+         dist =  str_extract(name,"_.+_")) %>% 
+  mutate(dist= gsub("_","",dist),
+         species = as.numeric(gsub("_","",species))) %>%
+  left_join(species.names, by=c("species" = "species.code")) %>% 
+  left_join(sample.append.hot %>% 
+  dplyr::select(-species.name.y) %>% 
+  dplyr::rename("species.name" = "species.name.x", "dist"="disturbance") %>% mutate(species=as.numeric(species))) %>% 
+  filter(!species.name=="singleleaf pinyon")
+
+exp.by.disp <-overlap.df.hot.traits %>% 
+  group_by(dispersal,dist) %>% 
+  dplyr::summarise(mean = mean(mean.exp.prop.adult), lwr=quantile(mean.exp.prop.adult,c(0.025,0.975))[1], upr=quantile(mean.exp.prop.adult,c(0.025,0.975))[2])
+
+ggplot(exp.by.disp, aes(x=dispersal,y=mean,col=dist))+
+  geom_point(position=position_dodge(0.9))+
+  geom_errorbar(aes(ymin=lwr, ymax =upr), width=1, position = position_dodge(0.9),size=1)+
+  scale_color_manual(values=disturbance.colors) #no significant difference between dispersal type * disturbance and amount of expansion
+
+contr.by.disp <-overlap.df.hot.traits %>% 
+  group_by(dispersal,dist) %>% 
+  dplyr::summarise(mean = mean(mean.contr.prop.adult), lwr=quantile(mean.contr.prop.adult,c(0.025,0.975))[1], upr=quantile(mean.contr.prop.adult,c(0.025,0.975))[2])
+
+ggplot(contr.by.disp, aes(x=dispersal,y=mean,col=dist))+
+  geom_point(position=position_dodge(0.9))+
+  geom_errorbar(aes(ymin=lwr, ymax =upr), width=1, position = position_dodge(0.9),size=1)+
+  scale_color_manual(values=disturbance.colors)
+
+##I actually don't think this will work cause i'm looking for a linear trend, not just a comparison of categories 
+
+###summarise by disturbance
+overlap.table.hot_raw <- as.data.frame(matrix(unlist(overlap.list.hot),nrow = 192000, ncol=5,byrow=FALSE))  
+colnames(overlap.table.hot_raw)<-names(overlap.list.hot[[1]])
+
+exp.by.dist <-overlap.df.hot.traits %>% 
+  group_by(dist) %>% 
+  dplyr::summarise(mean = mean(mean.exp.prop.adult), lwr=quantile(mean.exp.prop.adult,c(0.025,0.975))[1], upr=quantile(mean.exp.prop.adult,c(0.025,0.975))[2])%>% 
+  mutate(type="gained")
+
+contr.by.dist <-overlap.df.hot.traits %>% 
+  group_by(dist) %>% 
+  dplyr::summarise(mean = mean(mean.contr.prop.adult), lwr=quantile(mean.contr.prop.adult,c(0.025,0.975))[1], upr=quantile(mean.contr.prop.adult,c(0.025,0.975))[2]) %>% 
+  mutate(type="lost")
+
+ggplot(bind_rows(exp.by.dist, contr.by.dist), aes(x=dist, y=mean, col=dist))+
+  geom_point()+
+  geom_errorbar(aes(ymin=lwr, ymax=upr))+
+  facet_wrap(~type)+
+  scale_color_manual(values=disturbance.colors)
+
+####shade tolerance
+
+exp.by.shade <-overlap.df.hot.traits %>% 
+  group_by(dist, shade.tolerance) %>% 
+  dplyr::summarise(mean = mean(mean.exp.prop.adult), lwr=quantile(mean.exp.prop.adult,c(0.025,0.975))[1], upr=quantile(mean.exp.prop.adult,c(0.025,0.975))[2])%>% 
+  mutate(type="gained")
+
+contr.by.shade <-overlap.df.hot.traits %>% 
+  group_by(dist, shade.tolerance) %>% 
+  dplyr::summarise(mean = mean(mean.contr.prop.adult), lwr=quantile(mean.contr.prop.adult,c(0.025,0.975))[1], upr=quantile(mean.contr.prop.adult,c(0.025,0.975))[2]) %>% 
+  mutate(type="lost")
+
+ggplot(bind_rows(exp.by.shade, contr.by.shade), aes(x=shade.tolerance, y=mean, col=dist))+
+  geom_point()+
+  geom_errorbar(aes(ymin=lwr, ymax=upr))+
+  facet_wrap(~type)+
+  scale_color_manual(values=disturbance.colors)
+
+##pc1 mean
+exp.by.pc1 <-overlap.df.hot.traits %>% 
+  group_by(dist, pc1speciesmean) %>% 
+  dplyr::summarise(mean = mean(mean.exp.prop.adult), lwr=quantile(exp.prop.adult,c(0.025,0.975))[1], upr=quantile(exp.prop.adult,c(0.025,0.975))[2])%>% 
+  mutate(type="gained")
+
+contr.by.pc1 <-overlap.df.hot.traits %>% 
+  group_by(dist, pc1speciesmean) %>% 
+  dplyr::summarise(mean = mean(mean.contr.prop.adult), lwr=quantile(contr.prop.adult,c(0.025,0.975))[1], upr=quantile(contr.prop.adult,c(0.025,0.975))[2]) %>% 
+  mutate(type="lost")
+
+ggplot(bind_rows(exp.by.pc1, contr.by.pc1), aes(x=pc1speciesmean, y=mean, col=dist))+
+  geom_point()+
+  geom_errorbar(aes(x=pc1speciesmean, ymin=lwr, ymax=upr, col=dist))+
+  facet_wrap(~type)+
+  ylim(c(0,.5))+
+  scale_color_manual(values=disturbance.colors)
+
+##try a model
+traitmoddf <- overlap.df.hot.traits %>% 
+  dplyr::select(species.name, dist,mean.exp.prop.adult,mean.contr.prop.adult,shade.tolerance,dispersal,pc1speciesmean,n.adult,n.seed) %>% 
+  unique()
+  
+cor(traitmoddf[,c(5,7:9)])
+  
+mod.1 <- lm(log(mean.exp.prop.adult) ~ shade.tolerance*dist + dispersal*dist + pc1speciesmean*dist + n.seed*dist, data=traitmoddf)
+par(mfrow=c(2,2))
+plot(mod.1)
+Anova(mod.1, type="3")
+summary(mod.1)
+options(na.action = "na.fail")
+dredge.mod1 <- dredge(mod.1)
+dredge.mod1
+
+ggplot(traitmoddf, aes(x=n.seed, y=log(mean.exp.prop.adult), col=dist))+
+  geom_point()+
+  geom_smooth(method="lm")
+
+mod.2 <- lm(log(mean.contr.prop.adult) ~ shade.tolerance*dist + dispersal*dist + pc1speciesmean*dist + n.seed*dist, data=traitmoddf)
+par(mfrow=c(2,2))
+plot(mod.2)
+Anova(mod.2, type="3")
+summary(mod.2)
+options(na.action = "na.fail")
+dredge.mod2 <- dredge(mod.2)
+dredge.mod2
+
+ggplot(traitmoddf, aes(x=n.seed, y=log(mean.contr.prop.adult), col=dist))+
+  geom_point()+
+  geom_smooth(method="lm")
+
+ggplot(traitmoddf, aes(x=pc1speciesmean, y=log(mean.contr.prop.adult), col=dist))+
+  geom_point()+
+  geom_smooth(method="lm")
+
+```
+
+
+
+```{r}
+
+###order by sample size
+##include sample size as effect
+#looking at sample size 
+sample.append<- niche.shift.trait.table %>% 
+  mutate(species = as.character(species)) %>% 
+  left_join(sample_size %>% 
+              mutate(SPCD = as.character(SPCD)), by = c("species"="SPCD","disturbance"="Agent")) %>% 
+  left_join(niche.areas %>% 
+  separate(col= name, into=c("species","disturbance","extra"), sep="_",remove = TRUE), by=c("species","disturbance","extra"))
+
+n_seed_fire<- sample.append %>% dplyr::select(c(species.name.x,number,disturbance,n.seed)) %>% 
+  dplyr::rename(species.name = species.name.x) %>% 
+  filter(disturbance=="fire") %>% 
+  arrange(n.seed)
+
+n_seed_ID<- sample.append %>% dplyr::select(c(species.name.x,number,disturbance,n.seed)) %>% 
+  dplyr::rename(species.name = species.name.x) %>% 
+  filter(disturbance=="insect.disease") %>% 
+  arrange(n.seed)
+
+n_seed_none<- sample.append %>% dplyr::select(c(species.name.x,number,disturbance,n.seed)) %>% 
+  dplyr::rename(species.name = species.name.x) %>% 
+  filter(disturbance=="none") %>% 
+  arrange(n.seed)
+```
+
+
+###Vector Analysis
+from https://cran.r-project.org/web/packages/SIBER/vignettes/Centroid-Vectors.html
+
+```{r}
+centroids.list.hot<- list()
+for(i in 1:length(ellipses.posterior.list.hot)){
+temp.centroids <- siberCentroids(ellipses.posterior.list.hot[[i]])
+centroids.list.hot[[i]]<- temp.centroids
+}
+names(centroids.list.hot) <- names(ellipses.posterior.list.hot)
+
+angles_distances.list.hot <- list()
+for(i in 1:length(ellipses.posterior.list.hot)){
+  temp.angles<- allCentroidVectors(centroids.list.hot[[i]], do.plot=FALSE)
+  angles_distances.list.hot[[i]] <- temp.angles
+}
+names(angles_distances.list.hot) <- names(ellipses.posterior.list.hot)
+```
+
+```{r}
+#make plots
+median_vectors.list.hot<- list()
+for(i in 1:length(angles_distances.list.hot)){
+median_vectors <- dplyr::summarise(group_by(angles_distances.list.hot[[i]], comparison),
+          medAngle = median(angles), medDist = median(distances))
+median_vectors.list.hot[[i]]<- median_vectors
+}
+names(median_vectors.list.hot) <- names(ellipses.posterior.list.hot)
+
+origins.list.hot<- list()
+for(i in 1:length(median_vectors.list.hot)){
+origins <- data.frame(comparison = median_vectors.list.hot[[i]]$comparison, 
+                      x = 0, y = 0)
+origins.list.hot[[i]]<- origins
+}
+names(origins.list.hot) <- names(ellipses.posterior.list.hot)
+
+ends.list.hot <- list()
+for(i in 1:length(median_vectors.list.hot)){
+ends    <- with(median_vectors.list.hot[[i]], data.frame(comparison = comparison,
+                                           x = medDist * cos(medAngle),
+                                           y = medDist * sin(medAngle)))
+ends.list.hot[[i]]<- ends
+}
+names(ends.list.hot) <- names(ellipses.posterior.list.hot)
+
+# = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
+# generate the start and end points of the medians for the arrows
+for_arrows.list.hot <- list()
+for(i in 1:length(origins.list.hot)){
+for_arrows <- dplyr::bind_rows(origins.list.hot[[i]], ends.list.hot[[i]])
+for_arrows.list.hot[[i]]<- for_arrows
+}
+names(for_arrows.list.hot)<- names(ends.list.hot)
+
+# rename the comparison label for nice plot labels below
+# aa <- unlist(strsplit(as.character(for_arrows$comparison), "[.]"))
+# aa <- aa[seq(3,length(aa),5)]
+# for_arrows$comparison2 <- factor(aa)
+
+
+# = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = 
+# create the cartesian points for the estimated tips of the arrows
+cart_positions.list.hot<- list()
+for(i in 1:length(angles_distances.list.hot)){
+cart_positions <- with(angles_distances.list.hot[[i]], data.frame(x = distances * cos(angles),
+                             y = distances * sin(angles),
+                             comparison = comparison ))
+cart_positions.list.hot[[i]]<- cart_positions
+}
+names(cart_positions.list.hot)<- names(angles_distances.list.hot)
+
+#rename
+for(i in 1:length(cart_positions.list.hot)){
+cart_positions.list.hot[[i]]$comparison <- names(cart_positions.list.hot)[i]
+}
+
+for(i in 1:length(for_arrows.list.hot)){
+for_arrows.list.hot[[i]]$comparison <- names(for_arrows.list.hot)[i]
+}
+
+for_arrows.all.hot <- do.call("rbind",for_arrows.list.hot)
+cart_positions.all.hot <- do.call("rbind",cart_positions.list.hot)
+# rename as above
+# bb <- unlist(strsplit(as.character(angles_distances$comparison), "[.]"))
+# bb <- bb[seq(3,length(bb),5)]
+# cart_positions$comparison2 <- factor(bb)
+
+# = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = 
+# plot it
+ggplot(cart_positions.all.hot, aes(x,y) ) + 
+  geom_bin2d(bins = 20) +
+  scale_fill_gradient(low = "white", high = "black") +
+  #coord_cartesian(xlim = c(-20, +20), ylim = c(-20, +20)) +
+  facet_wrap( ~ comparison, scales = "fixed") + 
+  theme_classic() +
+  geom_path(data = for_arrows.all.hot, 
+            arrow = arrow(type = "open", length = unit(0.2, "cm")),
+            col = "red", alpha = 0.6) +
+  ylab("PC2") +
+  xlab("PC1") + 
+  theme(text = element_text(size=15))
+
+#lump by disturbance
+species.names$species.code<- as.character(species.names$species.code)
+
+cart_positions.all.hot<- cart_positions.all.hot %>%
+  separate(comparison,into=c("species","disturbance","extra"),sep="_") %>% 
+  left_join(species.names,by=c('species'="species.code")) %>% 
+  #filter(!(disturbance=="fire" & species.name %in% insectonlyspp)) %>% 
+  #filter(!(disturbance=="insect.disease" & species.name %in% fireonlyspp)) %>% 
+  filter(!species.name=="singleleaf pinyon")
+for_arrows.all.hot <- for_arrows.all.hot %>% 
+  separate(comparison,into=c("species","disturbance","extra"),sep="_") %>% 
+  left_join(species.names,by=c('species'="species.code")) %>% 
+  #filter(!(disturbance=="fire" & species.name %in% insectonlyspp)) %>% 
+  #filter(!(disturbance=="insect.disease" & species.name %in% fireonlyspp)) %>% 
+  filter(!species.name=="singleleaf pinyon") 
+#number species by elevation
+#based on PC1 mean score of adults
+species.numbers <- data.frame(species.name = c("two needle pinyon","Gambel oak","ponderosa pine","Rocky Mountain juniper","white fir","trembling aspen","Douglas-fir","western redcedar","limber pine","grand fir","western larch","lodgepole pine","Engelmann spruce","subalpine fir","whitebark pine"), species.number = seq(1,15,1))
+
+for_arrows.all.hot <- for_arrows.all.hot %>%
+  left_join(species.numbers)
+
+ggplot(cart_positions.all.hot, aes(x,y)) + 
+  geom_bin2d(bins = 50) +
+  scale_fill_gradient(low = "white", high = "black") +
+  coord_cartesian(xlim = c(-.2, +.5), ylim = c(-.4, +.2)) +
+  facet_wrap( ~ factor(species.name), scales = "fixed", ncol=5) + 
+  theme_classic() +
+  geom_path(data = for_arrows.all.hot, 
+            arrow = arrow(type = "open", length = unit(0.2, "cm")),
+            alpha = 1, size=1.5,aes(col=disturbance)) +
+  scale_color_manual(values=c(disturbance.colors[1:2],"black"))+
+  ylab("PC2") +
+  xlab("PC1") + 
+  theme(text = element_text(size=15))
+
+##finding colors for boxplot
+library(viridis)
+library(RColorBrewer)
+display.brewer.pal(n=4, name = 'BrBG')
+
+devtools::install_github("ropenscilabs/ochRe")
+library("ochRe")
+names(ochre_palettes)
+#viz_palette(ochre_palettes[["parliament"]])
+
+#install.packages("pals")
+library(pals)
+
+rect.colors = brewer.pal(n=4, name='BrBG')
+# rect.colors = ochre_palettes[["parliament"]][c(1,4,6,5)]
+# rect.colors = ochre_palettes[["olsen_seq"]][c(1,13,10,12)]
+# rect.colors = tol()[c(8,5,3,2)]
+#another option: c(#888C24,#004D60,#C9F0E8,#C63B0B,#C63B0B)
+#####
+
+df.top.triangle <- data.frame(x=c(-Inf,0,Inf),y=c(Inf,0,Inf))
+df.right.triangle <- data.frame(x=c(Inf,0,Inf),y=c(-Inf,0,Inf))
+df.bottom.triangle <- data.frame(x=c(-Inf,0,Inf),y=c(-Inf,0,-Inf))
+df.left.triangle <- data.frame(x=c(-Inf,0,-Inf),y=c(-Inf,0,Inf))
+
+arrowsplot1.hot<- ggplot(cart_positions.all.hot, aes(x,y)) +
+  geom_polygon(data=df.top.triangle, aes(x,y),fill=rect.colors[3],alpha=0.5)+
+  geom_polygon(data=df.right.triangle, aes(x,y),fill=rect.colors[4],alpha=0.5)+
+  geom_polygon(data=df.bottom.triangle, aes(x,y),fill=rect.colors[1],alpha=0.5)+
+  geom_polygon(data=df.left.triangle, aes(x,y),fill=rect.colors[2],alpha=0.5)+
+  #geom_bin2d(bins = 50, fill="white", aes(alpha= ..density..)) +
+  #scale_alpha(range=c(0.1,1)) +
+  #coord_cartesian(xlim = c(-.4, +.4), ylim = c(-.4, +.43)) +
+  facet_wrap( ~ factor(disturbance, levels=c("fire","insect.disease","none"), labels=c("fire","insect/disease","none")), scales = "fixed", ncol=2) + 
+  theme_classic() +
+  geom_hline(yintercept=0)+geom_vline(xintercept=0)+
+  geom_abline(intercept=0, slope = 1, linetype="dashed")+
+  geom_abline(intercept=0, slope = -1, linetype="dashed")+
+  geom_path(data = for_arrows.all.hot, aes(col=species.name),
+            arrow = arrow(type = "open", length = unit(0.2, "cm")),
+            alpha = 0.7, size=1) +
+  scale_color_manual(values=rep("black",15),labels=NULL,name=NULL)+
+  #scale_color_manual(values=c("#d55f90","#5aa554","#ad74d6","#9ab13f","#6070d5","#cd9337","#563686","#45c097","#8b2965","#9b8a40","#ca71c0","#b95336","#628ed6","#ba4758"))+
+  geom_text(data=for_arrows.all.hot %>% filter(!y==0),aes(label=species.number,x=x,y=y),size=5,hjust=-.4,vjust=.4,col="darkred")+
+  annotate("text",x=0.13,y=0.47,label="cold/dry",size=5)+
+  annotate(geom="text",x=0.39,y=-0.02,label="cold/wet",size=5)+
+  annotate(geom="text",x=0.1,y=-0.47,label="hot/wet",size=5)+
+  annotate(geom="text",x=-0.4,y= -0.02,label="hot/dry",size=5)+
+  ylab("PC2 (16.09%)") +
+  xlab("PC1 (74.4%)") + 
+  scale_y_continuous(limits=c(-.5,.5),expand=c(0,0))+
+  scale_x_continuous(limits=c(-.5,.5),expand=c(0,0))+
+  theme(text = element_text(size=20,color="black"),legend.position = "none",
+   axis.text.x = element_text(angle = 45, hjust = 1, vjust= 1, color="black"), axis.text.y = element_text(color="black"),panel.spacing.x = unit(25, "points"))
+
+###arrows plot with ALL species by disturbance combos
+for_arrows.all.hot_cutoff<- for_arrows.all.hot %>% 
+  mutate(x=ifelse(x>0.6,0.6,x), y=ifelse(y>0.6,0.6,y))
+  
+png(file="figures/arrows_2023.png",width=1000,height=700)
+
+ggplot(cart_positions.all.hot, aes(x,y)) +
+  geom_polygon(data=df.top.triangle, aes(x,y),fill=rect.colors[3],alpha=0.5)+
+  geom_polygon(data=df.right.triangle, aes(x,y),fill=rect.colors[4],alpha=0.5)+
+  geom_polygon(data=df.bottom.triangle, aes(x,y),fill=rect.colors[1],alpha=0.5)+
+  geom_polygon(data=df.left.triangle, aes(x,y),fill=rect.colors[2],alpha=0.5)+
+  #geom_bin2d(bins = 50, fill="white", aes(alpha= ..density..)) +
+  #scale_alpha(range=c(0.1,1)) +
+  #coord_cartesian(xlim = c(-.4, +.4), ylim = c(-.4, +.43)) +
+  facet_wrap( ~ factor(disturbance, levels=c("fire","insect.disease","none"), labels=c("fire","insect/disease","none")), scales = "fixed", ncol=2) + 
+  theme_classic() +
+  geom_hline(yintercept=0)+geom_vline(xintercept=0)+
+  geom_abline(intercept=0, slope = 1, linetype="dashed")+
+  geom_abline(intercept=0, slope = -1, linetype="dashed")+
+  geom_path(data = for_arrows.all.hot_cutoff, aes(col=species.name),
+            #arrow = arrow(type = "open", length = unit(0.2, "cm")),
+            alpha = 0.7, size=1) +
+  geom_path(data = for_arrows.all.hot_cutoff %>% filter(! (x == 0.6 | y ==0.6)), aes(col=species.name),
+            arrow = arrow(type = "open", length = unit(0.2, "cm")),
+            alpha = 0.7, size=1)+
+  scale_color_manual(values=rep("black",15),labels=NULL,name=NULL)+
+  #scale_color_manual(values=c("#d55f90","#5aa554","#ad74d6","#9ab13f","#6070d5","#cd9337","#563686","#45c097","#8b2965","#9b8a40","#ca71c0","#b95336","#628ed6","#ba4758"))+
+  geom_text(data=for_arrows.all.hot_cutoff %>% filter(!y==0),aes(label=species.number,x=x,y=y),size=5,hjust=-.4,vjust=.8,col="darkred")+
+  annotate("text",x=0.13,y=0.47,label="cold/dry",size=5)+
+  annotate(geom="text",x=0.39,y=-0.02,label="cold/wet",size=5)+
+  annotate(geom="text",x=0.1,y=-0.47,label="hot/wet",size=5)+
+  annotate(geom="text",x=-0.4,y= -0.02,label="hot/dry",size=5)+
+  ylab("PC2 (16.09%)") +
+  xlab("PC1 (74.4%)") + 
+  scale_y_continuous(limits=c(-.6,.6),expand=c(0,0))+
+  scale_x_continuous(limits=c(-.6,.6),expand=c(0,0))+
+  theme(text = element_text(size=20,color="black"),legend.position = "none",
+   axis.text.x = element_text(angle = 45, hjust = 1, vjust= 1, color="black"), axis.text.y = element_text(color="black"),panel.spacing.x = unit(25, "points"))
+dev.off()
+
+#separate panels of arrows plot
+arrowsplot_fire<- ggplot(cart_positions.all.hot %>% filter(disturbance=="fire"), aes(x,y)) +
+  geom_polygon(data=df.top.triangle, aes(x,y),fill=rect.colors[3],alpha=0.5)+
+  geom_polygon(data=df.right.triangle, aes(x,y),fill=rect.colors[4],alpha=0.5)+
+  geom_polygon(data=df.bottom.triangle, aes(x,y),fill=rect.colors[1],alpha=0.5)+
+  geom_polygon(data=df.left.triangle, aes(x,y),fill=rect.colors[2],alpha=0.5)+
+  #geom_bin2d(bins = 50, fill="white", aes(alpha= ..density..)) +
+  #scale_alpha(range=c(0.1,1)) +
+  #coord_cartesian(xlim = c(-.4, +.4), ylim = c(-.4, +.43)) +
+  #facet_wrap( ~ factor(disturbance, levels=c("fire","insect.disease","none"), labels=c("fire","insect/disease","none")), scales = "fixed", ncol=2) + 
+  theme_classic() +
+  geom_hline(yintercept=0)+geom_vline(xintercept=0)+
+  geom_abline(intercept=0, slope = 1, linetype="dashed")+
+  geom_abline(intercept=0, slope = -1, linetype="dashed")+
+  geom_path(data = for_arrows.all.hot %>% filter(disturbance=="fire"), aes(col=species.name),
+            arrow = arrow(type = "open", length = unit(0.2, "cm")),
+            alpha = 0.7, size=1) +
+  scale_color_manual(values=rep("black",15),labels=NULL,name=NULL)+
+  #scale_color_manual(values=c("#d55f90","#5aa554","#ad74d6","#9ab13f","#6070d5","#cd9337","#563686","#45c097","#8b2965","#9b8a40","#ca71c0","#b95336","#628ed6","#ba4758"))+
+  geom_text(data=for_arrows.all.hot %>% filter(!y==0) %>% filter(disturbance=="fire"),aes(label=species.number,x=x,y=y),size=5,hjust=-.4,vjust=.4,col="darkred")+
+  annotate("text",x=0.13,y=0.47,label="cold/dry",size=5)+
+  annotate(geom="text",x=0.39,y=-0.02,label="cold/wet",size=5)+
+  annotate(geom="text",x=0.1,y=-0.47,label="hot/wet",size=5)+
+  annotate(geom="text",x=-0.4,y= -0.02,label="hot/dry",size=5)+
+  ylab("PC2 (16.09%)") +
+  xlab("PC1 (74.4%)") + 
+  labs(title="Fire")+
+  scale_y_continuous(limits=c(-.5,.5),expand=c(0,0))+
+  scale_x_continuous(limits=c(-.5,.5),expand=c(0,0))+
+  theme(text = element_text(size=20,color="black"),legend.position = "none", plot.title = element_text(hjust = 0.5),
+   axis.text.x = element_text(angle = 45, hjust = 1, vjust= 1, color="black"), axis.text.y = element_text(color="black"),panel.spacing.x = unit(25, "points"))
+
+arrowsplot_insect.disease<- ggplot(cart_positions.all.hot %>% filter(disturbance=="insect.disease"), aes(x,y)) +
+  geom_polygon(data=df.top.triangle, aes(x,y),fill=rect.colors[3],alpha=0.5)+
+  geom_polygon(data=df.right.triangle, aes(x,y),fill=rect.colors[4],alpha=0.5)+
+  geom_polygon(data=df.bottom.triangle, aes(x,y),fill=rect.colors[1],alpha=0.5)+
+  geom_polygon(data=df.left.triangle, aes(x,y),fill=rect.colors[2],alpha=0.5)+
+  #geom_bin2d(bins = 50, fill="white", aes(alpha= ..density..)) +
+  #scale_alpha(range=c(0.1,1)) +
+  #coord_cartesian(xlim = c(-.4, +.4), ylim = c(-.4, +.43)) +
+  #facet_wrap( ~ factor(disturbance, levels=c("insect.disease","insect.disease","none"), labels=c("insect.disease","insect/disease","none")), scales = "fixed", ncol=2) + 
+  theme_classic() +
+  geom_hline(yintercept=0)+geom_vline(xintercept=0)+
+  geom_abline(intercept=0, slope = 1, linetype="dashed")+
+  geom_abline(intercept=0, slope = -1, linetype="dashed")+
+  geom_path(data = for_arrows.all.hot %>% filter(disturbance=="insect.disease"), aes(col=species.name),
+            arrow = arrow(type = "open", length = unit(0.2, "cm")),
+            alpha = 0.7, size=1) +
+  scale_color_manual(values=rep("black",15),labels=NULL,name=NULL)+
+  #scale_color_manual(values=c("#d55f90","#5aa554","#ad74d6","#9ab13f","#6070d5","#cd9337","#563686","#45c097","#8b2965","#9b8a40","#ca71c0","#b95336","#628ed6","#ba4758"))+
+  geom_text(data=for_arrows.all.hot %>% filter(!y==0) %>% filter(disturbance=="insect.disease"),aes(label=species.number,x=x,y=y),size=5,hjust=-.4,vjust=.4,col="darkred")+
+  annotate("text",x=0.13,y=0.47,label="cold/dry",size=5)+
+  annotate(geom="text",x=0.39,y=-0.02,label="cold/wet",size=5)+
+  annotate(geom="text",x=0.1,y=-0.47,label="hot/wet",size=5)+
+  annotate(geom="text",x=-0.4,y= -0.02,label="hot/dry",size=5)+
+  ylab("PC2 (16.09%)") +
+  xlab("PC1 (74.4%)") + 
+    labs(title="Insect/Disease")+
+  scale_y_continuous(limits=c(-.5,.5),expand=c(0,0))+
+  scale_x_continuous(limits=c(-.5,.5),expand=c(0,0))+
+  theme(text = element_text(size=20,color="black"),legend.position = "none",plot.title = element_text(hjust = 0.5),
+   axis.text.x = element_text(angle = 45, hjust = 1, vjust= 1, color="black"), axis.text.y = element_text(color="black"),panel.spacing.x = unit(25, "points"))
+
+arrowsplot_none<- ggplot(cart_positions.all.hot %>% filter(disturbance=="none"), aes(x,y)) +
+  geom_polygon(data=df.top.triangle, aes(x,y),fill=rect.colors[3],alpha=0.5)+
+  geom_polygon(data=df.right.triangle, aes(x,y),fill=rect.colors[4],alpha=0.5)+
+  geom_polygon(data=df.bottom.triangle, aes(x,y),fill=rect.colors[1],alpha=0.5)+
+  geom_polygon(data=df.left.triangle, aes(x,y),fill=rect.colors[2],alpha=0.5)+
+  #geom_bin2d(bins = 50, fill="white", aes(alpha= ..density..)) +
+  #scale_alpha(range=c(0.1,1)) +
+  #coord_cartesian(xlim = c(-.4, +.4), ylim = c(-.4, +.43)) +
+  #facet_wrap( ~ factor(disturbance, levels=c("none","insect.disease","none"), labels=c("none","insect/disease","none")), scales = "fixed", ncol=2) + 
+  theme_classic() +
+  geom_hline(yintercept=0)+geom_vline(xintercept=0)+
+  geom_abline(intercept=0, slope = 1, linetype="dashed")+
+  geom_abline(intercept=0, slope = -1, linetype="dashed")+
+  geom_path(data = for_arrows.all.hot %>% filter(disturbance=="none"), aes(col=species.name),
+            arrow = arrow(type = "open", length = unit(0.2, "cm")),
+            alpha = 0.7, size=1) +
+  scale_color_manual(values=rep("black",15),labels=NULL,name=NULL)+
+  #scale_color_manual(values=c("#d55f90","#5aa554","#ad74d6","#9ab13f","#6070d5","#cd9337","#563686","#45c097","#8b2965","#9b8a40","#ca71c0","#b95336","#628ed6","#ba4758"))+
+  geom_text(data=for_arrows.all.hot %>% filter(!y==0) %>% filter(disturbance=="none"),aes(label=species.number,x=x,y=y),size=5,hjust=-.4,vjust=.4,col="darkred")+
+  annotate("text",x=0.13,y=0.47,label="cold/dry",size=5)+
+  annotate(geom="text",x=0.39,y=-0.02,label="cold/wet",size=5)+
+  annotate(geom="text",x=0.1,y=-0.47,label="hot/wet",size=5)+
+  annotate(geom="text",x=-0.4,y= -0.02,label="hot/dry",size=5)+
+  ylab("PC2 (16.09%)") +
+  xlab("PC1 (74.4%)") + 
+    labs(title="None")+
+  scale_y_continuous(limits=c(-.5,.5),expand=c(0,0))+
+  scale_x_continuous(limits=c(-.5,.5),expand=c(0,0))+
+  theme(text = element_text(size=20,color="black"),legend.position = "none", plot.title = element_text(hjust = 0.5),
+   axis.text.x = element_text(angle = 45, hjust = 1, vjust= 1, color="black"), axis.text.y = element_text(color="black"),panel.spacing.x = unit(25, "points"))
+
+#plot.margin = unit(c(5.5,7,70,5.5),"points"),
+
+blank_arrows_plot <- ggplot(cart_positions.all.hot, aes(x,y)) +
+  geom_polygon(data=df.top.triangle, aes(x,y),fill=rect.colors[3],alpha=0.5)+
+  geom_polygon(data=df.right.triangle, aes(x,y),fill=rect.colors[4],alpha=0.5)+
+  geom_polygon(data=df.bottom.triangle, aes(x,y),fill=rect.colors[1],alpha=0.5)+
+  geom_polygon(data=df.left.triangle, aes(x,y),fill=rect.colors[2],alpha=0.5)+
+  #geom_bin2d(bins = 50, fill="white", aes(alpha= ..density..)) +
+  #scale_alpha(range=c(0.1,1)) +
+  #coord_cartesian(xlim = c(-.4, +.4), ylim = c(-.4, +.43)) +
+  facet_wrap( ~ factor(disturbance, levels=c("fire","insect.disease","none"), labels=c("fire","insect/disease","none")), scales = "fixed", ncol=3) + 
+  theme_classic() +
+  geom_hline(yintercept=0)+geom_vline(xintercept=0)+
+  geom_abline(intercept=0, slope = 1, linetype="dashed")+
+  geom_abline(intercept=0, slope = -1, linetype="dashed")+
+  #geom_path(data = for_arrows.all.hot, aes(col=species.name),
+  #          arrow = arrow(type = "open", length = unit(0.2, "cm")),
+  #          alpha = 0.7, size=1) +
+  scale_color_manual(values=rep("black",15),labels=NULL,name=NULL)+
+  #scale_color_manual(values=c("#d55f90","#5aa554","#ad74d6","#9ab13f","#6070d5","#cd9337","#563686","#45c097","#8b2965","#9b8a40","#ca71c0","#b95336","#628ed6","#ba4758"))+
+  #geom_text(data=for_arrows.all.hot %>% filter(!y==0),aes(label=species.number,x=x,y=y),size=5,hjust=-.4,vjust=.4,col="darkred")+
+  annotate("text",x=0.13,y=0.47,label="cold/dry",size=5)+
+  annotate(geom="text",x=0.39,y=-0.02,label="cold/wet",size=5)+
+  annotate(geom="text",x=0.1,y=-0.47,label="hot/wet",size=5)+
+  annotate(geom="text",x=-0.4,y= -0.02,label="hot/dry",size=5)+
+  ylab("PC2 (16.09%)") +
+  xlab("PC1 (74.4%)") + 
+  scale_y_continuous(limits=c(-.5,.5),expand=c(0,0))+
+  scale_x_continuous(limits=c(-.5,.5),expand=c(0,0))+
+  theme(text = element_text(size=20,color="black"),legend.position = "none",
+        plot.margin = unit(c(5.5,7,70,5.5),"points"), axis.text.x = element_text(angle = 45, hjust = 1, vjust= 1, color="black"), axis.text.y = element_text(color="black"),panel.spacing.x = unit(20, "points"))
+
+#option2
+# ggplot(cart_positions.all.hot, aes(x,y)) +
+#     geom_bin2d(bins = 50, aes(fill= ..density..)) +
+#   scale_fill_gradient(low="#EBFBFF",high="#004D60") +
+#   coord_cartesian(xlim = c(-.4, +.4), ylim = c(-.4, +.4)) +
+#   facet_wrap( ~ factor(disturbance), scales = "fixed", ncol=3) + 
+#   theme_classic() +
+#   geom_hline(yintercept=0)+geom_vline(xintercept=0)+
+#   geom_abline(intercept=0, slope = 1, linetype="dashed")+
+#   geom_abline(intercept=0, slope = -1, linetype="dashed")+
+#   geom_path(data = for_arrows.all.hot, aes(col=species.name),
+#             arrow = arrow(type = "open", length = unit(0.2, "cm")),
+#             alpha = 0.7, size=1) +
+#   scale_color_manual(values=rep("black",13),labels=NULL,name=NULL)+
+#   #scale_color_manual(values=c("#d55f90","#5aa554","#ad74d6","#9ab13f","#6070d5","#cd9337","#563686","#45c097","#8b2965","#9b8a40","#ca71c0","#b95336","#628ed6","#ba4758"))+
+#   geom_text(data=for_arrows.all.hot %>% filter(!y==0),aes(label=species.number,x=x,y=y),size=5,hjust=-.4,vjust=.4,col="darkred")+
+#   annotate("text",x=0,y=0.4,label="hot/wet",size=5)+
+#   annotate(geom="text",x=0.4,y=0,label="cold/wet",size=5,angle=90)+
+#   annotate(geom="text",x=0,y=-0.4,label="cold/dry",size=5)+
+#   annotate(geom="text",x=-0.4,y= 0,label="hot/dry",size=5,angle=90)+
+#   ylab("PC2") +
+#   xlab("PC1") + 
+#   theme(text = element_text(size=15))
+```
+
+```{r}
+##Bayesian analysis of distance and angle shifts of centroids
+angles_summary<- bind_rows(lapply(X = angles_distances.list.hot, FUN=function(x) data.frame(mean= mean(x$angles),lwr = quantile(x$angles, c(0.025,0.975))[1], upr=quantile(x$angles, c(0.025,0.975))[2])), .id="label") %>% 
+  mutate(mean=as.numeric(mean),lwr=as.numeric(lwr),upr=as.numeric(upr)) %>% 
+  # mutate(sig = ifelse(lwr>0&upr>0, "yes", ifelse(lwr<0 & upr<0, "yes", "no"))) %>% 
+  mutate(species= substr(label, 0,3),
+         dist =  str_extract(label,"_.+_")) %>% 
+  mutate(dist= gsub("_","",dist),
+         species = as.numeric(gsub("_","",species))) %>% 
+  left_join(species.names %>% mutate(species.code=as.numeric(species.code)),by=c("species"="species.code")) %>% 
+  left_join(pc1means.table)%>% 
+  filter(!species.name == "singleleaf pinyon") ###THIS DOESN'T REALLY WORK BECAUSE OF RADIAN WEIRDNESS
+
+distance_summary.hot<- bind_rows(lapply(X = angles_distances.list.hot, FUN=function(x) data.frame(mean= mean(x$distances),lwr = quantile(x$distances, c(0.025,0.975))[1], upr=quantile(x$distances, c(0.025,0.975))[2])), .id="label") %>% 
+  mutate(mean=as.numeric(mean),lwr=as.numeric(lwr),upr=as.numeric(upr)) %>% 
+  mutate(sig = ifelse(lwr>0&upr>0, "yes", ifelse(lwr<0 & upr<0, "yes", "no"))) %>% 
+  mutate(species= substr(label, 0,3),
+         dist =  str_extract(label,"_.+_")) %>% 
+  mutate(dist= gsub("_","",dist),
+         species = as.numeric(gsub("_","",species))) %>% 
+  left_join(species.names %>% mutate(species.code=as.numeric(species.code)),by=c("species"="species.code")) %>% 
+  left_join(pc1means.table)%>% 
+  filter(!species.name == "singleleaf pinyon") %>% 
+  mutate(letter = ifelse(species.name=="Douglas-fir" & dist == "fire", "A", ifelse(species.name=="Douglas-fir" & dist == "insect.disease", "B",ifelse(species.name=="Douglas-fir" & dist == "none", "C",ifelse(species.name=="limber pine" & dist %in% c("insect.disease","none"), "B", ifelse(species.name == "limber pine" & dist == "fire", "A", ""))))))
+
+mean(angles_distances.list.hot[[9]]$distances)
+quantile(angles_distances.list.hot[[9]]$distances, c(0.025,0.975))
+
+png("figures/centroid_dist.png", width=700, height=700)
+ggarrange(
+ggplot(distance_summary.hot, aes(x=factor(species.name,levels=pc1means.table %>% arrange(pc1speciesmean) %>% pull(species.name)), y=mean, fill=factor(species.name,levels=pc1means.table %>% arrange(pc1speciesmean) %>% pull(species.name))),col="black")+
+  geom_errorbar(aes(ymin=lwr,ymax=upr), col="black")+
+    geom_point(pch=21, size=3)+
+  scale_fill_manual(values=spp.colors$color)+
+  facet_wrap(~dist)+
+  ggtitle("Distance Between Centroids")+
+  theme(axis.text = element_text(angle=50, hjust=1,size=10, color="black"),axis.title.x = element_blank(), legend.position = "none"),
+ggplot(distance_summary.hot, aes(x=dist, y=mean, fill=factor(species.name,levels=pc1means.table %>% arrange(pc1speciesmean) %>% pull(species.name))),col="black")+
+  geom_errorbar(aes(ymin=lwr,ymax=upr), col="black")+
+    geom_point(pch=21, size=3)+
+  scale_fill_manual(values=spp.colors$color)+
+  geom_text(aes(label=letter, y=1.75), size=3)+
+  facet_wrap(~factor(species.name,levels=pc1means.table %>% arrange(pc1speciesmean) %>% pull(species.name)),nrow=3)+
+  theme(axis.text = element_text(angle=50, hjust=1,size=12, color="black"),axis.title.x = element_blank(), legend.position = "none"),
+nrow=2)
+dev.off()
+```
+
+```{r}
+#stats on median vectors
+for(i in 1:length(median_vectors.list.hot)){
+median_vectors.list.hot[[i]]$comparison <- names(median_vectors.list.hot)[i]
+}
+
+median_vectors_all.hot <- do.call("rbind", median_vectors.list.hot) %>% 
+  separate(comparison,into=c("species","disturbance","extra"),sep="_") %>% 
+  left_join(species.names,by=c('species'="species.code")) %>% 
+  filter(!(disturbance=="fire" & species.name %in% insectonlyspp)) %>% 
+  filter(!(disturbance=="insect.disease" & species.name %in% fireonlyspp)) %>% 
+  filter(!species.name=="singleleaf pinyon")
+
+#distance model species with all disturbances
+distmodmed.8spp <- aov(log(medDist) ~ factor(disturbance), data=median_vectors_all.hot %>% filter(!species.name %in% c(insectonlyspp)) %>%
+filter(!species.name %in% c(fireonlyspp)))
+par(mfrow=c(2,2))
+plot(distmodmed.8spp)
+summary(distmodmed.8spp)
+TukeyHSD(distmodmed.8spp)
+
+anova.stats.meddist <- data.frame(disturbance=c("fire","insect.disease","none"), y=c(.5,.5,.5),letter=c("A","A","A"))
+
+distance.boxplot<- ggplot(median_vectors_all.hot %>% filter(!species.name %in% c(insectonlyspp)) %>% mutate(disturbance = factor(disturbance, levels=c("fire","insect.disease","none"), labels=c("fire","insect/\ndisease","none"))), aes(x=disturbance, y=medDist, fill=disturbance))+
+  geom_boxplot()+
+  ylim(c(0,0.42))+
+  scale_fill_manual(values=c("lightgray","darkgray","white"))+
+  ylab("Median distance")+
+  xlab("")+
+  geom_text(data= anova.stats.meddist %>% mutate(disturbance = factor(disturbance, levels=c("fire","insect.disease","none"), labels=c("fire","insect/\ndisease","none"))), aes(x=disturbance,y=y,label=letter),size=5)+
+  annotate(geom="text",x=1,y=0.04,label="p = 0.05",size=5)+
+  theme_bw()+
+  theme(text=element_text(size=20, color="black"),axis.text = element_text(color="black"),axis.text.x = element_text(color="black"),legend.position = "none")
+
+
+median_vectors_all.hot_blank <- median_vectors_all.hot %>% 
+  mutate(medDist = 5)
+
+distance.boxplot_blank<- ggplot(median_vectors_all.hot_blank %>% filter(!species.name %in% c(insectonlyspp)) %>% mutate(disturbance = factor(disturbance, levels=c("fire","insect.disease","none"), labels=c("fire","insect/\ndisease","none"))), aes(x=disturbance, y=medDist, fill=disturbance))+
+  geom_boxplot()+
+  ylim(c(0,0.42))+
+  scale_fill_manual(values=c("lightgray","darkgray","white"))+
+  ylab("Median distance")+
+  xlab("")+
+  #geom_text(data= anova.stats.meddist %>% mutate(disturbance = factor(disturbance, levels=c("fire","insect.disease","none"), labels=c("fire","insect/\ndisease","none"))), aes(x=disturbance,y=y,label=letter),size=5)+
+  #annotate(geom="text",x=1,y=0.04,label="p = 0.05",size=5)+
+  theme_bw()+
+  theme(text=element_text(size=20, color="black"),axis.text = element_text(color="black"),axis.text.x = element_text(color="black"),legend.position = "none")
+
+
+#angle model species with all disturbances
+angmodmed <- aov(medAngle ~ factor(disturbance), data=median_vectors_all.hot %>% filter(!species.name %in% c(insectonlyspp)) %>%
+filter(!species.name %in% c(fireonlyspp)))
+par(mfrow=c(2,2))
+plot(angmodmed)
+summary(angmodmed)
+#TukeyHSD(angmodmed)
+
+anova.stats.medang <- data.frame(disturbance=c("fire","insect.disease","none"), y=c(2.8,2.8,2.8),letter=c("A","A","A"))
+
+median_vectors_all.hot2<- median_vectors_all.hot %>% 
+  add_row(disturbance = "x",)
+
+angle.boxplot<- ggplot(median_vectors_all.hot2, aes(x=factor(disturbance, levels=c("fire","insect.disease","none"),labels=c("fire","insect/\ndisease","none")), y=medAngle, fill=disturbance))+
+  annotate("rect",xmin = -Inf, xmax = Inf, ymin=0.79, ymax = 2.35, fill=rect.colors[3], alpha = 0.5)+
+  annotate("rect",xmin = -Inf, xmax = Inf, ymin=-0.79, ymax = 0.79, fill=rect.colors[4], alpha = 0.5)+
+  annotate("rect",xmin = -Inf, xmax = Inf, ymin=-2.35, ymax = -0.79, fill=rect.colors[1], alpha = 0.5)+
+  annotate("rect",xmin = -Inf, xmax = Inf, ymin=-3.14, ymax = -2.35, fill=rect.colors[2], alpha = 0.5)+
+  annotate("rect",xmin = -Inf, xmax = Inf, ymin=2.35, ymax = 3.14, fill=rect.colors[2], alpha = 0.5)+
+  annotate("text",x="fire",y=-3, label="p = 0.15", hjust=1, size=5)+
+  geom_text(aes(x="x",y=2.745),label="hot/dry",size=5)+
+  geom_text(aes(x="x",y=1.7),label="cold/dry",size=5)+
+  geom_text(aes(x="x",y=0.1),label="cold/wet",size=5)+
+  geom_text(aes(x="x",y=-1.7),label="hot/wet",size=5)+
+  geom_text(aes(x="x",y=-2.745),label="hot/dry",size=5)+
+  geom_boxplot()+
+  geom_jitter(data=median_vectors_all.hot,aes(x=factor(disturbance, levels=c("fire","insect.disease","none"),labels=c("fire","insect/\ndisease","none")), y=medAngle),width=0.1,height=0.1)+
+  ylab("Median angle (radians)")+
+  xlab("")+
+  labs(title="")+
+  ylim(c(-3.14,3.14))+
+  scale_fill_manual(values=c("lightgray","darkgray","white","white"))+
+  #geom_text(data= anova.stats.medang, aes(x=factor(disturbance, levels=c("fire","insect.disease","none"),labels=c("fire","insect/\ndisease","none")),y=y,label=letter),size=5)+
+  theme_bw()+
+  theme(text=element_text(size=20, color="black"),axis.text = element_text(size=20,color="black"),legend.position = "none",axis.text.x = element_text(color=c(rep("black",3),"white"),size=16))
+
+median_vectors_all.hot2_blank <- median_vectors_all.hot2 %>% 
+  mutate(medAngle = 5)
+
+angle.boxplot_blank<- ggplot(median_vectors_all.hot2_blank, aes(x=factor(disturbance, levels=c("fire","insect.disease","none"),labels=c("fire","insect/\ndisease","none")), y=medAngle, fill=disturbance))+
+  annotate("rect",xmin = -Inf, xmax = Inf, ymin=0.79, ymax = 2.35, fill=rect.colors[3], alpha = 0.5)+
+  annotate("rect",xmin = -Inf, xmax = Inf, ymin=-0.79, ymax = 0.79, fill=rect.colors[4], alpha = 0.5)+
+  annotate("rect",xmin = -Inf, xmax = Inf, ymin=-2.35, ymax = -0.79, fill=rect.colors[1], alpha = 0.5)+
+  annotate("rect",xmin = -Inf, xmax = Inf, ymin=-3.14, ymax = -2.35, fill=rect.colors[2], alpha = 0.5)+
+  annotate("rect",xmin = -Inf, xmax = Inf, ymin=2.35, ymax = 3.14, fill=rect.colors[2], alpha = 0.5)+
+  geom_text(aes(x="x",y=2.745),label="hot/dry",size=5)+
+  geom_text(aes(x="x",y=1.7),label="cold/dry",size=5)+
+  geom_text(aes(x="x",y=0.1),label="cold/wet",size=5)+
+  geom_text(aes(x="x",y=-1.7),label="hot/wet",size=5)+
+  geom_text(aes(x="x",y=-2.745),label="hot/dry",size=5)+
+  geom_boxplot()+
+  #geom_jitter(data=median_vectors_all.hot,aes(x=factor(disturbance, levels=c("fire","insect.disease","none"),labels=c("fire","insect/\ndisease","none")), y=medAngle),width=0.1,height=0.1)+
+  ylab("Median angle (radians)")+
+  xlab("")+
+  ylim(c(-3.14,3.14))+
+  scale_fill_manual(values=c("lightgray","darkgray","white","white"))+
+  #geom_text(data= anova.stats.medang, aes(x=factor(disturbance, levels=c("fire","insect.disease","none"),labels=c("fire","insect/\ndisease","none")),y=y,label=letter),size=5)+
+  theme_bw()+
+  theme(text=element_text(size=20, color="black"),axis.text = element_text(size=20,color="black"),legend.position = "none",axis.text.x = element_text(color=c(rep("black",3),"white"),size=16))
+```
+
+```{r}
+#combine plots
+boxplots<- ggarrange(angle.boxplot,distance.boxplot,nrow=1,ncol=2, labels=c("b","c"), font.label = list(size=20))
+arrowcentroidplot<- ggarrange(arrowsplot1.hot,boxplots, nrow=2,ncol=1, heights = c(2,1), labels=c("a",""), font.label = list(size=20))
+arrowcentroidplot
+
+boxplots_blank <- ggarrange(distance.boxplot_blank,angle.boxplot_blank,nrow=2,ncol=1)
+arrowcentroidplot_blank<- ggarrange(blank_arrows_plot,boxplots_blank, nrow=1,ncol=2, widths=c(2.6,1))
+
+ggarrange(arrowsplot_fire,arrowsplot_insect.disease,arrowsplot_none, angle.boxplot,nrow=2,ncol=2,labels = c("a","b","c","d"),font.label = list(size=20))
+
+#pdf(file="figures/arrowsplot22_subset_box.pdf",width=13,height=15)
+
+arrowcentroidplot
+
+#dev.off()
+
+# png(file="figures/arrowsplot22_subset.png",width=1200,height=700)
+# 
+# arrowcentroidplot
+# 
+# dev.off()
+
+# png(file="figures/arrowsplot22_blank.png",width=1200,height=500)
+# 
+# arrowcentroidplot_blank
+# 
+# dev.off()
+
+#pdf(file="figures/arrowsplot22_subset_nodist.pdf",width=15,height=13)
+
+ggarrange(arrowsplot_fire,arrowsplot_insect.disease,arrowsplot_none, angle.boxplot,nrow=2,ncol=2,labels = c("A","B","C","D"),font.label = list(size=26))
+
+#dev.off()
+```
+
+```{r}
+##looking at averages
+for(i in 1:length(angles_distances.list.hot)){
+angles_distances.list.hot[[i]]$comparison <- names(angles_distances.list.hot)[i]
+}
+
+angles_distances_all <- do.call("rbind",angles_distances.list.hot) %>% 
+  separate(comparison,into=c("species","disturbance","extra"),sep="_") %>% 
+  left_join(species.names,by=c('species'="species.code")) %>% 
+  filter(!(disturbance=="fire" & species.name %in% insectonlyspp)) %>% 
+  filter(!(disturbance=="insect.disease" & species.name %in% fireonlyspp)) %>% 
+  filter(!species.name=="singleleaf pinyon")
+
+angles_distances_ave <- angles_distances_all %>% 
+  dplyr::group_by(species, disturbance) %>% 
+  dplyr::summarise(ave.dist = mean(distances), ave.angles = mean(angles))
+  
+#distance model 
+distmod <- aov(log(ave.dist) ~ factor(disturbance), data=angles_distances_ave)
+par(mfrow=c(2,2))
+plot(distmod)
+summary(distmod)
+TukeyHSD(distmod)
+
+ggplot(angles_distances_ave, aes(x=disturbance, y=ave.dist))+
+  geom_boxplot()
+
+#angle model 
+angmod <- aov(ave.angles ~ factor(disturbance), data=angles_distances_ave)
+par(mfrow=c(2,2))
+plot(angmod)
+summary(angmod)
+TukeyHSD(angmod)
+
+ggplot(angles_distances_ave, aes(x=disturbance, y=ave.angles))+
+  geom_boxplot()
 ```
