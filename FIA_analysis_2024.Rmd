@@ -1,0 +1,3436 @@
+---
+title: "FIA Analysis 2024"
+author: "Katie Nigro"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+# Data Extraction
+
+```{r}
+### this is the whole flow from narrowing down FIA plots 
+### to extracting climate and disturbance data from them
+### written 3/12 - 3/14/22
+### allows multiple conditions in a plot as long as the entire
+### plot is in one owner group, had one or fewer diturbances/treatments
+### across it. 
+
+## Subsets plots for FIA analysis including plots with multiple conditions
+## as long as they don't have multiple owner groups or multiple disturbance conditions
+
+## adapted from FIA_data_extraction_master.R
+## created: 3.11.22
+
+
+#load packages
+library(readr)
+library(dplyr)
+library(ggplot2)
+
+## Subset data into public plots with one condition
+#FIA data for AZ, CO, NM, NV, ID, UT, WY, MT
+
+plot<- read_csv("compiled_data_annual2020/annual_plots2020.csv")
+cond<- read_csv("compiled_data_annual2020/COND.csv")
+
+tree <- read_csv("compiled_data_annual2020/TREE.csv")
+seedling<- read_csv("compiled_data_annual2020/SEEDLING.csv")
+
+####################
+#goal = obtain all plots that are completely within public land & accessible (COND_STATUS_CD < 3)
+public.plots<- plot %>% 
+  dplyr::filter(!CN %in% c(cond %>% 
+  dplyr::filter(OWNCD > 40 | COND_STATUS_CD > 2) %>% 
+  pull(PLT_CN))
+  )
+
+#check that there are no private owners in here
+View(cond %>% 
+  dplyr::filter(PLT_CN %in% public.plots$CN))
+#there aren't
+####################
+
+####################
+#goal = dplyr::filter public plots down to those that only had one disturbance/treatment condition across all subplots
+disturbance.summary<- cond %>% 
+  dplyr::filter(PLT_CN %in% public.plots$CN) %>% 
+  group_by(PLT_CN) %>% 
+  dplyr::summarise(d1 = n_distinct(DSTRBCD1,na.rm=TRUE),
+                   d2 = n_distinct(DSTRBCD2,na.rm=TRUE),
+                   d3 = n_distinct(DSTRBCD3,na.rm=TRUE),
+                   t1 = n_distinct(TRTCD3,na.rm=TRUE),
+                   t2 = n_distinct(TRTCD3,na.rm=TRUE),
+                   t3 = n_distinct(TRTCD3,na.rm=TRUE),
+                   p2a_d1 = n_distinct(DSTRBCD1_P2A,na.rm=TRUE),
+                   p2a_d2 = n_distinct(DSTRBCD2_P2A,na.rm=TRUE),
+                   p2a_d3 = n_distinct(DSTRBCD3_P2A,na.rm=TRUE),
+                   p2a_t1 = n_distinct(TRTCD1_P2A,na.rm=TRUE),
+                   p2a_t2 = n_distinct(TRTCD2_P2A,na.rm=TRUE),
+                   p2a_t3 = n_distinct(TRTCD3_P2A,na.rm=TRUE),
+                   )
+
+public.onedist.plots<- public.plots %>% 
+  dplyr::filter(! CN %in% c(
+disturbance.summary %>% 
+  dplyr::filter(if_any(.cols=d1:p2a_t3,.fns = ~.>1)) %>% 
+  pull(PLT_CN) #these are plots that have different disturbances in different subplots
+)
+)
+
+nrow(public.onedist.plots)
+######################
+
+#######################
+#now do the same thing for the previously sampled plot
+
+plot %>% 
+  dplyr::filter(CN %in% plot$PREV_PLT_CN) %>% 
+  dplyr::filter(!is.na(PREV_PLT_CN)) #there are no plots survyed more than two times
+
+
+
+public.plots2<- public.onedist.plots %>% 
+  dplyr::filter(!PREV_PLT_CN %in% c(cond %>% 
+                      dplyr::filter(OWNCD > 40 | COND_STATUS_CD > 2) %>% 
+                      pull(PLT_CN))
+  )
+public.onedist.plots2<- public.plots2 %>% 
+  dplyr::filter(! PREV_PLT_CN %in% c(
+    disturbance.summary %>% 
+      dplyr::filter(if_any(.cols=d1:p2a_t3,.fns = ~.>1)) %>% 
+      pull(PLT_CN) #these are plots that have different disturbances in different subplots
+  )
+  )
+
+nrow(public.onedist.plots2)
+
+#######################
+#eliminate plots with documented artificial regen or stand origin from artificial regen
+no.artregen.plots<- public.onedist.plots2 %>% 
+  dplyr::filter(!CN %in% c(cond %>% 
+  dplyr::filter(TRTCD1 == 30 | TRTCD2 == 30 | TRTCD3 == 30 |
+          TRTCD1_P2A == 30 | TRTCD2_P2A == 30 | TRTCD3_P2A == 30 | 
+            STDORGCD ==1 ) %>% 
+  pull(PLT_CN) %>% 
+    unique())
+  )
+no.artregen.plots2<- no.artregen.plots %>% 
+  dplyr::filter(!PREV_PLT_CN %in% c(cond %>% 
+                      dplyr::filter(TRTCD1 == 30 | TRTCD2 == 30 | TRTCD3 == 30 |
+                               TRTCD1_P2A == 30 | TRTCD2_P2A == 30 | TRTCD3_P2A == 30 | 
+                               STDORGCD ==1 ) %>% 
+                      pull(PLT_CN) %>% 
+                      unique())
+  )
+
+#################
+
+################
+#summary of final plots
+
+no.artregen.plots2 %>% 
+  group_by(KINDCD) %>% 
+  dplyr::summarise(n=n(), minyear = min(MEASYEAR), maxyear=max(MEASYEAR)) #no periodic inventory plots here
+
+no.artregen.plots2 %>% 
+  dplyr::filter(KINDCD == 2) %>% 
+  group_by(STATECD) %>% 
+  dplyr::summarise(n=n())
+
+cond %>% 
+  dplyr::filter(PLT_CN %in% no.artregen.plots2$CN) %>% 
+  group_by(PLT_CN) %>% 
+  dplyr::summarise(conds = n_distinct(CONDID)) %>% 
+  group_by(conds) %>% 
+  dplyr::summarise(n=n())
+
+##reduce to just the unique plot locations
+unique_plots<- no.artregen.plots2 %>% 
+  dplyr::filter(!CN %in% no.artregen.plots2$PREV_PLT_CN) #64,286 plot locations
+
+library(raster)
+library(foreign)
+library(sf)
+library(ggplot2)
+library(rgdal)
+library(units)
+library(spatialEco)
+library(sp)
+library(dplyr)
+library(stringr)
+library(tidyverse) 
+library(data.table)
+library(spatial.tools)
+library(car)
+
+##read in plot locations and convert to shapefile
+plot.locations <- read.csv("F:/CONFIDENTIAL_for_Redmond.csv")
+
+#need unique_plots dataframe from "FIA_plot_extract_multconds.R"
+plots_needed_coords = plot.locations[which(plot.locations$PLT_CN %in% unique_plots$CN),]
+nrow(plots_needed_coords)
+str(plots_needed_coords)
+
+plots_needed_coords.crs = "+proj=longlat +ellps=GRS80 +datum=NAD83 +no_defs "
+plots_needed_coords.sp <- st_as_sf(plots_needed_coords, coords=c("ACTUAL_LON","ACTUAL_LAT"), crs=plots_needed_coords.crs)
+st_crs(plots_needed_coords.sp)
+
+ggplot()+
+  geom_sf(data=plots_needed_coords.sp)
+
+st_write(plots_needed_coords.sp, "FIA_plot_locations_multconds",driver="ESRI Shapefile")
+
+### now extract climate data ###
+
+# set location of climate data
+setwd("F:/")
+climdir<-"F:/to use with real coordinates/PRISM"
+
+# create list of months of interest
+
+months<-c('01','02','03','04','05','06','07','08','09','10','11','12')
+
+# read in dbf file
+dbffile <- ("F:/FIA_plot_locations_multconds/FIA_plot_locations_multconds.dbf")
+poly<-shapefile("F:/FIA_plot_locations_multconds/FIA_plot_locations_multconds.shp")
+poly.dbf <- read.dbf(dbffile)
+
+# PRCP DATA extract raster data from overlying polygon
+ppt_data<-vector()
+for(j in 1:length(months)){
+  raster<-paste(climdir,'/ppt/PRISM_ppt_30yr_normal_800mM2_',months[j],'_bil.bil',sep="")
+  rast <- raster(raster)
+  ext.poly <- raster::extract(rast, poly, fun = mean, na.rm=TRUE, df=TRUE)
+  ppt<-ext.poly[,2]
+  CN<-poly.dbf[,2]
+  month <- rep(months[j],length(ext.poly[,2]))
+  ppt_CN<-cbind(CN,ppt,month)
+  ppt_data<-rbind(ppt_data,ppt_CN)}
+
+# TMAX DATA extract raster data from overlying polygon                     
+tmax_data<-vector()
+for(j in 1:length(months)){
+  raster<-paste(climdir,'/tmax/PRISM_tmax_30yr_normal_800mM2_',months[j],'_bil.bil',sep="")
+  rast <- raster(raster)
+  ext.poly <- raster::extract(rast, poly, fun = mean, na.rm=TRUE, df=TRUE)
+  tmax<-ext.poly[,2]
+  CN<-poly.dbf[,2]
+  month <- rep(months[j],length(ext.poly[,2]))
+  tmax_CN<-cbind(CN,tmax,month)
+  tmax_data<-rbind(tmax_data,tmax_CN)}
+
+# TMIN DATA extract raster data from overlying polygon
+tmin_data<-vector()
+for(j in 1:length(months)){
+  raster<-paste(climdir,'/tmin/PRISM_tmin_30yr_normal_800mM2_',months[j],'_bil.bil',sep="")
+  rast <- raster(raster)
+  ext.poly <- raster::extract(rast, poly, fun = mean, na.rm=TRUE, df=TRUE)
+  tmin<-ext.poly[,2]
+  CN<-poly.dbf[,2]
+  month <- rep(months[j],length(ext.poly[,2]))
+  tmin_CN<-cbind(CN,tmin,month)
+  tmin_data<-rbind(tmin_data,tmin_CN)}
+
+# TMEAN DATA extract raster data from overlying polygon
+tmean_data<-vector()
+for(j in 1:length(months)){
+  raster<-paste(climdir,'/tmean/PRISM_tmean_30yr_normal_800mM2_',months[j],'_bil.bil',sep="")
+  rast <- raster(raster)
+  ext.poly <- raster::extract(rast, poly, fun = mean, na.rm=TRUE, df=TRUE)
+  tmean<-ext.poly[,2]
+  CN<-poly.dbf[,2]
+  month <- rep(months[j],length(ext.poly[,2]))
+  tmean_CN<-cbind(CN,tmean,month)
+  tmean_data<-rbind(tmean_data,tmean_CN)}
+
+# VPD DATA extract raster data from overlying polygon
+vpdmax_data<-vector()
+for(j in 1:length(months)){
+  raster<-paste(climdir,'/vpdmax/PRISM_vpdmax_30yr_normal_800mM2_',months[j],'_bil.bil',sep="")
+  rast <- raster(raster)
+  ext.poly <- raster::extract(rast, poly, fun = mean, na.rm=TRUE, df=TRUE)
+  vpdmax<-ext.poly[,2]
+  CN<-poly.dbf[,2]
+  month <- rep(months[j],length(ext.poly[,2]))
+  vpdmax_CN<-cbind(CN,vpdmax,month)
+  vpdmax_data<-rbind(vpdmax_data,vpdmax_CN)}
+
+vpdmin_data<-vector()
+for(j in 1:length(months)){
+  raster<-paste(climdir,'/vpdmin/PRISM_vpdmin_30yr_normal_800mM2_',months[j],'_bil.bil',sep="")
+  rast <- raster(raster)
+  ext.poly <- raster::extract(rast, poly, fun = mean, na.rm=TRUE, df=TRUE)
+  vpdmin<-ext.poly[,2]
+  CN<-poly.dbf[,2]
+  month <- rep(months[j],length(ext.poly[,2]))
+  vpdmin_CN<-cbind(CN,vpdmin,month)
+  vpdmin_data<-rbind(vpdmin_data,vpdmin_CN)}
+
+## COMBINE ALL OF THE CLIMATE DATA TOGETHER #####
+climate_data<-cbind(tmax_data,tmin_data, tmean_data, ppt_data, vpdmax_data, vpdmin_data)
+
+####MAKE SURE THAT THE CLIMATE VARIABLES ARE ALL LINED UP WELL #####
+all(climate_data[,1]==climate_data[,4])
+all(climate_data[,1]==climate_data[,7])
+all(climate_data[,10]==climate_data[,13])
+all(climate_data[,10]==climate_data[,16])
+all(climate_data[,3]==climate_data[,6])
+all(climate_data[,6]==climate_data[,9])
+all(climate_data[,9]==climate_data[,12])
+all(climate_data[,12]==climate_data[,15])
+all(climate_data[,15]==climate_data[,18])
+
+####make climate data into a dataframe and then remove duplicate columns ####
+
+climate_df<-as.data.frame(climate_data)
+climate_df<-cbind(climate_df[,1:3],climate_df[5],climate_df[8],climate_df[11],
+                  climate_df[14],climate_df[17])
+View(climate_df)
+
+##write out a csv with climate data 
+write.csv(climate_df,"FIA_30yrnormal_climate_realcoords_multconds.csv", append=FALSE)
+prism_data<- read.csv("F:/FIA_30yrnormal_climate_realcoords_multconds.csv")
+
+### extract bioclimate variables from ClimateWNA
+install.packages("arcgisbinding", repos="https://r.esri.com", type="win.binary")
+library(arcgisbinding)
+arc.check_product()
+
+##list out variables I want to extract
+vars<- c("mcmt",	"mwmt",	"td",	"msp",	"ahm",	"shm",	"dd_0",	"DD5",
+         "nffd",	"bffp",	"effp",	"pas",	"emt",	"eref",	"cmd",	"tave_wt",
+         "tave_sm",	"ppt_wt",	"ppt_sm")
+
+
+bioclim_vars<-matrix(0,nrow(poly.dbf),length(vars))
+for(i in 1:length(vars)){
+  rast<- as.raster(arc.raster(arc.open(paste("E:/Bioclimate_Layers/Bioclimate_UTM_Zone12.gdb/",vars[i],sep=""))))
+  vals <- raster::extract(rast, poly, fun = mean, na.rm=TRUE, df=TRUE)
+  bioclim_vars[,i]<- vals[,2]
+  }
+head(bioclim_vars)
+bioclim_table<- cbind(poly.dbf[,2],bioclim_vars)
+str(bioclim_table)
+bioclim_table<-as.data.frame(bioclim_table)
+head(bioclim_table)
+colnames(bioclim_table)=c("PLT_CN",vars)
+View(bioclim_table)
+write.csv(bioclim_table, "C:/Users/Katie/Google Drive/FIA project/FIA_rproject/bioclim_vars_FIA_multconds.csv")
+bioclim_table = read.csv("C:/Users/Katie/Google Drive/FIA project/FIA_rproject/bioclim_vars_FIA_multconds.csv")
+View(bioclim_table)
+
+####merge all variable tables together
+head(prism_data)
+prism_ppt<-aggregate(ppt~CN,prism_data,function(x)sum(x))
+prism_mat<-aggregate(tmean~CN,prism_data,mean)
+prism_miat<-aggregate(tmin~CN,prism_data,min)
+prism_maat<-aggregate(tmax~CN,prism_data,max)
+prism_vpdmax<-aggregate(vpdmax~CN,prism_data,max)
+prism_vpdmin<-aggregate(vpdmin~CN,prism_data,min)
+prism_annual_data<- cbind(prism_ppt,prism_mat[,2],prism_miat[,2],
+                          prism_maat[,2],prism_vpdmax[,2],prism_vpdmin[,2])
+head(prism_annual_data)
+prism_annual_data<-as.data.frame(prism_annual_data)
+colnames(prism_annual_data)=c("PLT_CN","ppt","tmean","tmin","tmax","vpdmax","vpdmin")
+
+all_vars=prism_annual_data %>% 
+  left_join(bioclim_table,by="PLT_CN")
+nrow(all_vars)
+
+###############extract disturbance data
+
+## Now extract MTBS fire perimeters that intersect dry domain
+## plots. Need MTBS perimeter shapefile downloaded
+
+##spatial join - dry domain plot data with MTBS fire perims
+#load packages
+
+points = readOGR(dsn="F:/FIA_plot_locations_multconds", layer = "FIA_plot_locations_multconds")
+polys = readOGR(dsn="C:/Users/Katie/Google Drive/ArcGIS/mtbs_perimeter_data", layer ="mtbs_perims_DD")
+polys = spTransform(polys,CRS("+proj=longlat +datum=NAD83 +no_defs"))
+
+polys@data$poly.ids <- 1:nrow(polys)
+join <- point.in.poly(points, polys, sp=FALSE, duplicate=FALSE)
+jointable <- as.data.frame(join@data)
+setwd("C:/Users/Katie/Google Drive/FIA project/FIA_rproject")
+write.csv(jointable, "mtbs_join_2022.csv")
+write.csv(polys@data, "mtbs_data_2022.csv")
+
+##subset plot data to include only plots with MTBS fire history
+join.table<- read.csv("C:/Users/Katie/Google Drive/FIA project/FIA_rproject/mtbs_join_2022.csv")
+mtbs_data <- read.csv("C:/Users/Katie/Google Drive/FIA project/FIA_rproject/mtbs_data_2022.csv")
+
+join.table.fire <- join.table[! is.na(join.table$pid1), ]
+nrow(join.table)
+nrow(join.table.fire)
+
+##grab most recent fire
+
+joindata <- join.table.fire %>% 
+  left_join(mtbs_data, by=c("pid1"="Fire_ID"))
+joindata$fire1 = paste(joindata$Fire_Name, 
+                       joindata$Fire_Type, sep="")
+joindata$year1 = paste(joindata$Year)
+joindata <-joindata %>% 
+  dplyr::select("PLT_CN","pid2","pid3","pid4","pid5","pid6","fire1","year1")
+
+joindata <- joindata %>% 
+  left_join(mtbs_data, by=c("pid2"="Fire_ID"))
+joindata$fire2 = paste(joindata$Fire_Name,
+                       joindata$Fire_Type, sep="")
+joindata$year2 = paste(joindata$Year)
+joindata <- joindata %>% 
+  dplyr::select(PLT_CN, pid3, pid4,pid5, pid6, fire1,year1,fire2,year2)
+
+joindata <- joindata %>% 
+  left_join(mtbs_data, by=c("pid3"="Fire_ID"))
+joindata$fire3 = paste(joindata$Fire_Name,  
+                       joindata$Fire_Type, sep="")
+joindata$year3 = paste(joindata$Year)
+joindata <- joindata %>% 
+  dplyr::select(PLT_CN, pid4,pid5, pid6,fire1,year1,fire2,year2,fire3,year3)
+
+joindata <- joindata %>% 
+  left_join(mtbs_data, by=c("pid4"="Fire_ID"))
+joindata$fire4 = paste(joindata$Fire_Name, 
+                       joindata$Fire_Type, sep="")
+joindata$year4 = paste(joindata$Year)
+joindata <- joindata %>% 
+  dplyr::select(PLT_CN, pid5, pid6,fire1,year1,fire2,year2,
+                fire3,year3,fire4,year4)
+
+joindata <- joindata %>% 
+  left_join(mtbs_data, by=c("pid5"="Fire_ID"))
+joindata$fire5 = paste(joindata$Fire_Name, 
+                       joindata$Fire_Type, sep="")
+joindata$year5 = paste(joindata$Year)
+joindata <- joindata %>% 
+  dplyr::select(PLT_CN, pid6,fire1,year1,fire2,year2,
+                fire3,year3,fire4,year4,fire5,year5)
+
+joindata <- joindata %>% 
+  left_join(mtbs_data, by=c("pid6"="Fire_ID"))
+joindata$fire6 = paste(joindata$Fire_Name,
+                       joindata$Fire_Type, sep="")
+joindata$year6 = paste(joindata$Year)
+joindata <- joindata %>% 
+  dplyr::select(PLT_CN,fire1,year1,fire2,year2,
+                fire3,year3,fire4,year4,fire5,year5,fire6,year6)
+
+View(joindata)
+joindata[joindata=="NANANA"]<- " "
+
+agent_table_stacked_mtbs<- joindata %>% 
+  dplyr::select(PLT_CN,year1,year2,year3,year4,year5,year6)
+agent_table_stacked_mtbs<-as.data.table(agent_table_stacked_mtbs)
+agent_table_stacked_mtbs<- melt(agent_table_stacked_mtbs, id.vars = c("PLT_CN"),
+                                measure.vars = patterns("^year"),
+                                variable.name = "variable",
+                                value.name = c("dist_year"))
+agent_table_stacked_mtbs$Agent <- rep("fire", nrow(agent_table_stacked_mtbs))
+agent_table_stacked_mtbs$source <- rep("mtbs", nrow(agent_table_stacked_mtbs))
+agent_table_stacked_mtbs<-agent_table_stacked_mtbs[,c(1,2,4,3,5)]
+agent_table_stacked_mtbs<-agent_table_stacked_mtbs[! agent_table_stacked_mtbs$dist_year=="NA", ]
+
+#write csv for mtbs table
+setwd("C:/Users/Katie/Google Drive/FIA project/FIA_rproject")
+write.csv(agent_table_stacked_mtbs,file="agent_table_stacked_mtbs2022.csv")
+
+
+##Now extract disturbance events from LANDFIRE !!
+## first read in rasters and crop to western US
+dist.dir <- 'F:/to use with real coordinates/US_VegDIST2014_10312018/annual_rasters'
+
+years <- c('1999','2000','2001','2002','2003','2004','2005','2006','2007','2008','2009','2010',
+           '2011','2012','2013','2014')
+
+e = extent(-2199337.478017,99686.997269,250725,3180555)
+
+rast.list = c()
+for(j in 1:length(years)){
+  cat(j, " ")
+  raster<-paste(dist.dir,'/us_dist',years[j],sep="")
+  rast <- raster(raster)
+  #rast.crop <- crop(rast, e)
+  rast.list <- append(rast.list, rast)#.crop)
+}
+
+##then extract raster info for each FIA plot 
+
+plot.pts<-shapefile("F:/FIA_plot_locations_multconds/FIA_plot_locations_multconds.shp")
+plot.pts.dbf <- read.dbf("F:/FIA_plot_locations_multconds/FIA_plot_locations_multconds.dbf")
+
+
+# extract disturbances from each year's raster 
+metadatapath <- 'F:/to use with real coordinates/US_VegDIST2014_10312018/annual'
+
+dist_data<-vector()
+for(j in 1:length(years)){
+  ext.points <- extract(rast.list[[j]], plot.pts, df=TRUE)
+  dist<-ext.points[,2]
+  CN<-plot.pts.dbf[,"PLT_CN"]
+  year <- rep(years[j],length(ext.points[,2]))
+  dist_CN<-cbind(CN,dist,year)
+  metadata<- read.csv(paste(metadatapath,'/US_DIST',years[j],'/CSV_Data/US_disturb',years[j],'.csv',sep=""))
+  dist_CN_meta <- merge(dist_CN, metadata[,c(1,3:10)], by.x="dist", by.y="Value")
+  dist_data<-rbind(dist_data,dist_CN_meta)
+  cat(j, " ")}
+
+dist_data_clean = dist_data[complete.cases(dist_data[,4]),]
+landfireHC = dist_data_clean[dist_data_clean$Type_Confidence=="High" | dist_data_clean$Type_Confidence=="Medium to High",]
+landfire.fin = cbind(landfireHC[,c(2,1,4,3)],rep("landfire",nrow(landfireHC)))
+colnames(landfire.fin)=c("PLT_CN","variable","Agent","MEASYEAR","source")
+write.csv(landfire.fin, "C:/Users/Katie/Google Drive/FIA project/FIA_rproject/agent_table_stacked_LANDFIRE2022.csv")
+
+#################################
+###### Extract disturbance from Condition data
+#################################
+
+## looking at species sample size
+mtbs.tree<- tree[tree$PLT_CN %in% join.table.fire$PLT_CN, ]
+aggregate(PLT_CN~SPCD, data=mtbs.tree, function(x) length(unique(x)))
+aggregate(PLT_CN~INVYR, data=mtbs.tree, function(x) length(unique(x)))
+
+##### create a vector with CN's of all plots with FIA fire history 
+##subset condition data to dry domain plots only 
+nrow(unique_plots)
+ddcond <- cond[cond$PLT_CN %in% unique_plots$CN,]
+length(unique(ddcond$PLT_CN))
+
+##create table with just disturbance codes
+ddcond.dist<- ddcond %>% 
+  dplyr::select("PLT_CN","DSTRBCD1","DSTRBCD2","DSTRBCD3",
+                "TRTCD1","TRTCD2","TRTCD3","DSTRBYR1","DSTRBYR2","DSTRBYR3","TRTYR1",
+                "TRTYR2","TRTYR3","DSTRBCD1_P2A","DSTRBCD2_P2A","DSTRBCD3_P2A",
+                "DSTRBYR1_P2A","DSTRBYR2_P2A","DSTRBYR3_P2A","TRTCD1_P2A","TRTCD2_P2A",
+                "TRTCD3_P2A","TRTYR1_P2A","TRTYR2_P2A","TRTYR3_P2A")%>% 
+  filter_at(vars(DSTRBCD1:DSTRBYR3_P2A), any_vars(.>0)) %>% 
+  left_join(plot, by=c("PLT_CN"="CN")) %>% 
+  dplyr::select("PLT_CN","DSTRBCD1","DSTRBCD2","DSTRBCD3",
+                "TRTCD1","TRTCD2","TRTCD3","DSTRBYR1","DSTRBYR2","DSTRBYR3","TRTYR1",
+                "TRTYR2","TRTYR3","DSTRBCD1_P2A","DSTRBCD2_P2A","DSTRBCD3_P2A",
+                "DSTRBYR1_P2A","DSTRBYR2_P2A","DSTRBYR3_P2A","TRTCD1_P2A","TRTCD2_P2A",
+                "TRTCD3_P2A","TRTYR1_P2A","TRTYR2_P2A","TRTYR3_P2A","MEASYEAR")
+
+head(ddcond.dist)
+aggregate(PLT_CN~DSTRBCD1+DSTRBCD1_P2A,data=ddcond.dist, length)
+
+##make same table for plots measured in the previous cycle
+ddcond.prev<- cond[cond$PLT_CN %in% unique_plots$PREV_PLT_CN, ]
+ddcond.dist.prev<- ddcond.prev %>% 
+  dplyr::select("PLT_CN","CONDPROP_UNADJ","DSTRBCD1","DSTRBCD2","DSTRBCD3",
+                "TRTCD1","TRTCD2","TRTCD3","DSTRBYR1","DSTRBYR2","DSTRBYR3","TRTYR1",
+                "TRTYR2","TRTYR3","DSTRBCD1_P2A","DSTRBCD2_P2A","DSTRBCD3_P2A",
+                "DSTRBYR1_P2A","DSTRBYR2_P2A","DSTRBYR3_P2A") %>% 
+  left_join(plot, by=c("PLT_CN"="CN")) %>% 
+  dplyr::select("PLT_CN","CONDPROP_UNADJ","DSTRBCD1","DSTRBCD2","DSTRBCD3",
+                "TRTCD1","TRTCD2","TRTCD3","DSTRBYR1","DSTRBYR2","DSTRBYR3","TRTYR1",
+                "TRTYR2","TRTYR3","DSTRBCD1_P2A","DSTRBCD2_P2A","DSTRBCD3_P2A",
+                "DSTRBYR1_P2A","DSTRBYR2_P2A","DSTRBYR3_P2A","MEASYEAR") %>% 
+  filter_at(vars(DSTRBCD1:DSTRBYR3_P2A), any_vars(.>0)) %>% 
+  dplyr::rename("prev_PLT_CN"="PLT_CN") %>% 
+  left_join(plot, by=c("prev_PLT_CN"="PREV_PLT_CN")) %>% 
+  dplyr::select("CN","DSTRBCD1","DSTRBCD2","DSTRBCD3",
+                "TRTCD1","TRTCD2","TRTCD3","DSTRBYR1","DSTRBYR2","DSTRBYR3","TRTYR1",
+                "TRTYR2","TRTYR3","DSTRBCD1_P2A","DSTRBCD2_P2A","DSTRBCD3_P2A",
+                "DSTRBYR1_P2A","DSTRBYR2_P2A","DSTRBYR3_P2A","MEASYEAR.x") %>% 
+  dplyr::rename("PLT_CN"="CN","MEASYEAR"="MEASYEAR.x")
+
+
+##make same table for plots in two previous measurement periods before
+unique_plots.prev <- plot[plot$CN %in% unique_plots$PREV_PLT_CN, ]
+unique(unique_plots.prev$PREV_PLT_CN) ##there are none
+
+##functions for recoding disturbance and treatment codes to names
+dist.recode.fun<- function(DSTRBCD){
+  ifelse(DSTRBCD %in% 10:22,"insect.disease",
+         ifelse(DSTRBCD %in% 30:32,"fire",
+                ifelse(DSTRBCD == 52, "wind","other")))
+}
+
+trt.recode.fun<- function(TRTCD){
+  ifelse(TRTCD %in% c(10,20,50),"harvest",
+         ifelse(TRTCD == 30,"art.regen", NA))
+}
+
+##combine most recent and previous plot condition data
+cond.dist.table <- bind_rows(ddcond.dist, ddcond.dist.prev) %>% 
+  mutate_at(.vars=c("DSTRBCD1","DSTRBCD2","DSTRBCD3","DSTRBCD1_P2A", "DSTRBCD2_P2A", "DSTRBCD3_P2A"), .funs=dist.recode.fun) %>% 
+  mutate_at(.vars=c("TRTCD1", "TRTCD2", "TRTCD3", "TRTCD1_P2A", "TRTCD2_P2A","TRTCD3_P2A"), .funs=trt.recode.fun) 
+
+cond.dist.table.long <- bind_rows(
+  cond.dist.table %>% 
+    dplyr::select(PLT_CN,DSTRBCD1,DSTRBYR1,MEASYEAR) %>% 
+    dplyr::rename(Agent = DSTRBCD1, dist_year = DSTRBYR1),
+  
+  cond.dist.table %>% 
+    dplyr::select(PLT_CN,DSTRBCD2,DSTRBYR2,MEASYEAR) %>% 
+    dplyr::rename(Agent = DSTRBCD2, dist_year = DSTRBYR2),
+  
+  cond.dist.table %>% 
+    dplyr::select(PLT_CN,DSTRBCD3,DSTRBYR3,MEASYEAR) %>% 
+    dplyr::rename(Agent = DSTRBCD3, dist_year = DSTRBYR3),
+  
+  cond.dist.table %>% 
+    dplyr::select(PLT_CN,DSTRBCD1_P2A,DSTRBYR1_P2A,MEASYEAR) %>% 
+    dplyr::rename(Agent = DSTRBCD1_P2A, dist_year = DSTRBYR1_P2A),
+  
+  cond.dist.table %>% 
+    dplyr::select(PLT_CN,DSTRBCD2_P2A,DSTRBYR2_P2A,MEASYEAR) %>% 
+    dplyr::rename(Agent = DSTRBCD2_P2A, dist_year = DSTRBYR2_P2A),
+  
+  cond.dist.table %>% 
+    dplyr::select(PLT_CN,DSTRBCD3_P2A,DSTRBYR3_P2A,MEASYEAR) %>% 
+    dplyr::rename(Agent = DSTRBCD3_P2A, dist_year = DSTRBYR3_P2A),
+  
+  cond.dist.table %>% 
+    dplyr::select(PLT_CN,TRTCD1,TRTYR1,MEASYEAR) %>% 
+    dplyr::rename(Agent = TRTCD1, dist_year = TRTYR1),
+  
+  cond.dist.table %>% 
+    dplyr::select(PLT_CN,TRTCD2,TRTYR2,MEASYEAR) %>% 
+    dplyr::rename(Agent = TRTCD2, dist_year = TRTYR2),
+  
+  cond.dist.table %>% 
+    dplyr::select(PLT_CN,TRTCD3,TRTYR3,MEASYEAR) %>% 
+    dplyr::rename(Agent = TRTCD3, dist_year = TRTYR3),
+  
+  cond.dist.table %>% 
+    dplyr::select(PLT_CN,TRTCD1_P2A,TRTYR1_P2A,MEASYEAR) %>% 
+    dplyr::rename(Agent = TRTCD1_P2A, dist_year = TRTYR1_P2A),
+  
+  cond.dist.table %>% 
+    dplyr::select(PLT_CN,TRTCD2_P2A,TRTYR2_P2A,MEASYEAR) %>% 
+    dplyr::rename(Agent = TRTCD2_P2A, dist_year = TRTYR2_P2A),
+  
+  cond.dist.table %>% 
+    dplyr::select(PLT_CN,TRTCD3_P2A,TRTYR3_P2A,MEASYEAR) %>% 
+    dplyr::rename(Agent = TRTCD3_P2A, dist_year = TRTYR3_P2A)
+) %>%  ##this appends the prev plot CN and year of previous plot measurement if applicable.
+  left_join(plot,by=c("PLT_CN"="CN")) %>% 
+  dplyr::select("PLT_CN","Agent","dist_year","MEASYEAR.x","PREV_PLT_CN") %>% 
+  dplyr::rename("MEASYEAR"="MEASYEAR.x") %>% 
+  left_join(plot,by=c("PREV_PLT_CN"="CN")) %>% 
+  dplyr::select("PLT_CN","Agent","dist_year","MEASYEAR.x","PREV_PLT_CN","MEASYEAR.y") %>% 
+  dplyr::rename("MEASYEAR"="MEASYEAR.x","PREV_MEASYEAR"="MEASYEAR.y") %>% 
+  filter(!is.na(Agent)) %>%  #get rid of plots with no disturbances 
+  #fill in missing disturbance years. According to FIA manual, disturbances were noted on plots if they had been disturbed since the previous
+  #plot measurement or within the past 5 years, unless the disturbance was a harvest activity, then within the last 20 years
+  #so I set the disturbance year as the earliest possible year according to these rules.
+  #If the disturbance year was recorded as 9999, i just used the measurement year as the disturbance year since this means the disturbance is happening over many years
+  mutate(dist_year = ifelse(is.na(dist_year)& is.na(PREV_PLT_CN) & Agent %in% c("fire","other","insect.disease","wind"),MEASYEAR - 5,dist_year)) %>% 
+  mutate(dist_year = ifelse(is.na(dist_year)& is.na(PREV_PLT_CN) & Agent %in% c("harvest","art.regen"),MEASYEAR - 20,dist_year)) %>% 
+  mutate(dist_year = ifelse(is.na(dist_year)& ! is.na(PREV_PLT_CN) & Agent %in% c("fire","other","insect.disease","wind"),PREV_MEASYEAR + 1,dist_year)) %>% 
+  mutate(dist_year = ifelse(is.na(dist_year)& ! is.na(PREV_PLT_CN) & Agent %in% c("harvest","art.regen"),PREV_MEASYEAR + 1,dist_year)) %>% 
+  mutate(dist_year = ifelse(dist_year == 9999,MEASYEAR,dist_year)) %>% 
+  distinct()
+
+#write table to csv
+write.csv(cond.dist.table.long, "C:/Users/Katie/Google Drive/FIA project/FIA_rproject/dist_table_stacked_cond2022.csv")
+
+########################
+#####extract disturbance from tree table
+########################
+
+ddtree <- tree[tree$PLT_CN %in% unique_plots$CN,]
+ddtree.prev <- tree[tree$PLT_CN %in% unique_plots$PREV_PLT_CN,]
+
+#disturbance codes 
+insect = c(10:19)
+disease = c(20:29)
+fire = c(30:39)
+harvest = c(80:89)
+
+tree.list <- list(ddtree, ddtree.prev)
+agent.list <- list(insect, disease, fire, harvest)
+
+#number of plots containing each disturbance code 
+ddtree %>% 
+  filter(STATUSCD %in% c(2,3)) %>%
+  filter(AGENTCD %in% unlist(agent.list)) %>% 
+  group_by(AGENTCD) %>% 
+  dplyr::summarise(n = length(unique(PLT_CN)))
+
+recent.plots.dist.table <- ddtree %>% 
+  filter(STATUSCD %in% c(2,3)) %>%
+  filter(AGENTCD %in% unlist(agent.list)) %>% 
+  mutate(Agent = ifelse(AGENTCD %in% c(10:29),'insect.disease',
+                        ifelse(AGENTCD %in% c(30:39), 'fire',
+                               ifelse(AGENTCD %in% c(80:89),'harvest','other')))) %>% 
+  group_by(PLT_CN, Agent) %>% 
+  dplyr::summarise(num.trees = length(unique(CN))) %>% 
+  filter(num.trees > 4) %>% 
+  left_join(plot,by=c("PLT_CN"="CN")) %>% 
+  dplyr::select(PLT_CN, Agent, num.trees, MEASYEAR, PREV_PLT_CN) %>% 
+  dplyr::rename(dist_year = MEASYEAR)
+
+prev.plots.dist.table <- ddtree.prev %>% 
+  filter(STATUSCD %in% c(2,3)) %>%
+  filter(AGENTCD %in% unlist(agent.list)) %>% 
+  mutate(Agent = ifelse(AGENTCD %in% c(10:29),'insect.disease',
+                        ifelse(AGENTCD %in% c(30:39), 'fire',
+                               ifelse(AGENTCD %in% c(80:89),'harvest','other')))) %>% 
+  group_by(PLT_CN, Agent) %>% 
+  dplyr::summarise(num.trees = length(unique(CN))) %>% 
+  filter(num.trees > 4) %>% 
+  left_join(plot,by=c("PLT_CN"="CN")) %>% 
+  dplyr::select(PLT_CN, Agent, num.trees, MEASYEAR) %>% 
+  dplyr::rename(PREV_PLT_CN = PLT_CN, dist_year = MEASYEAR) %>% 
+  left_join(plot, by=c("PREV_PLT_CN")) %>% 
+  ungroup() %>% 
+  dplyr::select(CN, Agent, num.trees,dist_year, PREV_PLT_CN) %>% 
+  dplyr::rename(PLT_CN = CN)
+
+tree.dist.table <- bind_rows(recent.plots.dist.table,prev.plots.dist.table) %>% 
+  mutate(source = "tree_table")
+
+
+#write table to csv so it can be combined with other sources 
+write.csv(tree.dist.table, file="agent_table_stacked_tree2022.csv")
+
+#################
+###### Now put all the disturbance tables together
+#################
+
+#MAKE MASTER DATA TABLE AND SAVE TO CSV
+##updated 1/24/20 for new FIA plots and real coordinates
+##updated 10/28/21 to exclude plots measured in the same year as disturbance
+##updated 11/1/21 for use with new disturbance extractions from tree and condition databases
+##updated 3/14/22 for new multi-condition plots
+#--------------------------------------------------------
+##combine all previously made tables into one
+cond.dist = read.csv("C:/Users/Katie/Google Drive/FIA project/FIA_rproject/dist_table_stacked_cond2022.csv")
+mtbs.dist = read.csv("C:/Users/Katie/Google Drive/FIA project/FIA_rproject/agent_table_stacked_mtbs2022.csv")
+tree.dist = read.csv("C:/Users/Katie/Google Drive/FIA project/FIA_rproject/agent_table_stacked_tree2022.csv")
+landfire.dist = read.csv("C:/Users/Katie/Google Drive/FIA project/FIA_rproject/agent_table_stacked_LANDFIRE2022.csv")
+
+colnames(mtbs.dist)
+colnames(tree.dist)
+colnames(cond.dist)
+colnames(landfire.dist)
+
+mtbs.dist=mtbs.dist[c("PLT_CN","Agent","dist_year","source")]
+tree.dist=tree.dist[c("PLT_CN","Agent","dist_year","source")]
+landfire.dist<- landfire.dist %>% 
+  dplyr::rename(dist_year = MEASYEAR)
+landfire.dist=landfire.dist[c("PLT_CN","Agent","dist_year","source")]
+cond.dist$source = "cond"
+cond.dist=cond.dist[c("PLT_CN","Agent","dist_year","source")]
+
+ncol(mtbs.dist)
+ncol(tree.dist)
+ncol(cond.dist)
+ncol(landfire.dist)
+
+nrow(mtbs.dist)+
+  nrow(tree.dist)+
+  nrow(cond.dist)+
+  nrow(landfire.dist)
+
+length(unique(c(mtbs.dist$PLT_CN,tree.dist$PLT_CN,cond.dist$PLT_CN,landfire.dist$PLT_CN)))
+
+#recode LANDFIRE disturbance types to match other databases
+landfire.dist$Agent=as.character(landfire.dist$Agent)
+landfire.dist$Agent[landfire.dist$Agent == "Insects" 
+                    |landfire.dist$Agent == "Insects/Disease" ] <- "insect.disease"
+landfire.dist$Agent[landfire.dist$Agent == "Wildfire" |
+                      landfire.dist$Agent == "Prescribed Fire" |
+                      landfire.dist$Agent == "Wildland Fire Use"|
+                      landfire.dist$Agent == "Wildland Fire"]<- "fire"
+landfire.dist$Agent[landfire.dist$Agent == "Clearcut"|
+                      landfire.dist$Agent == "Harvest"|
+                      landfire.dist$Agent == "Thinning"|
+                      landfire.dist$Agent == "Other Mechanical"|
+                      landfire.dist$Agent == "Mastication"]<- "harvest"
+landfire.dist$Agent[landfire.dist$Agent == "Chemical"|
+                      landfire.dist$Agent == "Herbicide"|
+                      landfire.dist$Agent == "Unknown"|
+                      landfire.dist$Agent == "Insecticide"|
+                      landfire.dist$Agent == "Development"]<- "other"
+landfire.dist$Agent[landfire.dist$Agent == "Weather"]<- "wind"
+
+master.agent.table = rbindlist(list(mtbs.dist,tree.dist,cond.dist,landfire.dist),
+                               use.names = TRUE)
+head(master.agent.table)
+art.regen.plots = master.agent.table[master.agent.table$Agent == "art.regen", ]$PLT_CN
+#there are no plots with artifical regen
+
+View(master.agent.table)
+
+#write.csv(master.agent.table, "master_agent_table2022.csv")
+
+master.agent.table.new <- master.agent.table %>% 
+  left_join(plot, by=c("PLT_CN"="CN")) %>% 
+  dplyr::select("PLT_CN","Agent","dist_year","source","MEASYEAR")
+
+unique.plots.master = unique(master.agent.table.new$PLT_CN)
+Result = matrix(ncol=2, nrow=length(unique.plots.master))
+colnames(Result) = c("PLT_CN", "Fire.TF")
+
+## pull plots where disturbance happened within 10 years of measurement 
+## record plot CN and whether the disturbance was fire (1) or not (0)
+for(i in 1: length(unique.plots.master)){
+  s = master.agent.table.new[master.agent.table.new$PLT_CN == unique.plots.master[i] & 
+                               master.agent.table.new$dist_year > master.agent.table.new$MEASYEAR - 11 &
+                               master.agent.table.new$dist_year <= master.agent.table.new$MEASYEAR, ]
+  t = 'fire' %in% s$Agent
+  r = c(unique(s$PLT_CN), t)
+  Result[i, ] = r
+}
+
+## limit table to just plots that experienced fire in the 10 years prior to measurement
+fire.plots = as.data.table(Result[Result[,"Fire.TF"]==1,])
+head(fire.plots)
+
+## make table with disturbance info for plots that experienced fire in the past ten years. 
+## Only including dist year == MEASYEAR if data came from the tree table. 
+fire.plot.table <- master.agent.table.new %>% 
+  filter(PLT_CN %in% fire.plots$PLT_CN) %>% 
+  filter(Agent == 'fire') %>% 
+  filter(MEASYEAR >= dist_year) %>% 
+  filter(!(!source=='tree_table' & dist_year==MEASYEAR)) %>% 
+  group_by(PLT_CN) %>% 
+  arrange(desc(dist_year)) %>% 
+  filter(row_number()==1)
+
+
+#exlude fire plots from table
+No.fire.agent.table = master.agent.table.new[! master.agent.table.new$PLT_CN
+                                             %in% fire.plot.table$PLT_CN, ]
+#exclude disturbances that occurred after measurement
+No.fire.agent.table <- No.fire.agent.table %>% 
+  filter(! dist_year > MEASYEAR )
+#only exclude fires/harvests that occurred in the year of disturbance, except from the tree table source 
+No.fire.agent.table <- No.fire.agent.table %>%
+  filter(!(Agent %in% c('fire','harvest') & dist_year == MEASYEAR & !source == 'tree_table'))
+#exclude plots disturbed >30 yrs prior to measurement
+No.fire.agent.table = No.fire.agent.table[No.fire.agent.table$dist_year
+                                          >= No.fire.agent.table$MEASYEAR - 30, ]
+
+## find most recent disturbance for each plot
+M = matrix(ncol=ncol(No.fire.agent.table), nrow=0)
+colnames(M) = colnames(No.fire.agent.table)
+
+for(i in 1:length(unique(No.fire.agent.table$PLT_CN))){
+  new = No.fire.agent.table[No.fire.agent.table$PLT_CN == 
+                              unique(No.fire.agent.table$PLT_CN)[i], ]
+  max.yr = new[new$dist_year == max(new$dist_year), ]
+  M = rbind(M, max.yr)
+}
+#recode to order disturbances in most - least important
+M$Agent[M$Agent == "fire"]<- "1"
+M$Agent[M$Agent == "harvest"]<- "2"
+M$Agent[M$Agent == "wind"]<- "3"
+M$Agent[M$Agent == "insect.disease"]<- "4"
+M$Agent[M$Agent == "other"]<- "5"
+
+#only keep most important disturbance 
+M = as.data.frame(M)
+M = M[order(M[,'PLT_CN'], M[,'Agent']), ]
+M = M[!duplicated(M$PLT_CN),]
+
+#checking wind plots
+aggregate(PLT_CN~Agent, data=M, length)
+
+#recode back to disturbance names
+M$Agent[M$Agent == "1"]<- "fire"
+M$Agent[M$Agent == "2"]<- "harvest"
+M$Agent[M$Agent == "3"]<- "wind"
+M$Agent[M$Agent == "4"]<- "insect.disease"
+M$Agent[M$Agent == "5"]<- "other"
+
+fire.plots2 = rbind(M[M$Agent == 'fire', ],fire.plot.table)
+harvest.plots = M[M$Agent == 'harvest', ]
+wind.plots = M[M$Agent == 'wind', ]
+insect.disease.plots = M[M$Agent == 'insect.disease', ]
+other.plots = M[M$Agent == 'other', ]
+all.dist.plots =  rbind(fire.plots2, harvest.plots, wind.plots, insect.disease.plots, other.plots)
+undisturbed = unique_plots[which(! unique_plots$CN %in% all.dist.plots$PLT_CN),c(2,13)]
+colnames(undisturbed)=c("PLT_CN","MEASYEAR")
+undisturbed$Agent = "none"
+undisturbed$dist_year = NA
+undisturbed$source = NA
+undisturbed=undisturbed[c(1,3,4,5,2)]
+
+write.csv(fire.plots2, "fire.plots2022.csv")
+write.csv(harvest.plots, "harvest.plots2022.csv")
+write.csv(wind.plots, "wind.plots2022.csv")
+write.csv(insect.disease.plots, "insect.disease.plots2022.csv")
+write.csv(other.plots, "other.plots2022.csv")
+write.csv(undisturbed, "undisturbed.plots2022.csv")
+write.csv(all.dist.plots, "all.dist.plots2022.csv")
+
+
+###exploring how many disturbances each plot has recorded
+agent.number <- master.agent.table.new %>% 
+  filter(MEASYEAR >= dist_year) %>% 
+  group_by(PLT_CN) %>% 
+  dplyr::summarise(num.agents = length(unique(Agent))) 
+
+####exploring disturbance plots
+all.dist.plots %>% 
+  left_join(agent.number) %>% 
+  ggplot(aes(x=num.agents))+
+  geom_histogram()+
+  facet_wrap(~Agent)
+
+##lets look at insect.disease
+all.dist.plots %>% 
+  left_join(agent.number) %>% 
+  filter(Agent == "insect.disease") %>% 
+  left_join(master.agent.table.new, by="PLT_CN") %>% 
+  filter(num.agents>1) %>% 
+  ggplot(aes(x=Agent.y)) + 
+  geom_histogram(stat='count')
+
+##10 year fire plots
+#this histogram shows the number of disturbance recorded on the plots that had a fire in the most recent 10 years
+#we can see that the majority of plots only had one recorded disturbance (fire), but a good number also had 2
+all.dist.plots %>% 
+  filter(dist_year >= MEASYEAR - 10) %>% 
+  filter(Agent == 'fire') %>% 
+  left_join(agent.number) %>% 
+  group_by(PLT_CN) %>% 
+  ggplot(aes(x=num.agents))+
+  geom_histogram()
+
+#this histogram breaks down which disturbances were on plots that had fire in the most recent 10 years, 
+#but also had another disturbance (or 2 or 3) recorded on the plot
+#we can see that most of the other disturbances were in the "other" or "insect/disease" category which gives me more confidence in 
+#calling these fire plots 
+all.dist.plots %>% 
+  filter(dist_year >= MEASYEAR - 10) %>% 
+  filter(Agent == 'fire') %>% 
+  left_join(agent.number) %>% 
+  group_by(PLT_CN) %>%
+  filter(num.agents>1) %>% 
+  left_join(master.agent.table.new, by="PLT_CN") %>% 
+  group_by(PLT_CN) %>% 
+  ggplot(aes(x=Agent.y))+
+  geom_histogram(stat='count')
+
+```
+
+# Analysis Set-up
+
+These are the packages I need:
+
+```{r,message=FALSE,warning=FALSE}
+library(readr)
+library(tidyr)
+library(dplyr)
+library(plyr)
+library(purrr)
+library(DT)
+library(ggplot2)
+library(ggfortify)
+library(ggpubr)
+library(leaflet)
+library(mapdata)
+library(car)
+library(ggmap)
+library(fitdistrplus)
+library(logspline)
+library(SIBER)
+library(emmeans)
+library(MASS)
+library(rjags)
+library(MuMIn)
+library(stringr)
+library(RColorBrewer)
+library(MVN)
+```
+
+Let's first read in the data.
+
+```{r,warning=FALSE,message=FALSE}
+##read in FIA tree & regen data 
+tree<- read_csv("TREE.csv")
+seedling<- read_csv("SEEDLING.csv")
+plot<- read_csv("annual_plots2020.csv")
+```
+
+```{r}
+#subset plots to those with NF_SAMPLING_STATUS_CD = 1 that were inventoried
+cond<- read_csv("compiled_data_annual2020/COND.csv")
+##read in environmental vars
+env_vars_OG <- read_csv("env_vars_FIA_2022.csv") %>% 
+  dplyr::select(-1)
+
+plot_subset <- plot %>% 
+  filter(CN %in% env_vars_OG$PLT_CN) %>% 
+  left_join(cond, by=c("CN"="PLT_CN")) %>% 
+  filter(!(COND_STATUS_CD == 2 & NF_SAMPLING_STATUS_CD ==0)) %>% 
+  filter(!(COND_STATUS_CD == 2 & NF_PLOT_STATUS_CD == 3))
+
+nrow(plot_subset)
+length(unique(plot_subset$CN))
+
+plot_subset %>% 
+  group_by(CN) %>% 
+  dplyr::summarise(n_conds = n_distinct(COND_STATUS_CD)) %>% 
+  group_by(n_conds) %>% 
+  dplyr::summarise(n_plots=n()) #all plots only have one condition status (Either forest or nonforest)
+
+```
+
+```{r}
+#filter env_vars to just plots in new subset
+env_vars <- env_vars_OG %>% 
+  filter(PLT_CN %in% plot_subset$CN)
+```
+
+Now I will summarize the number of adults and seedlings of each species in each plot.
+
+```{r,echo=FALSE,warning=FALSE,message=FALSE, results='hide'}
+adults <- tree %>% 
+  group_by(SPCD,PLT_CN) %>% 
+  dplyr::summarise(n = n())
+
+head(adults)
+
+seeds <- seedling %>% 
+  group_by(SPCD, PLT_CN) %>% 
+  dplyr::summarise(n = n()) 
+
+
+head(seeds)
+```
+
+```{r,warning=FALSE, message=FALSE, echo=FALSE}
+##read in plots by disturbance type
+fire<- read_csv("fire.plots2022.csv")
+ID<- read_csv("insect.disease.plots2022.csv")
+harvest<- read_csv("harvest.plots2022.csv")
+other<- read_csv("other.plots2022.csv")
+wind<- read_csv("wind.plots2022.csv")
+undis<- read_csv("undisturbed.plots2022.csv")
+
+dist <- bind_rows(fire,ID,harvest,other,wind,undis)%>% 
+  filter(PLT_CN %in% plot_subset$CN)
+
+#write.csv(dist, "FIA_plot_disturbance_data.csv")
+```
+
+
+```{r,echo=FALSE,eval=FALSE}
+survey_data<- dist %>% 
+  left_join(plot, by=c("PLT_CN" = "CN"))
+
+survey_data %>% 
+  group_by(DESIGNCD) %>% 
+  dplyr::summarise(n=n()) #all plots are design code = 1 = standard plot design 
+
+##disturbance types sample size
+dist %>% 
+  group_by(Agent) %>% 
+  dplyr::summarise(n=n())
+```
+
+Join disturbance data with adult and seedling dataframes. There are NA's in the data because the adults and seeds dataframes have all plots, where as the disturbance dataframe only has plots that met my criteria. So this is ok.
+
+```{r,echo=FALSE}
+dist_adults_joined <- left_join(adults, dist, by="PLT_CN") %>% 
+  mutate(tsd=MEASYEAR-dist_year)
+head(dist_adults_joined)
+summary(is.na(dist_adults_joined)) #there are NAs for the plots that are not in my analysis, this is ok 
+
+##this table shows the number of seedling plots surveyed each year. We will just use those surveyed from 2009-2018
+left_join(seeds, dist, by="PLT_CN") %>% group_by(MEASYEAR) %>% tally() %>% datatable()
+
+dist_seeds_joined <- left_join(seeds, dist, by="PLT_CN") %>% 
+  filter(MEASYEAR > 2008) %>% 
+  mutate(tsd= MEASYEAR-dist_year)
+head(dist_seeds_joined)
+summary(is.na(dist_seeds_joined)) #there are NAs for the plots that are not in my analysis, this is ok 
+
+```
+
+##time since disturbance
+```{r}
+dist_tsd<- dist_seeds_joined %>% 
+  filter(Agent %in% c("fire","insect.disease")) %>% 
+  filter(! source == "tree_table")
+
+ggplot(dist_tsd %>% filter(tsd>0))+
+  geom_histogram(aes(x=tsd))+
+  facet_wrap(~Agent, scales="free")
+ 
+ggplot(dist_tsd %>% filter(tsd>0))+
+  geom_boxplot(aes(x=Agent, y=tsd))
+##time since disturbance for insect/disease was much shorter on average than for fire. 
+ 
+dist_tsd %>% 
+  ungroup() %>% 
+  dplyr::group_by(Agent) %>% 
+  dplyr::summarise(meantsd = mean(tsd), sdtsd=sd(tsd), mintsd=min(tsd), maxtsd=max(tsd))
+
+##calculate area of microplots
+pi*((6.8/3.281)^2)*4
+```
+
+##Selecting species for analysis 
+
+I will use both the most recent surveys and the previous survey (if applicable) to tally adult presence at a plot. If the adult of a species was present in at least one of the surveys (either alive or dead), that plot will be counted as having adults of that species present. 
+```{r, echo=FALSE, results='hide'}
+### count plots as containing adults if either the most current survey OR the previous survey documented the species ###
+
+#make data frame linking most recent plot CN to previous plot CN
+recent.plots <- dist %>% 
+                  dplyr::select("PLT_CN")
+
+plot_progression <- left_join(recent.plots, plot, by=c("PLT_CN"="CN")) %>%
+  dplyr::select(c("PLT_CN","PREV_PLT_CN"))
+
+#make datatable with species recorded in most recent survey (SPCD) and in the previous survey (SPCD.prev)
+prev_plot_spp <- plot_progression %>% 
+  filter(!is.na(PREV_PLT_CN)) %>% 
+  dplyr::select("PREV_PLT_CN") %>% 
+  left_join(adults, by=c("PREV_PLT_CN" = "PLT_CN")) %>% 
+  left_join(plot_progression, by="PREV_PLT_CN") %>% 
+  dplyr::rename(SPCD.prev = SPCD, n.prev = n) %>% 
+  right_join(dist_adults_joined, by="PLT_CN") %>% 
+  filter(!is.na(Agent))
+
+length(unique(prev_plot_spp$PREV_PLT_CN))
+length(unique(prev_plot_spp$PLT_CN))
+
+#looking at differences in species codes between recent and previous surveys
+species.sum <- prev_plot_spp %>% 
+  group_by(PLT_CN, Agent) %>% 
+  dplyr::summarise(spp = toString(unique(SPCD)),spp.prev = toString(unique(SPCD.prev)))
+#look at just plots where species differ between recent and previous surveys
+species.sum %>% 
+  filter(!spp == spp.prev) %>% 
+  filter(!spp.prev=="NA")
+
+## melt dataframe so that all species are listed under "SPCD", whether identified in most recent survey or previous survey. Clean up the dataframe by removing unneccesary columns. Then remove duplicated rows that were created when recent survey was fully joined with previous survey 
+species.sum.long<- prev_plot_spp %>% 
+  pivot_longer(c(SPCD.prev, SPCD), names_to="period", values_to="SPCD") %>% 
+  dplyr::select(-one_of(c("n.prev","n","period"))) %>%
+  distinct()
+```
+
+The histogram below displays the year that plots in the analysis were measured. Some plots were measured twice, and we used both surveys to detect adult presence. These plots (~40%) have both the recent survey year (all between 2010-2018) and the previous survey year (all between 2000-2013) displayed in the histogram. Some plots (~60%) were only surveyed once, and their year of measurement is shown in pink (surveyed between 1995-2018). The second histogram displays the difference in years between the first and second survey for all plots that were surveyed twice.  
+
+```{r, echo=FALSE}
+##look at when recent vs. previous surveys were done
+timeline <- left_join(recent.plots, plot, by=c("PLT_CN"="CN")) %>% 
+                      dplyr::select(c("PLT_CN","PREV_PLT_CN","MEASYEAR")) %>% 
+                        left_join(plot, by=c("PREV_PLT_CN"="CN")) %>% 
+                          dplyr::select(c("PLT_CN","PREV_PLT_CN","MEASYEAR.x","MEASYEAR.y")) %>% 
+                            dplyr::rename(MEASYEAR.rec = MEASYEAR.x, MEASYEAR.prev = MEASYEAR.y) %>% 
+                              dplyr::mutate(year.diff = MEASYEAR.rec - MEASYEAR.prev) 
+par(mfrow=c(1,1))
+#####histogram of 3 plot time periods
+hist(timeline[is.na(timeline$PREV_PLT_CN),]$MEASYEAR.rec,col=rgb(1,0,0,0.5),breaks=24, main="Histogram of plot measurement year",xlab="Measurement Year") #plots that didn't have a previous survey were surveyed from 1995 - 2018
+hist(timeline[!is.na(timeline$PREV_PLT_CN),]$MEASYEAR.rec,col=rgb(0,0,1,0.3),breaks=9,add=TRUE) #all plots that had a previous survey had their most recent survey between 2010 - 2018
+hist(timeline$MEASYEAR.prev, col=rgb(1,1,0,0.2),breaks=14, add=TRUE) #previous surveys were all measured between 2000 - 2013
+legend("topright",legend=c("MEASYEAR of plots with only 1 survey","recent MEASYEAR of plots with 2 surveys", "previous MEASYEAR of plots with 2 surveys"),fill=c(rgb(1,0,0,0.5),rgb(0,0,1,0.3),rgb(1,1,0,0.2)))
+######
+
+##number of plots in each category
+no.prev.surv.plots <- length(timeline[is.na(timeline$PREV_PLT_CN),]$MEASYEAR.rec) 
+no.prev.surv.plots#plots that didn't have a previous survey 
+prev.surv.plots<- length(timeline[!is.na(timeline$PREV_PLT_CN),]$MEASYEAR.rec) 
+prev.surv.plots#plots that had a previous survey 
+no.prev.surv.plots/(prev.surv.plots+no.prev.surv.plots) #57% of plots in analysis only had one survey
+
+##difference in years between first and second survey
+par(mfrow=c(1,1))
+hist(timeline$year.diff, main="Histogram of number of years between surveys") #most plots have 10 years between surveys
+```
+
+Since some the plots have a most recent survey as early as 1995- 2006, we want to exclude these plots from our seedling sample, as seedlings present in 1995 are likely to be adult trees now and do not really capture the newer cohort of trees that we would expect to have been influenced by recent climate warming. Therefore, we will only look at plots most recently surveyed in or after 2009, which will include the later chunk of plots with only one survey and all the most recent visits of plots with two surveys. Below are tables of sample sizes for each species and disturbance type. The first shows adult sample sizes and the second shows seedling sample sizes.
+
+```{r, echo=FALSE,warning=FALSE,message=FALSE}
+#calculate sample size for adults and seedlings
+adult_sample_cmbsurv <- species.sum.long %>%
+  filter(!is.na(SPCD)) %>% 
+  group_by(SPCD, Agent) %>% 
+  dplyr::summarise(n_plots = n_distinct(PLT_CN))
+datatable(adult_sample_cmbsurv)
+
+sample_seeds <- dist_seeds_joined %>% 
+  filter(!is.na(Agent)) %>%
+  filter(MEASYEAR > 2008) %>% #only look at seedling data from plots surveyed in the later chunk of surveys
+  group_by(SPCD, Agent) %>% 
+  dplyr::summarise(n_plots = n_distinct(PLT_CN))
+datatable(sample_seeds, caption = "Seedling Sample Size")
+```
+
+Let's set the minimum number of plots at 60. Since there are always less seedling plots than adult plots, we will look at the seedlings first. We will also only look at fire, insect/disease, and undisturbed categories since the other disturbance categories have very low sample sizes. 
+
+```{r, echo=FALSE}
+#seedling sample 
+sample_seeds_over60 <- sample_seeds %>% 
+  filter(n_plots >= 60) %>% 
+  filter(!Agent %in% c("harvest","other",'wind')) %>% 
+  group_by(SPCD) %>% 
+  dplyr::summarise(dist_over60 = n_distinct(Agent), disturbance = list(Agent)) %>% 
+  filter(dist_over60 > 1) 
+
+#make a dataframe to translate species codes to names
+species.names <- data.frame(species.code = c(15,17,19,66,73,93,101,106,108,113,122,133,202,242,746,814), species.name = c("white fir","grand fir","subalpine fir","Rocky Mountain juniper","western larch","Engelmann spruce","whitebark pine","two needle pinyon","lodgepole pine","limber pine","ponderosa pine","singleleaf pinyon","Douglas-fir","western redcedar","trembling aspen","Gambel oak"))
+species.names<- species.names %>% 
+  mutate(species.code = as.numeric(species.code))
+
+sample_seeds_over60 %>% 
+  left_join(species.names, by=c("SPCD"="species.code")) %>% 
+  datatable() #picked up western larch and rocky mountain juniper in 2/3 disturbances (insect.disease and none for juniper and fire and none for western larch.)
+```
+There are 16 species in the FIA database that have 60 or more plots in at least 2 of the 3 disturbance types with seedlings present. 
+
+This is a sample size table for each species, age and disturbance
+
+```{r,echo=FALSE}
+sample_size <- adult_sample_cmbsurv %>% 
+  filter(SPCD %in% species.names$species.code) %>% 
+  filter(!Agent %in% c('harvest','other','wind')) %>% 
+  dplyr::rename(n.adult = n_plots) %>% 
+  left_join(sample_seeds) %>% 
+  dplyr::rename(n.seed = n_plots) %>% 
+  left_join(species.names, by=c("SPCD"="species.code"))
+
+sample_size_wide<- sample_size %>% 
+  filter(Agent == "fire") %>% 
+  dplyr::rename(n.adult.fire = n.adult, n.seed.fire = n.seed) %>% 
+  dplyr::select(-Agent) %>% 
+  left_join(sample_size %>% 
+  filter(Agent == "insect.disease") %>% 
+  dplyr::rename(n.adult.ID = n.adult, n.seed.ID = n.seed) %>% 
+  dplyr::select(-Agent),
+    by="species.name") %>% 
+  left_join(sample_size %>% 
+  filter(Agent == "none") %>% 
+  dplyr::rename(n.adult.none = n.adult, n.seed.none = n.seed) %>% 
+  dplyr::select(-Agent),
+    by="species.name") %>% 
+  dplyr::select(species.name, n.seed.fire, n.adult.fire, n.seed.ID, n.adult.ID, n.seed.none, n.adult.none)
+
+#write.csv(sample_size_wide, "sample_size_wide.csv")
+
+insectonlyspp <- sample_size %>% 
+  filter(n.seed < 60 & Agent == "fire") %>% 
+  pull(species.name)
+fireonlyspp <- sample_size %>% 
+  filter(n.seed < 60 & Agent == "insect.disease") %>% 
+  pull(species.name)
+```
+
+And the below plots show sample size for each species within each disturbance type graphically. 
+
+```{r}
+adult.sample <- ggplot(sample_size,aes(x=Agent, y=n.adult, fill=factor(species.name)))+
+  geom_bar(stat='identity',position='dodge2')+
+  ggtitle("Number of plots with Adults")+
+  xlab("")+ylab("# plots")+
+    ylim(c(0,4000))+
+  scale_fill_discrete(name = "Species")
+
+seedling.sample <- ggplot(sample_size,aes(x=Agent, y=n.seed, fill=factor(species.name)))+
+  geom_bar(stat='identity',position='dodge2')+
+  ggtitle("Number of plots with Seedlings")+
+  xlab("")+ylab("# plots")+
+  ylim(c(0,4000))+
+  scale_fill_discrete(name = "Species")
+
+ggarrange(adult.sample,seedling.sample, common.legend = TRUE)
+```
+
+Looking at the seedling and adult sample sizes, western redcedar in fire plots and  sestern larch in insect/disease plots have extremely low sample sizes. We will keep this in mind when interpreting results. We will exclude singleleaf pinyon from the analysis because the plots in this analysis do not seem to capture the full range of this species (it's niche is weirdly cut off in climate space).  
+
+```{r}
+#look at sample size of seedling only plots
+
+seedlingonly.sample = data.frame()
+
+for(i in 1:nrow(species.names)){
+n.seedonly <- dist_seeds_joined %>% 
+  filter(SPCD == species.names$species.code[i]) %>% 
+  filter(! PLT_CN %in% c(species.sum.long %>% filter(SPCD == species.names$species.code[i]) %>% pull(PLT_CN))) %>%
+  dplyr::group_by(Agent,SPCD) %>% 
+  dplyr::summarise(n.seedonly=n())
+seedlingonly.sample = rbind(seedlingonly.sample, n.seedonly)
+}
+
+View(sample_size %>% 
+  left_join(seedlingonly.sample))
+
+```
+
+##Measurement years distribution
+
+The histograms below show the distribution of recent (blue) and previous (green) measurement years for the plots where adults and seedlings of each species were found.  
+```{r, echo=FALSE}
+spp_hist_data <- species.sum.long %>%
+  left_join(plot, by=c("PREV_PLT_CN" = "CN")) %>%
+  dplyr::select(c(PREV_PLT_CN:SPCD,MEASYEAR.y)) %>%
+  dplyr::rename("Prev.MEASYEAR" = "MEASYEAR.y","MEASYEAR"="MEASYEAR.x")
+par(mfrow=c(5,3))
+
+pdf("measurement_years.pdf")
+for(i in 1:length(species.names$species.code)){
+hist(spp_hist_data[spp_hist_data$SPCD==species.names$species.code[i],]$MEASYEAR, col=rgb(0,0,1,0.5), breaks=(max(spp_hist_data[which(spp_hist_data$SPCD==species.names$species.code[i] & !is.na(spp_hist_data$MEASYEAR)),]$MEASYEAR) - min(spp_hist_data[which(spp_hist_data$SPCD==species.names$species.code[i] & !is.na(spp_hist_data$MEASYEAR)),]$MEASYEAR))+1, main=paste("Histogram for",species.names$species.name[i],"adults",sep=" "),xlab="Measurement Year")
+hist(spp_hist_data[spp_hist_data$SPCD==species.names$species.code[i],]$Prev.MEASYEAR, col=rgb(0,1,0,0.3), breaks=(max(spp_hist_data[which(spp_hist_data$SPCD==species.names$species.code[i] & !is.na(spp_hist_data$Prev.MEASYEAR)),]$Prev.MEASYEAR) - min(spp_hist_data[which(spp_hist_data$SPCD==species.names$species.code[i] & !is.na(spp_hist_data$Prev.MEASYEAR)),]$Prev.MEASYEAR))+1, add=TRUE)
+}
+dev.off()
+```
+
+```{r, echo=FALSE}
+#seedling histograms
+pdf("measurement_year_seedlings.pdf")
+for(i in 1:length(species.names$species.code)){
+hist(dist_seeds_joined[dist_seeds_joined$SPCD == species.names$species.code[i],]$MEASYEAR, col=rgb(0,0,1,0.5), breaks=(max(dist_seeds_joined[which(dist_seeds_joined$SPCD==species.names$species.code[i] & !is.na(dist_seeds_joined$MEASYEAR)),]$MEASYEAR) - min(dist_seeds_joined[which(dist_seeds_joined$SPCD==species.names$species.code[i] & !is.na(dist_seeds_joined$MEASYEAR)),]$MEASYEAR))+1,  main=paste("Histogram for",species.names$species.name[i],"seedlings",sep=" "),xlab="Measurement Year")
+}
+dev.off()
+```
+
+```{r, echo=FALSE}
+##create function that appends climate data to each species/lifestage/disturbance
+
+#' merge_sp_dist_env
+#'
+#' @param joined_df dataframe with disturbance and species data joined. Either species.sum.long or dist_seeds_joined
+#' @param sp_code code for desired species. Can be found in FIA user guide. 
+#' @param agent_name name of the desired disturbance. Either fire, insect.disease, harvest, other or none. 
+#' @param env_vars environmental variables dataframe. Called env_vars here. 
+#'
+#' @return dataframe with environmental variables associated with each plot for a desired species/lifestage/disturbance combination 
+#' @export
+#'
+#' @examples
+merge_sp_dist_env <- function(joined_df, sp_code, agent_name, env_vars) {  sp_dist_env <- joined_df %>% 
+    filter(SPCD == sp_code &
+             Agent == agent_name) %>% 
+    dplyr::select(SPCD, PLT_CN, Agent, dist_year, source, tsd) %>% 
+    left_join(env_vars, by = "PLT_CN")
+  
+  return(sp_dist_env)
+}
+
+   
+#FIA codes for all desired species (n=16) and disturbances (n=3)
+sp_codes <- as.character(unique(sample_seeds_over60$SPCD))
+dist_names <- c("fire","insect.disease","none")
+
+#put environmental data for each species/disturbance combination in a dataframe within a list for adults
+adult_data <- list()
+for(i in 1:length(sp_codes)){
+  for(j in 1:length(dist_names)){
+    df <- merge_sp_dist_env(species.sum.long, sp_codes[i], dist_names[j], env_vars)
+    adult_data[[paste(sp_codes[i],"_",dist_names[j],"_cvars",sep="")]]<- df
+  }
+}
+#list for seedlings 
+seedling_data <- list()
+for(i in 1:length(sp_codes)){
+  for(j in 1:length(dist_names)){
+    df <- merge_sp_dist_env(dist_seeds_joined, sp_codes[i], dist_names[j], env_vars)
+    seedling_data[[paste(sp_codes[i],"_",dist_names[j],"_cvars",sep="")]]<- df
+  }
+}
+```
+
+```{r}
+##writing out adult and seedling data with environmental vars
+#write.csv(adult_data[[1]],paste(names(adult_data)[1],".csv",sep=""))
+```
+
+```{r}
+#messing with colors
+# nrow(pca_pts_by_dist)/15
+# nrow(pca_pts_by_dist) - length(rep(seq(1,15,1),1668))
+
+ggplot(data.frame(x=seq(1,15),y=rep(1,15)), aes(x=x, y=y, col=x))+
+  geom_point(size=4)+
+  scale_color_gradientn(colors=c("firebrick","#F37408","#EBC021","olivedrab","aquamarine3","deepskyblue4","slateblue","orchid4"))
+
+pal<- scales::gradient_n_pal(colours=c("firebrick","#F37408","#EBC021","olivedrab","aquamarine3","deepskyblue4","slateblue","orchid4"),values=seq(1,15))
+
+spp.colors<- data.frame(x=seq(1,15),y=rep(1,15)) %>% 
+  mutate(color=pal(x))
+```
+
+#Analysis
+
+##Principal Components Analysis
+
+I will first run a principal components analysis (PCA) on a suite of climate variables for all plots included in the analysis. Climate variables were collected from PRISM and [ClimateWNA] (<https://sites.ualberta.ca/~ahamann/data/climatewna.html>). First I will evaluate which climate variables are highty correlated (\>0.9) and only keep one of each highly correlated pair.
+
+```{r}
+#first look at correlations in climate variables
+colnames(env_vars)
+
+env_vars %>% 
+  dplyr::select(-PLT_CN,-X,-RSCD,-INVYR,-ANN_INV,-CYCLE,-td) %>% 
+  cor() %>% 
+  abs()>0.9
+##CMD is only super correlated to temperature variables and not precipitation variables, which makes me think it is overall more driven by temperature than precipitation
+
+env_vars_cut <- env_vars %>% 
+  dplyr::select(-PLT_CN,-X,-RSCD,-INVYR,-ANN_INV,-CYCLE,-td, -ppt, -tmean, -tmax, - tmin, -vpdmin, -vpdmax, -mwmt, -ahm, -DD5, -bffp, -effp, -emt, -eref, -tave_wt, -tave_sm, -ppt_sm)
+
+env_vars_cut %>%
+  cor() %>%
+  abs()>0.9
+```
+
+```{r,eval=FALSE,echo=FALSE}
+#look at linearity of relationships
+ncol(env_vars_cut)
+# 
+# pdf(file="C:/Users/Katie/Google Drive/FIA project/FIA_rproject/pre_trans_pairs_2023.pdf")
+# 
+# pairs(env_vars_cut, lower.panel = NULL)
+# 
+# dev.off()
+```
+
+```{r, echo=FALSE}
+##log-transform precipitation variables to make relationships between climate variables more linear 
+env_vars_cut_trans <- env_vars_cut %>% 
+  mutate(MSP_log = log(msp),SHM_log = log(shm), PPT_wt_log = log(ppt_wt), PAS_log = log(pas+0.999), DD_0_log = log(dd_0), .keep="unused")
+```
+
+```{r,eval=FALSE}
+#check linearity of relationships with plots
+#these take a while to produce
+
+# pdf(file="C:/Users/Katie/Google Drive/FIA project/FIA_rproject/post_trans_pairs.pdf")
+# 
+# pairs(env_vars_cut_trans, lower.panel=NULL)
+# 
+# dev.off()
+```
+
+After removing some variables due to high correlation, some of the precipitation variables were log-transformed to make relationships linear, which is an assumption of PCA. The climate variable codes which were kept and their definitions are as follows:
+
+-   CMD: climate moisture deficit
+-   DD_0: degree days below 0 degrees Celsius
+-   MCMT: mean temperature of the coldest month (Celsius)
+-   MSP_log: log-transformed mean summer (May - Sept) precipitation (mm)
+-   NFFD: number of frost-free degree days
+-   PAS_log: log-transformed precipitation as snow (mm)
+-   PPT_wt_log: log-transformed winter (Dec - Feb) precipitation (mm)
+-   SHM_log: log-transformed summer heat moisture index (mean temperature of the warmest month/ (mean summer precipitation/1000))
+
+After running the PCA on these variables, we see that the first two components capture 90% of the variability in climate data.
+
+```{r, echo = FALSE}
+#run the PCA on transformed climate variables
+# set.seed(83)
+# clim_pca <- prcomp(env_vars_cut_trans,scale.=T) #proceed from correlation matrix, which scales variables--important because our variables have different units
+# saveRDS(clim_pca, file = "FIA_pca_2022_subset.RDS")
+clim_pca <- readRDS("FIA_pca_2022_subset.RDS")
+
+##to get eigenvalues, we do the square of the stdev
+eigenvals <- (clim_pca$sdev)^2
+eigenvals
+sum(eigenvals) #the sum of the eigenvalues = the number of variables (8)
+eigenvals/sum(eigenvals)#this is the proportion variance explained
+summary(clim_pca)
+par(mfrow=c(1,1))
+plot(clim_pca,type="l")
+```
+
+The variables most strongly correlated with PC1 are climate moisture deficit (CMD), precipitation as snow (PAS),  degree days below zero (DD_0), and mean temperature of the coldest month (MCMT). The variables most strongly correlated with PC2 are mean summer precipitation (MSP), and summer heat moisture index (SHM_log).
+
+```{r, echo=FALSE}
+as.data.frame(clim_pca$rotation[,1:2]) %>% 
+  tibble::rownames_to_column() %>% 
+  arrange(desc(abs(PC1)))
+as.data.frame(clim_pca$rotation[,1:2]) %>% 
+  tibble::rownames_to_column() %>% 
+  arrange(desc(abs(PC2)))
+as.data.frame(clim_pca$rotation[,1:3]) %>% 
+  tibble::rownames_to_column() %>% 
+  arrange(desc(abs(PC3))) #PC3 separates monsoonal areas from dry summer/wet winter areas
+
+as.data.frame(clim_pca$rotation[,1:2]) %>% 
+  tibble::rownames_to_column() %>% 
+  mutate(diff=abs(abs(PC1)-abs(PC2))) %>% 
+  arrange(diff)
+```
+
+```{r, echo=FALSE}
+#plot pca and climate variable loadings
+
+# png("figures/FIA_pca22_subset_realnames.png", width = 700, height = 400)
+
+#make climate variables real words
+
+loadings.df<- as.data.frame(clim_pca$rotation) %>% 
+  mutate(x=c(-1,-3.4,-3.2,2,-3.2,2.3,3.2,2.5), y=c(-2,-1.5,0,-4,1.9,-1.5,1,2.5), names = c(str_wrap("mean temp coldest month", width=14),str_wrap("# frost free degree days",width=14), str_wrap("climate moisture  deficit", width=14),str_wrap("log(mean summer precip)",width=14), str_wrap( "log(summer heat moisture index)",width=14),str_wrap("log(winter precip)",width=14),str_wrap("log(precip  as snow)",width=14), str_wrap("log(degree days below 0)",width=14)))
+
+
+autoplot(clim_pca,x=1,y=2,colour="grey",loadings.colour="red", loadings=T, loadings.label=F, loadings.label.colour="black", scale=0, loadings.label.vjust=c(.5,-.3,-.5,-.3,-.4,-.05,1.4,0), loadings.label.hjust=c(1.1,1,0,-.1,1.1,-.05,0,-.1), loadings.label.size=6, alpha=0.5)+
+  geom_hline(yintercept=0,linetype="dashed")+geom_vline(xintercept=0,linetype="dashed")+
+  geom_abline(intercept=0, slope = 1, linetype="dashed")+
+  geom_abline(intercept=0, slope = -1, linetype="dashed")+
+  annotate("text",x=-0.4,y=3.2,label="cold/dry",size=6,angle=90)+
+  annotate(geom="text",x=5.2,y=-0.2,label="cold/wet",size=6)+
+  annotate(geom="text",x=-0.4,y=-4,label="hot/wet",size=6,angle=90)+
+  annotate(geom="text",x=-10,y=- 0.2,label="hot/dry",size=6)+
+  annotate(geom="text",x=3.2,y= 3.6,label="cold",size=6, angle=45)+
+  annotate(geom="text",x=5,y= -4.5,label="wet",size=6, angle=-45)+
+  annotate(geom="text",x=-5,y= -4.5,label="hot",size=6, angle=45)+
+  annotate(geom="text",x=-3.2,y= 3.7,label="dry",size=6, angle=-45)+
+  annotate(geom="text", x=loadings.df$x,y=loadings.df$y, label=loadings.df$names, size=4.5) +
+  theme_bw()+
+  theme(axis.text = element_text(color="black",size=18),text = element_text(size=18, lineheight = 0.1),legend.text = element_text(size=18))
+
+# dev.off()
+
+##make blank version
+png("figures/blank_pca.png", width = 700, height = 400)
+autoplot(clim_pca,x=1,y=2,colour="grey",loadings.colour="red", loadings=F, loadings.label=F, loadings.label.colour="black", scale=0, loadings.label.vjust=c(.5,-.3,-.5,-.3,-.4,-.05,1.4,0), loadings.label.hjust=c(1.1,1,0,-.1,1.1,-.05,0,-.1), loadings.label.size=6, alpha=0.5)+
+  geom_hline(yintercept=0,linetype="dashed")+geom_vline(xintercept=0,linetype="dashed")+
+  geom_abline(intercept=0, slope = 1, linetype="dashed")+
+  geom_abline(intercept=0, slope = -1, linetype="dashed")+
+  annotate("text",x=-0.4,y=3.2,label="cold/dry",size=6,angle=90)+
+  annotate(geom="text",x=5.2,y=-0.2,label="cold/wet",size=6)+
+  annotate(geom="text",x=-0.4,y=-4,label="hot/wet",size=6,angle=90)+
+  annotate(geom="text",x=-10,y=- 0.2,label="hot/dry",size=6)+
+  annotate(geom="text",x=3.2,y= 3.6,label="cold",size=6, angle=45)+
+  annotate(geom="text",x=5,y= -4.5,label="wet",size=6, angle=-45)+
+  annotate(geom="text",x=-5,y= -4.5,label="hot",size=6, angle=45)+
+  annotate(geom="text",x=-3.2,y= 3.7,label="dry",size=6, angle=-45)+
+  #annotate(geom="text", x=loadings.df$x,y=loadings.df$y, label=loadings.df$names, size=4.5) +
+  theme_bw()+
+  theme(axis.text = element_text(color="black",size=18),text = element_text(size=18, lineheight = 0.1),legend.text = element_text(size=18))
+dev.off()
+```
+
+```{r}
+##Looking at how latitude and elevation vary across the 2D PCA space
+env_vars %>% 
+  left_join(plot, by=c("PLT_CN"="CN")) %>% 
+  bind_cols(clim_pca$x) %>% 
+ggplot(aes(x=PC1,y=PC2,color=LAT, alpha=0.5))+
+  geom_point()
+
+env_vars %>% 
+  left_join(plot, by=c("PLT_CN"="CN")) %>% 
+  bind_cols(clim_pca$x) %>% 
+ggplot(aes(x=PC1,y=PC2,color=ELEV))+
+  geom_point()+
+  scale_color_viridis_c(option="magma")
+```
+
+```{r, echo = FALSE}
+#make dataframe with PCA coordinates of all plots 
+clim_pca_points <- as.data.frame(clim_pca$x)
+clim_pca_points <- clim_pca_points %>% 
+  bind_cols(plot = env_vars$PLT_CN)
+
+##look at how time since disturbance is distributed across the PCA space
+tsd_pca<- clim_pca_points %>% left_join(dist_tsd, by=c("plot" = "PLT_CN")) %>%
+  filter(!is.na(tsd))
+
+ggplot(tsd_pca, aes(x=PC1, y=tsd))+
+  geom_jitter(alpha=0.3)+
+  geom_smooth(method="lm")+
+  facet_grid(~Agent)
+
+ggplot(tsd_pca , aes(x=PC2, y=tsd))+
+  geom_jitter(alpha=0.3)+
+  geom_smooth(method="lm")+
+  facet_grid(~Agent)
+
+tsd_mod_pc1 <- lm(tsd ~ PC1*Agent, data=tsd_pca)
+summary(tsd_mod_pc1)
+Anova(tsd_mod_pc1, type="3")
+
+#left join the positions on the PCA for adults and seedlings in all disturbance types by their plot ID #s
+adult_data_pcapts <-
+  map2( .x = seq_along( along.with = adult_data )
+        , .y = adult_data
+        , .f = function( i, j )
+          {
+          left_join( x = j, 
+                     y = clim_pca_points, 
+                     by=c("PLT_CN" = "plot") )
+          })
+names(adult_data_pcapts)<- names(adult_data)
+
+seedling_data_pcapts <-
+  map2( .x = seq_along( along.with = seedling_data )
+        , .y = seedling_data
+        , .f = function( i, j )
+          {
+          left_join( x = j, 
+                     y = clim_pca_points, 
+                     by=c("PLT_CN" = "plot") )
+          })
+names(seedling_data_pcapts) <- names(seedling_data)
+
+```
+
+
+These boxplots display the range of PC1 and PC2 coordinates that plots within each disturbance category occupy. The disturbances are pretty evenly distributed across climate space, with insect/disease plots occupying slightly higher values on PC1 and PC2, which correspond to cooler and wetter climates, and fire plots occupying slightly lower values on PC1 and PC2, corresponding to warmer and drier climates, with undisturbed plots having a median climate even hotter and drier than the other two disturbance categories (but also with the most variation). ANOVAs indicate that these three disturbances are all significantly different from each other in their positions on both PC1 and PC2, likely in part due to the extremely high sample size. 
+
+```{r, echo=FALSE}
+#color palette
+disturbance.colors<- c("#bb5f4c","#8e5db0","#729b57")
+
+#summarize position on PC1 and 2 of plots in each disturbance category. 
+pca_pts_by_dist <- clim_pca_points %>% 
+  left_join(dist, by=c("plot" = "PLT_CN"))
+
+ggplot(pca_pts_by_dist[which(! pca_pts_by_dist$Agent %in% c("other","harvest","wind")),], aes(x=Agent,y=PC1,fill=Agent))+
+  geom_boxplot()+
+  scale_fill_manual(values=disturbance.colors)+
+  theme_bw()
+
+#significant differnces in disturbances? yes
+pc1.agent.mod <- aov(PC1~Agent, data=pca_pts_by_dist %>% filter(!Agent %in% c("other","harvest","wind")))
+summary(pc1.agent.mod)
+TukeyHSD(pc1.agent.mod)
+
+##PC2
+pc2.agent.mod <- aov(PC2~Agent, data=pca_pts_by_dist %>% filter(!Agent %in% c("other","harvest","wind")))
+summary(pc2.agent.mod)
+TukeyHSD(pc2.agent.mod)
+
+ggplot(pca_pts_by_dist[which(! pca_pts_by_dist$Agent %in% c("other","harvest","wind")),], aes(x=Agent,y=PC2,fill=Agent))+
+  geom_boxplot()+
+  scale_fill_manual(values=disturbance.colors)+
+  theme_bw()
+```
+
+##Ellipses
+
+
+```{r}
+#left join the positions on the PCA for adults and seedlings in all disturbance types by their plot ID #s
+
+# clim_data <- list()
+# for(i in 1:length(adult_data)){
+#     temp_clim <- rbind(adult_data[[i]],seedling_data[[i]]) %>%
+#       mutate(dd_0_log=log(dd_0), ppt_wt_log = log(ppt_wt)) %>% 
+#       dplyr::select(dd_0_log,ppt_wt_log) %>% 
+#   mutate(group=c(rep(1,nrow(adult_data[[i]])),rep(2,nrow(seedling_data[[i]]))),community=1) %>% 
+#     dplyr::rename(iso1=dd_0_log,iso2=ppt_wt_log)
+#     clim_data[[i]]<- temp_clim
+# }
+# names(clim_data)<-names(adult_data)
+# 
+# clim_data
+```
+
+
+```{r, echo=FALSE}
+#make iso data into list of SIBER objects
+
+# siber.objs.hot <- list()
+# for(i in 1:length(clim_data)){
+#   temp.obj<- createSiberObject(as.data.frame(clim_data[[i]]))
+#   siber.objs.hot[[i]]<- temp.obj
+# }
+# names(siber.objs.hot)<-names(adult_data)
+# #
+```
+
+```{r, echo=FALSE}
+#estimate multivariate normal ellipses for each group using bayesian estimation
+
+# options for running jags
+
+# parms <- list()
+# parms$n.iter <- 2 * 10^4   # number of iterations to run the model for
+# parms$n.burnin <- 1 * 10^3 # discard the first set of values
+# parms$n.thin <- 10     # thin the posterior by this many
+# parms$n.chains <- 2        # run this many chains
+# 
+# 
+# # set save.output = TRUE
+# parms$save.output = TRUE
+# parms$save.dir = getwd()
+# 
+# # # define the priors
+# #
+# priors <- list()
+# priors$R <- 1 * diag(2)
+# priors$k <- 2
+# priors$tau.mu <- 1.0E-3
+# 
+# # # fit the ellipses which uses an Inverse Wishart prior on the covariance matrix Sigma, and a vague normal prior on the means. Fitting is via the JAGS method.
+# 
+# ellipses.posterior.list.hot <- list()
+# for(i in 1:length(siber.objs.hot)){
+#   temp.mvn <- siberMVN(siber.objs.hot[[i]], parms, priors)
+#   ellipses.posterior.list.hot[[i]] <- temp.mvn
+#   }
+# names(ellipses.posterior.list.hot)<-names(siber.objs.hot)
+# 
+# SEA.B.list.hot <- list()
+# for(i in 1:length(ellipses.posterior.list.hot)){
+#   temp.SEA.B <- siberEllipses(ellipses.posterior.list.hot[[i]])
+#   SEA.B.list.hot[[i]] <- temp.SEA.B
+# }
+#  names(SEA.B.list.hot)<-names(siber.objs.hot)
+
+```
+
+```{r, echo=FALSE}
+#save model output
+ # saveRDS(clim_data, file="clim_data.2023.rds")
+ # saveRDS(siber.objs.hot, file="siber.objs.hot.2023.rds")
+ # saveRDS(ellipses.posterior.list.hot, file="ellipses.posterior.list.hot.2023.rds")
+ # saveRDS(SEA.B.list.hot, file="SEA.B.list.hot.2023.rds")
+```
+
+```{r}
+#read in siber files
+clim_data <- readRDS("clim_data.2023.rds")
+siber.objs.hot <- readRDS("siber.objs.hot.2023.rds")
+ellipses.posterior.list.hot<- readRDS("ellipses.posterior.list.hot.2023.rds")
+SEA.B.list.hot <- readRDS("SEA.B.list.hot.2023.rds")
+```
+
+####checking normality
+```{r}
+## this takes more than 15 minutes
+# mvn_test_hot <- data.frame()
+# for(i in 1:length(clim_data)){
+#   testdata <- clim_data[[i]][,1:2]
+#   mardia<- mvn(testdata, mvnTest = "mardia")
+# mardia$multivariateNormality
+# 
+# dh<- mvn(testdata, mvnTest = "dh")
+# dh$multivariateNormality
+# 
+# energy<- mvn(testdata, mvnTest = "energy")
+# energy$multivariateNormality
+# 
+# combo<- bind_rows(mardia$multivariateNormality %>% mutate(`p value` = as.numeric(`p value`),Statistic=as.numeric(Statistic), MVN = Result), dh$multivariateNormality, energy$multivariateNormality) %>% 
+#   mutate(id=i)
+# 
+# if(nrow(testdata)<2000){
+#   royston<- mvn(testdata, mvnTest = "royston")
+# royston$multivariateNormality
+# 
+# combo<- bind_rows(combo, royston$multivariateNormality) %>% 
+#   mutate(id=i)
+# }
+# mvn_test_hot <- bind_rows(mvn_test_hot,combo) 
+# }
+# 
+# 
+# saveRDS(mvn_test_hot, "mvn_test.hot.RDS")
+
+mvn_test_hot<- readRDS("mvn_test.hot.RDS")
+
+mvn_test_hot_sum<- mvn_test_hot %>%
+  group_by(id) %>%
+  dplyr::summarise(count(MVN)) %>%
+  pivot_wider(names_from=x, values_from=freq, id_cols=id) 
+
+View(mvn_test_hot_sum)
+
+```
+
+```{r}
+#look at trace plots for bayesian models
+
+pdf("trace.plots.hot_2023.pdf")
+
+par(mfrow=c(3,2))
+for(i in 1:length(ellipses.posterior.list.hot)){
+  for (j in 1:2){
+    for(k in 1:6){
+      plot(ellipses.posterior.list.hot[[i]][[j]][,k],type="l")
+    }
+  }
+}
+
+dev.off()
+```
+
+Plotting ellipses for each species
+
+```{r}
+siber.objs.hot.names<- data.frame(name = names(siber.objs.hot)) %>% 
+  mutate(species = substr(name,0,3), dist =  str_extract(name,"_.+_")) %>% 
+  mutate(dist= gsub("_","",dist),
+         species = as.numeric(gsub("_","",species))) %>% 
+  left_join(species.names %>% mutate(species.code=as.numeric(species.code)),by=c("species"="species.code"))
+
+
+disturbance.colors_names <- data.frame(fire = disturbance.colors[1], insect.disease = disturbance.colors[2], none = disturbance.colors[3])
+
+ellipse.colors <- data.frame(fire = "#D9A59B", insect.disease = "#C8B0D8", none = "#B8CFA9")
+# 
+# for(i in 1:length(siber.objs.hot)){
+#   
+#   xrange= as.data.frame(siber.objs.hot[[i]]$iso.summary) %>% mutate(name=rownames(as.data.frame(siber.objs.hot[[i]]$iso.summary)))  %>% filter(name %in% c("min","max"))%>% dplyr::pull(iso1)
+# xadd = c(-abs(xrange[1]-xrange[2])*.15,abs(xrange[1]-xrange[2])*.15)
+#      
+# yrange = as.data.frame(siber.objs.hot[[i]]$iso.summary) %>% mutate(name=rownames(as.data.frame(siber.objs.hot[[i]]$iso.summary)))  %>% filter(name %in% c("min","max")) %>% dplyr::pull(iso2)
+# yadd = c(-abs(yrange[1]-yrange[2])*.1,abs(yrange[1]-yrange[2])*.1)
+# 
+#   png(file=paste("C:/Users/katie/OneDrive - Colostate/OneDrive/FIA project/FIA_rproject/ellipses/ellipses_hot_2023/ellipses_hot_2023_",names(siber.objs.hot)[i],".png", sep=""), res=120)
+# plot(x=unlist(c(siber.objs.hot[[i]]$original.data %>% filter(group==1) %>% dplyr::select(iso1))),
+#      y=unlist(c(siber.objs.hot[[i]]$original.data %>% filter(group==1)%>% dplyr::select(iso2))),col="black", xlim=xrange+xadd,ylim=yrange+yadd,pch=16, xlab="Log(Degree Days Below 0)",ylab="Log(Winter PPT)",mgp=c(2,1,0),main=NA,cex=1.2)
+# title(paste(siber.objs.hot.names$species.name[i], siber.objs.hot.names$dist[i], sep=" "), line=0.5)+
+# points(x=unlist(c(siber.objs.hot[[i]]$original.data %>% filter(group==2) %>% dplyr::select(iso1))),
+#      y=unlist(c(siber.objs.hot[[i]]$original.data %>% filter(group==2)%>% dplyr::select(iso2))),col=alpha(disturbance.colors_names %>% dplyr::pull(siber.objs.hot.names$dist[i]),0.6),pch=16)+
+# points(x=mean(unlist(c(siber.objs.hot[[i]]$original.data %>% filter(group==1) %>% dplyr::select(iso1)))), y = mean(unlist(c(siber.objs.hot[[i]]$original.data %>% filter(group==1)%>% dplyr::select(iso2)))), bg = "black", col = "white", pch = 23, cex=1.5, lwd=3)+
+# points(x=mean(unlist(c(siber.objs.hot[[i]]$original.data %>% filter(group==2) %>% dplyr::select(iso1)))), y = mean(unlist(c(siber.objs.hot[[i]]$original.data %>% filter(group==2)%>% dplyr::select(iso2)))), col = "white", bg = disturbance.colors_names %>% dplyr::pull(siber.objs.hot.names$dist[i]), pch = 23, cex = 1.5, lwd = 3)
+# addEllipse(siber.objs.hot[[i]]$ML.mu[[1]][ , , 1],
+#                      siber.objs.hot[[i]]$ML.cov[[1]][ , , 1],
+#                      m = NULL,
+#                      n = 100,
+#                      p.interval = 0.95,
+#                      ci.mean = FALSE,
+#                      col = "grey44",
+#                      lty = 1,
+#                      lwd = 2)
+# addEllipse(siber.objs.hot[[i]]$ML.mu[[1]][ , , 2],
+#                      siber.objs.hot[[i]]$ML.cov[[1]][ , , 2],
+#                      m = NULL,
+#                      n = 100,
+#                      p.interval = 0.95,
+#                      ci.mean = FALSE,
+#                      col = ellipse.colors %>% dplyr::pull(siber.objs.hot.names$dist[i]),
+#                      lty = 1,
+#                      lwd = 2)
+# dev.off()
+# }
+
+
+```
+
+```{r, eval=FALSE}
+#making legend for figure
+legend_df<- data.frame(x=c(1,2,3,4), y=c(1,2,3,4), name=c("adult centroid", "none seedling centroid", "fire seedling centroid","insect.disease seedling centroid"))
+
+legend_df<- expand.grid(x=c(1,2,3,4), y=c(1,2,3,4), dist=c("seedling - none","seedling - fire","seedling - insect.disease"), type=c("plot","centroid"), age=c("seedling","adult")) %>% 
+  mutate(dist = ifelse(age=="adult","adult",as.character(dist)))
+
+# png("figures/shifttypelegend.png", width=500, height=400) 
+# ggplot(legend_df)+
+#   geom_point(aes(x=x,y=y,fill=str_wrap(dist,11)), shape=23, col="white", size=4, stroke=2)+
+#   scale_fill_manual(values=c("black",disturbance.colors[1],disturbance.colors[2],disturbance.colors[3]), name="Age -\nDisturbance")+
+#   facet_wrap(~dist)+
+#   theme(legend.position = "bottom", legend.key = element_rect(fill="#E6C3BC"), legend.text = element_text(size=14),legend.key.height=unit(1, "cm"), legend.title = element_text(size=14))
+# dev.off()
+
+#D4C1E1
+#E6C3BC
+```
+
+####Histograms
+
+```{r}
+#look at marginal posterior means
+
+posteriorlistcut_hot<- ellipses.posterior.list.hot#[-c(24,25)]
+
+length(posteriorlistcut_hot[grepl("fire", names(posteriorlistcut_hot))])
+names_df <- data.frame(longname = names(posteriorlistcut_hot)) %>%
+  separate(longname,into=c("species","disturbance","extra"), sep="_") %>%
+  left_join(species.names %>% mutate(species.code = as.character(species.code)), by=c("species" = "species.code")) %>%
+  mutate(plotnames = paste(species.name,disturbance, sep=" - "))
+
+pc_names <- c("log(winter ppt)","log(degree days below 0)")
+# 
+# par(mfrow=c(4,2))
+# for(i in 1:length(posteriorlistcut_hot[grepl("fire", names(posteriorlistcut_hot))])
+# ){
+#     for(k in 5:6){
+#       
+# xrange = max(c(posteriorlistcut_hot[grepl("fire", names(posteriorlistcut_hot))][[i]][[1]][,k],posteriorlistcut_hot[grepl("fire", names(posteriorlistcut_hot))][[i]][[2]][,k])) - min(c(posteriorlistcut_hot[grepl("fire", names(posteriorlistcut_hot))][[i]][[1]][,k],posteriorlistcut_hot[grepl("fire", names(posteriorlistcut_hot))][[i]][[2]][,k]))
+# 
+# png(filename = paste("histograms/hot/",paste((names_df %>% filter(disturbance=="fire") %>% pull(plotnames))[i],"hist","hot",pc_names[7-k],".png",sep="_"),sep=""), res=100)
+# 
+# hist(posteriorlistcut_hot[grepl("fire", names(posteriorlistcut_hot))][[i]][[1]][,k],
+#      breaks = 50,
+#      main=paste((names_df %>% filter(disturbance=="fire") %>% pull(plotnames))[i]),
+#      xlab=pc_names[7-k],col=alpha("black",0.5),
+#      xlim=c(min(c(posteriorlistcut_hot[grepl("fire", names(posteriorlistcut_hot))][[i]][[1]][,k],posteriorlistcut_hot[grepl("fire", names(posteriorlistcut_hot))][[i]][[2]][,k])),max(c(posteriorlistcut_hot[grepl("fire", names(posteriorlistcut_hot))][[i]][[1]][,k],posteriorlistcut_hot[grepl("fire", names(posteriorlistcut_hot))][[i]][[2]][,k]))+xrange*.2), freq=F)
+# 
+# hist(posteriorlistcut_hot[grepl("fire", names(posteriorlistcut_hot))][[i]][[2]][,k],
+#      breaks = 50,
+#      col=alpha("#bb5f4c",0.5), freq=F,add=T)
+# 
+# abline(v=mean(posteriorlistcut_hot[grepl("fire", names(posteriorlistcut_hot))][[i]][[1]][,k]), col="black", lwd=3)
+# abline(v=mean(posteriorlistcut_hot[grepl("fire", names(posteriorlistcut_hot))][[i]][[2]][,k]), col="#bb5f4c", lwd=3)
+# 
+# legend("topright", c("Seedling", "Adult"), col = c("#bb5f4c","black"), lwd=3)
+# 
+# dev.off()
+#     }
+# }
+# 
+# 
+# par(mfrow=c(4,2))
+# for(i in 1:length(posteriorlistcut_hot[grepl("insect.disease", names(posteriorlistcut_hot))])
+# ){
+#     for(k in 5:6){
+#       
+# xrange = max(c(posteriorlistcut_hot[grepl("insect.disease", names(posteriorlistcut_hot))][[i]][[1]][,k],posteriorlistcut_hot[grepl("insect.disease", names(posteriorlistcut_hot))][[i]][[2]][,k])) - min(c(posteriorlistcut_hot[grepl("insect.disease", names(posteriorlistcut_hot))][[i]][[1]][,k],posteriorlistcut_hot[grepl("insect.disease", names(posteriorlistcut_hot))][[i]][[2]][,k]))
+# 
+# png(filename = paste("histograms/hot/",paste((names_df %>% filter(disturbance=="insect.disease") %>% pull(plotnames))[i],"hist","hot",pc_names[7-k],".png",sep="_"),sep=""), res=100)
+# 
+# hist(posteriorlistcut_hot[grepl("insect.disease", names(posteriorlistcut_hot))][[i]][[1]][,k],
+#      breaks = 50,
+#      main=paste((names_df %>% filter(disturbance=="insect.disease") %>% pull(plotnames))[i]),
+#      xlab=pc_names[7-k],
+#      col=alpha("black",0.5),
+#      xlim=c(min(c(posteriorlistcut_hot[grepl("insect.disease", names(posteriorlistcut_hot))][[i]][[1]][,k],posteriorlistcut_hot[grepl("insect.disease", names(posteriorlistcut_hot))][[i]][[2]][,k])),max(c(posteriorlistcut_hot[grepl("insect.disease", names(posteriorlistcut_hot))][[i]][[1]][,k],posteriorlistcut_hot[grepl("insect.disease", names(posteriorlistcut_hot))][[i]][[2]][,k]))+xrange*.2), freq=F)
+# 
+# hist(posteriorlistcut_hot[grepl("insect.disease", names(posteriorlistcut_hot))][[i]][[2]][,k],
+#      breaks = 50,
+#      col=alpha("#8e5db0",0.5),
+#      freq=F,add=T)
+# 
+# abline(v=mean(posteriorlistcut_hot[grepl("insect.disease", names(posteriorlistcut_hot))][[i]][[1]][,k]), col="black", lwd=3)
+# abline(v=mean(posteriorlistcut_hot[grepl("insect.disease", names(posteriorlistcut_hot))][[i]][[2]][,k]), col="#8e5db0", lwd=3)
+# 
+# legend("topright", c("Seedling", "Adult"), col = c("#8e5db0","black"), lwd=3)
+# 
+# dev.off()
+#     }
+# }
+# 
+# par(mfrow=c(4,2))
+# for(i in 1:length(posteriorlistcut_hot[grepl("none", names(posteriorlistcut_hot))])
+# ){
+#     for(k in 5:6){
+# 
+# xrange = max(c(posteriorlistcut_hot[grepl("none", names(posteriorlistcut_hot))][[i]][[1]][,k],posteriorlistcut_hot[grepl("none", names(posteriorlistcut_hot))][[i]][[2]][,k])) -  min(c(posteriorlistcut_hot[grepl("none", names(posteriorlistcut_hot))][[i]][[1]][,k],posteriorlistcut_hot[grepl("none", names(posteriorlistcut_hot))][[i]][[2]][,k]))
+#       
+# png(filename = paste("histograms/hot/",paste((names_df %>% filter(disturbance=="none") %>% pull(plotnames))[i],"hist","hot",pc_names[7-k],".png",sep="_"),sep=""),res=100)
+# 
+# hist(posteriorlistcut_hot[grepl("none", names(posteriorlistcut_hot))][[i]][[1]][,k],
+#      breaks = 50,
+#      main=paste((names_df %>% filter(disturbance=="none") %>% pull(plotnames))[i]),
+#      xlab=pc_names[7-k],
+#      col=alpha("black", 0.5),
+#      xlim=c(min(c(posteriorlistcut_hot[grepl("none", names(posteriorlistcut_hot))][[i]][[1]][,k],posteriorlistcut_hot[grepl("none", names(posteriorlistcut_hot))][[i]][[2]][,k])),max(c(posteriorlistcut_hot[grepl("none", names(posteriorlistcut_hot))][[i]][[1]][,k],posteriorlistcut_hot[grepl("none", names(posteriorlistcut_hot))][[i]][[2]][,k]))+xrange*.2), freq=F)
+# 
+# hist(posteriorlistcut_hot[grepl("none", names(posteriorlistcut_hot))][[i]][[2]][,k],
+#      breaks = 50,
+#      col=alpha("#729b57", 0.5),
+#      freq=F,add=T)
+# 
+# abline(v=mean(posteriorlistcut_hot[grepl("none", names(posteriorlistcut_hot))][[i]][[1]][,k]), col="black", lwd=3)
+# abline(v=mean(posteriorlistcut_hot[grepl("none", names(posteriorlistcut_hot))][[i]][[2]][,k]), col="#729b57", lwd=3)
+# 
+# legend("topright", c("Seedling", "Adult"), col = c("#729b57","black"), lwd=3)
+# 
+# dev.off()
+#     }
+# }
+
+```
+
+```{r}
+#thinking about using some kind of indication of cold vs. warm adapted species. Let's look at mean position of adults on PC1 for each species to rank them
+
+pc1.means<- vector()
+for(i in 1:length(adult_data_pcapts)){
+  temp.mean <- adult_data_pcapts[[i]] %>% 
+    dplyr::summarise(mean(PC1))
+  pc1.means[i]<-temp.mean 
+}
+unlist(pc1.means)
+
+pc1means.table <- as.data.frame(matrix(unlist(pc1.means),nrow=length(pc1.means),ncol=1)) %>% 
+  mutate(names =  names(adult_data_pcapts)) %>% 
+  tidyr::separate(names,into=c("species.code","disturbance","extra"),sep="_") %>% 
+  mutate(species.code = as.numeric(species.code)) %>% 
+  left_join(species.names) %>% 
+  dplyr::rename(pc1mean = V1) %>% 
+  group_by(species.name) %>% 
+  dplyr::summarise(pc1speciesmean = mean(pc1mean)) %>% ungroup() %>% 
+  filter(!species.name=="singleleaf pinyon") %>% 
+  arrange(pc1speciesmean) %>% 
+  mutate(number=seq(1:15)) %>% 
+  left_join(spp.colors, by=c("number"="x"))
+
+
+```
+
+```{r}
+###look at mean and 95% percentiles of posterior estimates of difference between adult and seedling niche margins
+###calculate with relativizing by adult niche width. 
+
+##THIS TAKES 2.5 HOURS
+# ellipse_margins_list_hot<- lapply(X = ellipses.posterior.list.hot, FUN=ellipmargfun)
+# saveRDS(ellipse_margins_list_hot, file = "ellipse_margins_list_hot.RDS")
+ellipse_margins_list_hot <- readRDS("ellipse_margins_list_hot.RDS")
+##order by individual climate vars
+dd0.means<- vector()
+for(i in 1:length(adult_data)){
+  temp.mean <- adult_data[[i]] %>% 
+    dplyr::summarise(mean(dd_0))
+  dd0.means[i]<-temp.mean 
+}
+unlist(dd0.means)
+
+dd0means.table <- as.data.frame(matrix(unlist(dd0.means),nrow=length(dd0.means),ncol=1))  %>% 
+  mutate(names =  names(adult_data)) %>% 
+  tidyr::separate(names,into=c("species.code","disturbance","extra"),sep="_") %>% 
+  mutate(species.code = as.numeric(species.code)) %>% 
+  left_join(species.names) %>% 
+  dplyr::rename(dd0mean = V1) %>% 
+  group_by(species.name) %>% 
+  dplyr::summarise(dd0speciesmean = mean(dd0mean)) %>% ungroup() %>% 
+  filter(!species.name == "singleleaf pinyon") %>% 
+  arrange(dd0speciesmean) %>% 
+  mutate(number=seq(1:15))
+
+
+ellipse_margins_list_hot
+
+max1_rel_hot<- matrix(nrow=length(ellipse_margins_list_hot),ncol=4)
+min1_rel_hot<- matrix(nrow=length(ellipse_margins_list_hot),ncol=4)
+
+max2_rel_hot<- matrix(nrow=length(ellipse_margins_list_hot),ncol=4)
+min2_rel_hot<- matrix(nrow=length(ellipse_margins_list_hot),ncol=4)
+
+for(i in 1:length(ellipse_margins_list_hot)){
+max1diff_hot<- (ellipse_margins_list_hot[[i]][,'xmax_seed'] - ellipse_margins_list_hot[[i]][,'xmax_adult'])/ (ellipse_margins_list_hot[[i]][,'xmax_adult'] - ellipse_margins_list_hot[[i]][,'xmin_adult'])
+max1sum<- c(names(ellipse_margins_list_hot)[i],mean(max1diff_hot),quantile(max1diff_hot, c(.025,.975)))
+max1_rel_hot[i,]<- max1sum
+min1diff<- (ellipse_margins_list_hot[[i]][,'xmin_seed'] - ellipse_margins_list_hot[[i]][,'xmin_adult'])/(ellipse_margins_list_hot[[i]][,'xmax_adult'] - ellipse_margins_list_hot[[i]][,'xmin_adult'])
+min1sum<- c(names(ellipse_margins_list_hot)[i],mean(min1diff),quantile(min1diff, c(.025,.975)))
+min1_rel_hot[i,]<- min1sum
+
+max2diff_hot<- (ellipse_margins_list_hot[[i]][,'ymax_seed'] - ellipse_margins_list_hot[[i]][,'ymax_adult'])/(ellipse_margins_list_hot[[i]][,'ymax_adult'] - ellipse_margins_list_hot[[i]][,'ymin_adult'])
+max2sum<- c(names(ellipse_margins_list_hot)[i],mean(max2diff_hot),quantile(max2diff_hot, c(.025,.975)))
+max2_rel_hot[i,]<- max2sum
+min2diff<- (ellipse_margins_list_hot[[i]][,'ymin_seed'] - ellipse_margins_list_hot[[i]][,'ymin_adult'])/(ellipse_margins_list_hot[[i]][,'ymax_adult'] - ellipse_margins_list_hot[[i]][,'ymin_adult'])
+min2sum<- c(names(ellipse_margins_list_hot)[i],mean(min2diff),quantile(min2diff, c(.025,.975)))
+min2_rel_hot[i,]<- min2sum
+}
+
+
+max1_rel_hot_df <- as.data.frame(max1_rel_hot) %>% dplyr::rename(group=V1, mean=V2, lwr = V3, upr = V4) %>% mutate(mean=as.numeric(mean),lwr=as.numeric(lwr),upr=as.numeric(upr)) %>% 
+  mutate(sig = ifelse(lwr>0&upr>0, "yes", ifelse(lwr<0 & upr<0, "yes", "no"))) %>% 
+  mutate(species= substr(group, 0,3),
+         dist =  str_extract(group,"_.+_")) %>% 
+  mutate(dist= gsub("_","",dist),
+         species = as.numeric(gsub("_","",species))) %>% 
+  left_join(species.names %>% mutate(species.code=as.numeric(species.code)),by=c("species"="species.code")) %>% 
+  left_join(pc1means.table) %>% 
+    dplyr::rename(number.pc1 = number) %>% 
+  filter(!species.name == "singleleaf pinyon")
+
+min1_rel_hot_df <- as.data.frame(min1_rel_hot) %>% dplyr::rename(group=V1, mean=V2, lwr = V3, upr = V4) %>% mutate(mean=as.numeric(mean),lwr=as.numeric(lwr),upr=as.numeric(upr)) %>% 
+  mutate(sig = ifelse(lwr>0&upr>0, "yes", ifelse(lwr<0 & upr<0, "yes", "no"))) %>% 
+  mutate(species= substr(group, 0,3),
+         dist =  str_extract(group,"_.+_")) %>% 
+  mutate(dist= gsub("_","",dist),
+         species = as.numeric(gsub("_","",species))) %>% 
+  left_join(species.names %>% mutate(species.code=as.numeric(species.code)),by=c("species"="species.code")) %>% 
+  left_join(pc1means.table)%>% 
+    dplyr::rename(number.pc1 = number) %>% 
+  filter(!species.name == "singleleaf pinyon")
+
+max2_rel_hot_df <- as.data.frame(max2_rel_hot) %>% dplyr::rename(group=V1, mean=V2, lwr = V3, upr = V4) %>% mutate(mean=as.numeric(mean),lwr=as.numeric(lwr),upr=as.numeric(upr)) %>% 
+  mutate(sig = ifelse(lwr>0&upr>0, "yes", ifelse(lwr<0 & upr<0, "yes", "no"))) %>% 
+  mutate(species= substr(group, 0,3),
+         dist =  str_extract(group,"_.+_")) %>% 
+  mutate(dist= gsub("_","",dist),
+         species = as.numeric(gsub("_","",species))) %>% 
+  left_join(species.names %>% mutate(species.code=as.numeric(species.code)),by=c("species"="species.code")) %>% 
+  left_join(pc1means.table)%>% 
+    dplyr::rename(number.pc1 = number) %>% 
+  filter(!species.name == "singleleaf pinyon")
+
+min2_rel_hot_df <- as.data.frame(min2_rel_hot) %>% dplyr::rename(group=V1, mean=V2, lwr = V3, upr = V4) %>% mutate(mean=as.numeric(mean),lwr=as.numeric(lwr),upr=as.numeric(upr)) %>% 
+  mutate(sig = ifelse(lwr>0&upr>0, "yes", ifelse(lwr<0 & upr<0, "yes", "no"))) %>% 
+  mutate(species= substr(group, 0,3),
+         dist =  str_extract(group,"_.+_")) %>% 
+  mutate(dist= gsub("_","",dist),
+         species = as.numeric(gsub("_","",species))) %>% 
+  left_join(species.names %>% mutate(species.code=as.numeric(species.code)),by=c("species"="species.code")) %>% 
+  left_join(pc1means.table)%>% 
+    dplyr::rename(number.pc1 = number) %>% 
+  filter(!species.name == "singleleaf pinyon")
+
+
+ggplot(min1_rel_hot_df, aes(x=factor(species.name,levels=pc1means.table$species.name), y=mean, fill=factor(species.name,levels=pc1means.table$species.name), col=sig))+
+  geom_errorbar(aes(ymin=lwr,ymax=upr, col=sig))+
+    geom_point(pch=21)+
+  geom_hline(yintercept=0)+
+  scale_fill_manual(values=spp.colors$color, name="Species")+
+  scale_color_manual(values=c("gray","black"))+
+  facet_wrap(~dist)+
+  ggtitle("Log(Degree Days Below 0) 2.5%")+
+  theme(axis.text.x = element_text(angle=50, hjust=1,size=8),axis.title.x = element_blank())
+
+ggplot(max1_rel_hot_df, aes(x=factor(species.name,levels=pc1means.table$species.name), y=mean, fill=factor(species.name,levels=pc1means.table$species.name), col=sig))+
+  geom_errorbar(aes(ymin=lwr,ymax=upr, col=sig))+
+    geom_point(pch=21)+
+  geom_hline(yintercept=0)+
+  scale_fill_manual(values=spp.colors$color, name="Species")+
+  scale_color_manual(values=c("gray","black"))+
+  facet_wrap(~dist)+
+  ggtitle("Log(Degree Days Below 0) 97.5%")+
+  theme(axis.text.x = element_text(angle=50, hjust=1,size=8),axis.title.x = element_blank())
+
+ggplot(min2_rel_hot_df, aes(x=factor(species.name,levels=pc1means.table$species.name), y=mean, fill=factor(species.name,levels=pc1means.table$species.name), col=sig))+
+  geom_errorbar(aes(ymin=lwr,ymax=upr, col=sig))+
+    geom_point(pch=21)+
+  geom_hline(yintercept=0)+
+  scale_fill_manual(values=spp.colors$color, name="Species")+
+  scale_color_manual(values=c("gray","black"))+
+  facet_wrap(~dist)+
+  ggtitle("Log(Winter PPT) 2.5%")+
+  theme(axis.text.x = element_text(angle=50, hjust=1,size=8),axis.title.x = element_blank())
+
+ggplot(max2_rel_hot_df, aes(x=factor(species.name,levels=pc1means.table$species.name), y=mean, fill=factor(species.name,levels=pc1means.table$species.name), col=sig))+
+  geom_errorbar(aes(ymin=lwr,ymax=upr, col=sig))+
+    geom_point(pch=21)+
+  geom_hline(yintercept=0)+
+  scale_fill_manual(values=spp.colors$color, name="Species")+
+  scale_color_manual(values=c("gray","black"))+
+  facet_wrap(~dist)+
+  ggtitle("Log(Winter PPT) 97.5%")+
+  theme(axis.text.x = element_text(angle=50, hjust=1,size=8),axis.title.x = element_blank())
+
+```
+
+###combine centroid and margins
+
+```{r}
+
+#relativized
+mu1_rel_hot<- matrix(nrow=length(ellipses.posterior.list.hot),ncol=4)
+mu2_rel_hot<- matrix(nrow=length(ellipses.posterior.list.hot),ncol=4)
+
+for(i in 1:length(ellipses.posterior.list.hot)){
+mu1_rel_hotdiff<- (ellipses.posterior.list.hot[[i]]$`1.2`[,'mu[1]'] - ellipses.posterior.list.hot[[i]]$`1.1`[,'mu[1]'])/(ellipse_margins_list_hot[[i]][,'xmax_adult'] - ellipse_margins_list_hot[[i]][,'xmin_adult'])
+mu1_rel_hotsum<- c(names(ellipses.posterior.list.hot)[i],mean(mu1_rel_hotdiff),quantile(mu1_rel_hotdiff, c(.025,.975)))
+mu1_rel_hot[i,]<- mu1_rel_hotsum
+
+mu2_rel_hotdiff<- (ellipses.posterior.list.hot[[i]]$`1.2`[,'mu[2]'] - ellipses.posterior.list.hot[[i]]$`1.1`[,'mu[2]'])/ (ellipse_margins_list_hot[[i]][,'ymax_adult'] - ellipse_margins_list_hot[[i]][,'ymin_adult'])
+mu2_rel_hotsum<- c(names(ellipses.posterior.list.hot)[i],mean(mu2_rel_hotdiff),quantile(mu2_rel_hotdiff, c(.025,.975)))
+mu2_rel_hot[i,]<- mu2_rel_hotsum
+}
+mu1_rel_hot_df<- as.data.frame(mu1_rel_hot) %>% dplyr::rename(group=V1, mean=V2, lwr = V3, upr = V4) %>% mutate(mean=as.numeric(mean),lwr=as.numeric(lwr),upr=as.numeric(upr)) %>%
+  mutate(sig = ifelse(lwr>0&upr>0, "yes", ifelse(lwr<0 & upr<0, "yes", "no"))) %>%
+  mutate(species= substr(group, 0,3),
+         dist =  str_extract(group,"_.+_")) %>%
+  mutate(dist= gsub("_","",dist),
+         species = as.numeric(gsub("_","",species))) %>%
+  left_join(species.names,by=c("species"="species.code")) %>%
+    left_join(pc1means.table)%>%
+    dplyr::rename(number.pc1 = number) %>% 
+    filter(!species.name == "singleleaf pinyon")
+
+mu2_rel_hot_df<- as.data.frame(mu2_rel_hot) %>% dplyr::rename(group=V1, mean=V2, lwr = V3, upr = V4) %>% mutate(mean=as.numeric(mean),lwr=as.numeric(lwr),upr=as.numeric(upr)) %>%
+  mutate(sig = ifelse(lwr>0&upr>0, "yes", ifelse(lwr<0 & upr<0, "yes", "no"))) %>%
+  mutate(species= substr(group, 0,3),
+         dist =  str_extract(group,"_.+_")) %>%
+  mutate(dist= gsub("_","",dist),
+         species = as.numeric(gsub("_","",species))) %>%
+  left_join(species.names,by=c("species"="species.code")) %>%
+      left_join(pc1means.table) %>%
+  dplyr::rename(number.pc1 = number) %>% 
+    filter(!species.name == "singleleaf pinyon")
+
+#combine centroid with margins
+
+######relativized
+dd0_df_rel<- bind_rows(mu1_rel_hot_df %>% mutate(var="dd0 centroid", species=as.numeric(species)),
+max1_rel_hot_df %>% mutate(var="dd0 max"),
+ min1_rel_hot_df %>% mutate(var="dd0 min")) %>%
+#   mutate(mean=ifelse(var=="dd0 max",mean+.8,ifelse(var=="dd0 min", mean-.8,mean)),
+#          lwr=ifelse(var=="dd0 max",lwr+.8,ifelse(var=="dd0 min", lwr-.8,lwr)),
+#          upr=ifelse(var=="dd0 max",upr+.8,ifelse(var=="dd0 min", upr-.8,upr)))
+  left_join(dd0means.table, by="species.name") %>% 
+  dplyr::rename(number.dd0 = number)
+
+ggplot(dd0_df_rel, aes(x=factor(number.dd0,levels=pc1means.table %>% arrange(pc1speciesmean) %>% pull(number)), y=mean, fill=factor(number.dd0,levels=pc1means.table %>% arrange(pc1speciesmean) %>% pull(number)), col=sig))+
+  geom_errorbar(aes(ymin=lwr,ymax=upr, col=sig),width=0.2,size=1)+
+    geom_point(pch=21, size=2)+
+  geom_hline(yintercept=0,lty=1)+
+  scale_fill_manual(values=spp.colors$color, name="Species")+
+  scale_color_manual(values=c("lightgray","black"),name="Significance")+
+  facet_grid(factor(var, levels=c("dd0 max","dd0 centroid","dd0 min"), labels=c("97.5%","centroid","2.5%"))~dist, scales = "free")+
+  #scale_y_continuous(breaks=seq(-5,5,1))+
+  #annotate(geom="text",x=4, y=-4.5, label="hot/dry",col="black", size=5 )+
+  #annotate(geom="text", x=4, y=6,label="cold/wet",col="black", size=5)+
+  ylab("Relativized Difference in Margin Position")+
+  xlab("Species")+
+  ggtitle("dd0")+
+  theme_bw()+
+  theme(axis.text.x = element_text(angle=60, hjust=1,size=9, color="black"),axis.title.x = element_text(size=12, color="black"),axis.text.y = element_text(size=10, colour = "black"),axis.title.y = element_text(size=12, color="black"), strip.text = element_text(size = 12), title=element_text(size=14), legend.position = "right", legend.text = element_text(size=14), legend.title = element_text(size=16))
+
+
+
+##
+
+wintppt_df_rel<- bind_rows(mu2_rel_hot_df %>% mutate(var="winter ppt centroid", species=as.numeric(species)),
+max2_rel_hot_df %>% mutate(var="winter ppt max"),
+ min2_rel_hot_df %>% mutate(var="winter ppt min")) 
+#   mutate(mean=ifelse(var=="pc2 max",mean+.8,ifelse(var=="pc2 min", mean-.8,mean)),
+#          lwr=ifelse(var=="pc2 max",lwr+.8,ifelse(var=="pc2 min", lwr-.8,lwr)),
+#          upr=ifelse(var=="pc2 max",upr+.8,ifelse(var=="pc2 min", upr-.8,upr)))
+
+
+ggplot(wintppt_df_rel, aes(x=factor(number.pc1,levels=pc1means.table %>% arrange(pc1speciesmean) %>% pull(number)), y=mean, fill=factor(number.pc1,levels=pc1means.table %>% arrange(pc1speciesmean) %>% pull(number)), col=sig))+
+  geom_errorbar(aes(ymin=lwr,ymax=upr, col=sig),width=0.2,size=1)+
+  geom_point(pch=21, size=2)+
+  geom_hline(yintercept=0,lty=1)+
+  scale_fill_manual(values=spp.colors$color, name="Species")+
+  scale_color_manual(values=c("lightgray","black"),name="Significance")+
+  facet_grid(factor(var, levels=c("winter ppt max","winter ppt centroid","winter ppt min"), labels=c("upper","centroid","lower"))~dist, scales = "free")+
+  scale_y_continuous(breaks=seq(-.8,.8,.4))+
+  #annotate(geom="text",x=4, y=-4.5, label="hot/dry",col="black", size=5 )+
+  #annotate(geom="text", x=4, y=6,label="cold/wet",col="black", size=5)+
+  ylab("Relativized Difference in Margin Position")+
+  xlab("Species")+
+  ggtitle("Winter PPT")+
+  theme_bw()+
+  theme(axis.text.x = element_text(angle=60, hjust=1,size=9, color="black"),axis.title.x = element_text(size=12, color="black"),axis.text.y = element_text(size=10, colour = "black"),axis.title.y = element_text(size=12, color="black"), strip.text = element_text(size = 12), title=element_text(size=14), legend.position = "right", legend.text = element_text(size=14), legend.title = element_text(size=16))
+
+wintppt_df_rel_wremoval<- wintppt_df_rel %>% 
+  filter(! (dist=="fire" & species.name %in% insectonlyspp)) %>% 
+  filter(! (dist=="insect.disease" & species.name %in% fireonlyspp)) 
+  
+wintppt_df_rel_wremoval2 <- wintppt_df_rel_wremoval %>% 
+  left_join(wintppt_df_rel_wremoval %>% 
+  ungroup() %>% 
+  group_by(species.name) %>% 
+  dplyr::summarise(n.sig = length(unique(sig))), by="species.name")
+
+
+winppt_plot<- ggplot(data=wintppt_df_rel_wremoval2)+
+  geom_rect(aes(xmin=number.pc1 - 0.5, xmax=number.pc1 + 0.5, ymin=-Inf, ymax=Inf, fill=factor(n.sig)),col="darkgray",alpha=.2,cex=.1) +
+  scale_fill_manual(values=c("white","goldenrod1"), guide="none")+
+  scale_x_continuous(breaks=seq(1,15,1))+
+    geom_hline(yintercept=0,lty=1)+
+  ggnewscale::new_scale_fill()+
+  geom_errorbar(aes(x=number.pc1, ymin=lwr,ymax=upr, col=sig, group=dist),width=0.2,size=1,position=position_dodge(.8))+
+  geom_point(aes(x=number.pc1, y=mean, fill=dist, col=sig), pch=21, size=3, position=position_dodge(.8))+
+  scale_fill_manual(values=disturbance.colors, name="Disturbance")+
+  scale_color_manual(values=c("lightgray","black"),name="Significant")+
+  facet_grid(rows = vars(factor(var, levels=c("winter ppt max","winter ppt centroid","winter ppt min"), labels=c("upper","centroid","lower"))), scales = "free")+
+  scale_y_continuous(breaks=seq(-.4,.4,.2))+
+  #annotate(geom="text",x=4, y=-4.5, label="hot/dry",col="black", size=5 )+
+  #annotate(geom="text", x=4, y=6,label="cold/wet",col="black", size=5)+
+  ylab("Relativized Difference in Margin Position")+
+  xlab("Species")+
+  ggtitle("Winter PPT")+
+  theme_bw()+
+  theme(axis.text.x = element_text(angle=60, hjust=1,size=9, color="black"),axis.title.x = element_text(size=12, color="black"),axis.text.y = element_text(size=10, colour = "black"),axis.title.y = element_text(size=12, color="black"), strip.text = element_text(size = 12), title=element_text(size=14), legend.position = "right", legend.text = element_text(size=14), legend.title = element_text(size=16),panel.grid.major = element_blank(), panel.grid.minor = element_blank(), panel.background = element_blank())
+
+dd0_df_rel_wremoval<- dd0_df_rel %>% 
+  filter(! (dist=="fire" & species.name %in% insectonlyspp)) %>% 
+  filter(! (dist=="insect.disease" & species.name %in% fireonlyspp)) 
+
+dd0_df_rel_wremoval2 <- dd0_df_rel_wremoval %>% 
+  left_join(dd0_df_rel_wremoval %>% 
+  ungroup() %>% 
+  group_by(species.name) %>% 
+  dplyr::summarise(n.sig = length(unique(sig))), by="species.name")
+
+
+dd0_plot<- ggplot(data=dd0_df_rel_wremoval2)+
+  geom_rect(aes(xmin=number.pc1 - 0.5, xmax=number.pc1 + 0.5, ymin=-Inf, ymax=Inf, fill=factor(n.sig)),col="darkgray",alpha=.2,cex=.1) +
+  scale_fill_manual(values=c("white","goldenrod1"), guide="none")+
+  scale_x_continuous(breaks=seq(1,15,1))+
+  ggnewscale::new_scale_fill()+
+  geom_errorbar(aes(x=number.pc1, ymin=lwr,ymax=upr, col=sig, group=dist),width=0.2,size=1,position=position_dodge(.8))+
+  geom_point(aes(x=number.pc1, y=mean, fill=dist, col=sig), pch=21, size=3, position=position_dodge(.8))+
+  geom_hline(yintercept=0,lty=1)+
+  scale_fill_manual(values=disturbance.colors, name="Disturbance")+
+  scale_color_manual(values=c("lightgray","black"),name="Significant")+
+  facet_grid(rows=vars(factor(var, levels=c("dd0 max","dd0 centroid","dd0 min"), labels=c("upper","centroid","lower"))), scales = "free")+
+  #scale_y_continuous(breaks=seq(-5,5,1))+
+  #annotate(geom="text",x=4, y=-4.5, label="hot/dry",col="black", size=5 )+
+  #annotate(geom="text", x=4, y=6,label="cold/wet",col="black", size=5)+
+  ylab("Relativized Difference in Margin Position")+
+  xlab("Species")+
+  ggtitle("Degree Days Below 0")+
+  theme_bw()+
+  theme(axis.text.x = element_text(angle=60, hjust=1,size=9, color="black"),axis.title.x = element_text(size=12, color="black"),axis.text.y = element_text(size=10, colour = "black"),axis.title.y = element_text(size=12, color="black"), strip.text = element_text(size = 12), title=element_text(size=14), legend.position = "right", legend.text = element_text(size=14), legend.title = element_text(size=16),panel.grid.major = element_blank(), panel.grid.minor=element_blank(), panel.background = element_blank())
+
+###combine winter ppt and dd0
+hot_comb_tables<- bind_rows(dd0_df_rel_wremoval2 %>% 
+  mutate(climvar="Degree days below 0") %>% 
+      separate(col=var,into=c("clim","var"),sep=" "), 
+wintppt_df_rel_wremoval2 %>% 
+  mutate(climvar="Winter ppt") %>% 
+  separate(col=var, into=c("clim","clim2","var"), sep=" ") %>% 
+  dplyr::select(-clim2))
+
+
+hot_comb_plot<- ggplot(data=hot_comb_tables)+
+  geom_rect(aes(xmin=number.pc1 - 0.5, xmax=number.pc1 + 0.5, ymin=-Inf, ymax=Inf, fill=factor(n.sig)),col="black",alpha=.2,cex=.1) +
+  scale_fill_manual(values=c("white","goldenrod1"), guide="none")+
+  scale_x_continuous(breaks=seq(1,15,1))+
+  ggnewscale::new_scale_fill()+
+  geom_errorbar(aes(x=number.pc1, ymin=lwr,ymax=upr, col=sig, group=dist),width=0.2,size=1,position=position_dodge(.8))+
+  geom_point(aes(x=number.pc1, y=mean, fill=dist, col=sig), pch=21, size=3, position=position_dodge(.8))+
+  geom_hline(yintercept=0,lty=1)+
+  scale_fill_manual(values=disturbance.colors, name="Disturbance")+
+  scale_color_manual(values=c("lightgray","black"),name="Significant")+
+  facet_grid(rows=vars(factor(var, levels=c("max","centroid","min"), labels=c("upper","centroid","lower"))), cols=vars(climvar), scales = "free")+
+  #scale_y_continuous(breaks=seq(-5,5,1))+
+  #annotate(geom="text",x=4, y=-4.5, label="hot/dry",col="black", size=5 )+
+  #annotate(geom="text", x=4, y=6,label="cold/wet",col="black", size=5)+
+  ylab("Relativized Difference in Margin Position")+
+  xlab("Species")+
+  theme_bw()+
+  theme(axis.text.x = element_text(angle=60, hjust=1,size=9, color="black"),axis.title.x = element_text(size=12, color="black"),axis.text.y = element_text(size=10, colour = "black"),axis.title.y = element_text(size=12, color="black"), strip.text = element_text(size = 12), title=element_text(size=14), legend.position = "top", legend.text = element_text(size=14), legend.title = element_text(size=16),panel.grid.major = element_blank(), panel.grid.minor=element_blank(), panel.background = element_blank())
+
+png("figures/fig2_hot.png", width=5000, height=4000, res = 600)
+hot_comb_plot
+dev.off()
+
+##include smaller sample size species
+
+dd0_df_rel_noremoval <- dd0_df_rel %>% 
+  left_join(dd0_df_rel %>% 
+  ungroup() %>% 
+  group_by(species.name) %>% 
+  dplyr::summarise(n.sig = length(unique(sig))), by="species.name")
+
+wintppt_df_rel_noremoval <- wintppt_df_rel %>% 
+  left_join(wintppt_df_rel %>% 
+  ungroup() %>% 
+  group_by(species.name) %>% 
+  dplyr::summarise(n.sig = length(unique(sig))), by="species.name")
+
+hot_both_noremoval <- bind_rows(dd0_df_rel_noremoval %>% 
+  mutate(climvar="Degree days below 0") %>% 
+      separate(col=var,into=c("clim","var"),sep=" "), 
+wintppt_df_rel_noremoval %>% 
+  mutate(climvar="Winter ppt") %>% 
+  separate(col=var, into=c("clim","clim2","var"), sep=" ") %>% 
+  dplyr::select(-clim2))
+
+hot_both_partialremoval <- bind_rows(dd0_df_rel_noremoval %>% 
+  mutate(climvar="Degree days below 0") %>% 
+      separate(col=var,into=c("clim","var"),sep=" "), 
+wintppt_df_rel_noremoval %>% 
+  mutate(climvar="Winter ppt") %>% 
+  separate(col=var, into=c("clim","clim2","var"), sep=" ") %>% 
+  dplyr::select(-clim2)) %>% 
+  filter(!(dist=="fire" & species.name =="western redcedar")) %>% 
+  filter(!(dist=="insect.disease" & species.name=="western larch"))
+
+fig2_hot_partial<- ggplot(data=hot_both_partialremoval)+
+  geom_rect(aes(xmin=number.pc1 - 0.5, xmax=number.pc1 + 0.5, ymin=-Inf, ymax=Inf, fill=factor(n.sig)),col="black",alpha=.2,cex=.1) +
+  scale_fill_manual(values=c("white","goldenrod1"), guide="none")+
+  scale_x_continuous(breaks=seq(1,15,1))+
+  ggnewscale::new_scale_fill()+
+  geom_errorbar(aes(x=number.pc1, ymin=lwr,ymax=upr, col=sig, group=dist),width=0.2,size=1,position=position_dodge(.8))+
+  geom_point(aes(x=number.pc1, y=mean, fill=dist, col=sig), pch=21, size=3, position=position_dodge(.8))+
+  geom_hline(yintercept=0,lty=1)+
+  scale_fill_manual(values=disturbance.colors, name="Disturbance")+
+  scale_color_manual(values=c("lightgray","black"),name="Significant")+
+  facet_grid(rows=vars(factor(var, levels=c("max","centroid","min"), labels=c("upper","centroid","lower"))), cols=vars(climvar), scales = "free")+
+  #scale_y_continuous(breaks=seq(-5,5,1))+
+  #annotate(geom="text",x=4, y=-4.5, label="hot/dry",col="black", size=5 )+
+  #annotate(geom="text", x=4, y=6,label="cold/wet",col="black", size=5)+
+  ylab("Relativized Difference in Margin Position")+
+  xlab("Species")+
+  theme_bw()+
+  theme(axis.text.x = element_text(angle=60, hjust=1,size=9, color="black"),axis.title.x = element_text(size=12, color="black"),axis.text.y = element_text(size=10, colour = "black"),axis.title.y = element_text(size=12, color="black"), strip.text = element_text(size = 12), title=element_text(size=14), legend.position = "top", legend.text = element_text(size=14), legend.title = element_text(size=16),panel.grid.major = element_blank(), panel.grid.minor=element_blank(), panel.background = element_blank())
+
+
+png("figures/fig2_hot_partial.png", width=5000, height=4000, res = 600)
+fig2_hot_partial
+dev.off()
+
+
+```
+
+###TSD
+
+```{r}
+##look at how time since disturbance is distributed across the PCA space
+tsd_clim<- env_vars %>% left_join(dist_tsd, by="PLT_CN") %>%
+  filter(!is.na(tsd))
+
+ggplot(tsd_clim, aes(x=dd_0, y=tsd))+
+  geom_jitter(alpha=0.3)+
+  geom_smooth(method="lm")+
+  facet_grid(~Agent)
+
+ggplot(tsd_clim , aes(x=ppt_wt, y=tsd))+
+  geom_jitter(alpha=0.3)+
+  geom_smooth(method="lm")+
+  facet_grid(~Agent)
+
+tsd_mod_clim <- lm(tsd ~ dd_0*Agent, data=tsd_clim)
+summary(tsd_mod_clim)
+Anova(tsd_mod_clim, type="3")
+
+tsd_mod_ppt <- lm(tsd ~ ppt_wt*Agent, data=tsd_clim)
+summary(tsd_mod_ppt)
+Anova(tsd_mod_ppt, type="3")
+```
+
+###Shift types
+```{r}
+#classify shift types
+shifts<- read.csv("C:/Users/katie/OneDrive - Colostate/OneDrive/FIA project/shift_type_hot.csv") %>% 
+  filter(!(type=="N/A"))
+
+ggarrange(
+ggplot(data=shifts, aes(x=disturbance, fill=factor(type, levels=c("march","expansion","contraction","lean","no change"))))+
+  geom_bar(stat="count")+
+  scale_fill_grey(name="Shift Type")+
+  facet_wrap(~climvar)+
+  theme_bw()+
+  theme(strip.text = element_text(size=14, color="black"), axis.text = element_text(size=12, color="black"), axis.title = element_text(size=14, color="black"), legend.text = element_text(size=12, color="black"), legend.title = element_text(size=14, color="black")),
+shifts %>% 
+  filter(!direction=="") %>% 
+  ggplot(aes(x=disturbance, fill=direction))+
+  geom_bar(position="stack")+
+  facet_wrap(~climvar)+
+  #scale_fill_manual(values=c("gray","#CBEBE5","#E2C98A","#F6BC94","turquoise","turquoise4"), name="Direction")+
+  scale_y_continuous(breaks=c(2,4,6,8,10))+
+  theme_bw()+
+  theme(strip.text = element_text(size=14, color="black"), axis.text = element_text(size=12, color="black"), axis.title = element_text(size=14, color="black"), legend.text = element_text(size=12, color="black"), legend.title = element_text(size=14, color="black"))
+, nrow=2, align = "hv")
+
+shifts %>% 
+  group_by(type) %>% 
+  dplyr::summarise(n=n())
+
+shifts_byspecies<- shifts %>% 
+  dplyr::select(-direction) %>% 
+  pivot_wider(id_cols=c(species,disturbance), names_from = climvar, values_from = type) %>% 
+  mutate(shift=ifelse(dd0 == "no change" & winppt == "no change", "no", "yes")) %>% 
+  left_join(dd0means.table, by=c("species" = "species.name")) %>% 
+  mutate(overallshift = 
+           ifelse(dd0==winppt, dd0,
+           ifelse(dd0=="no change" & winppt=="march" | dd0=="march" & winppt == "no change", "march",
+           ifelse(dd0=="no change" & winppt=="expansion" | dd0=="expansion" & winppt == "no change", "expansion",
+           ifelse(dd0=="no change" & winppt=="lean" | dd0=="lean" & winppt == "no change", "lean",
+           ifelse(dd0=="no change" & winppt=="contraction" | dd0=="contraction" & winppt == "no change", "contraction",
+           ifelse(dd0=="lean" & winppt=="contraction" | dd0=="contraction" & winppt == "lean", "contraction",
+           ifelse(dd0=="expansion" & winppt=="contraction" | dd0=="contraction" & winppt == "expansion", "expansion+contraction", NA))))))))
+  
+
+ggplot(shifts_byspecies, aes(x=shift, fill=factor(species,levels=dd0means.table %>% arrange(dd0speciesmean) %>% pull(species.name))))+
+  geom_bar(stat="count") +
+  facet_wrap(~disturbance)+
+  scale_fill_manual(values = spp.colors$color, name="Species")+
+  theme_bw()+
+  theme(text=element_text(size=14,color="black"))
+
+shifts_byspecies_longer <- shifts_byspecies %>% 
+  pivot_longer(cols=c(dd0,winppt), names_to = "climvar", values_to = "type")
+
+ggplot(shifts_byspecies_longer, aes(x=shift, fill=factor(type, levels=c("march","expansion","contraction","lean","no change"))))+
+  geom_bar(stat="count") +
+  scale_fill_grey(name="Shift Type")+
+  facet_grid(climvar~disturbance)+
+  theme_bw()+
+  theme(text=element_text(size=14,color="black"))
+
+
+
+shift_colors<- c(brewer.pal(n=5, name="BrBG")[c(5,4,2,1)],"gray")
+shift_colors2 <- c(brewer.pal(n=12, "Paired")[7],brewer.pal(n=12, "Paired")[10],brewer.pal(n=12, "Paired")[9],brewer.pal(n=11, "BrBG")[9],brewer.pal(n=11, "BrBG")[7],"gray")
+
+
+ggplot(shifts_byspecies_longer, aes(x=shift, fill=factor(type, levels=c("march","expansion","lean","contraction","no change"))))+
+  geom_bar(stat="count") +
+  scale_fill_manual(name="Shift Type", values=shift_colors)+
+  facet_grid(climvar~disturbance)+
+  xlab("Shift")+
+  ylab("Count")+
+  theme_bw()+
+  theme(text=element_text(size=14,color="black"))
+
+ggplot(shifts_byspecies_longer %>% 
+         mutate(shiftbyclimvar = ifelse(type=="no change","no","yes")), aes(x=shiftbyclimvar, fill=factor(type, levels=c("march","expansion","lean","contraction","no change"))))+
+  geom_bar(stat="count") +
+  scale_fill_manual(name="Shift Type", values=shift_colors)+
+  facet_grid(climvar~disturbance)+
+  xlab("Shift")+
+  ylab("Count")+
+  theme_bw()+
+  theme(text=element_text(size=14,color="black"), strip.text = element_text(size=14), axis.text = element_text(size=14), legend.text = element_text(size=14), legend.title = element_text(size=14), legend.position = "bottom")
+
+
+overall_summary_shifts <- shifts_byspecies %>% 
+  dplyr::group_by(overallshift,disturbance) %>% 
+  dplyr::summarise(n=n())
+
+shifts_byspecies %>% 
+  dplyr::group_by(overallshift) %>% 
+  dplyr::summarise(n=n())
+
+
+
+png("figures/shifttype_hot.png",width=300,height=400)
+ggplot(shifts_byspecies, aes(x=disturbance, fill=factor(overallshift, levels=c("expansion+contraction","contraction", "no change"), labels=c("contraction+\nexpansion","contraction","no change"))))+
+  geom_bar(stat="count") +
+  scale_fill_manual(name="Shift Type", values=shift_colors2[c(1:3)])+
+  xlab("")+
+  ylab("Count")+
+  theme_bw()+
+  theme(text=element_text(size=14,color="black"), strip.text = element_text(size=14), axis.text = element_text(size=14, color="black"), legend.text = element_text(size=14, color="black"), legend.title = element_text(size=14, color="black"), legend.position = "bottom")
+dev.off()
+```
+
+
+###Ellipse size
+
+```{r}
+#look at ellipse size 
+
+adult.area <- data.frame()
+seedling.area<- data.frame()
+for(i in 1:length(SEA.B.list.hot)){
+  adultmean <- mean(SEA.B.list.hot[[i]][,1])
+  seedlingmean <- mean(SEA.B.list.hot[[i]][,2])
+adult.area<- rbind(adult.area, adultmean)
+seedling.area <- rbind(seedling.area, seedlingmean)
+}
+
+adult.area$name <- names(SEA.B.list.hot)
+seedling.area$name <- names(SEA.B.list.hot)
+
+niche.areas <- adult.area %>% 
+  left_join(seedling.area) 
+
+colnames(niche.areas) = c("adult_area","name","seedling_area")
+
+niche.areas.long <- niche.areas %>% 
+  pivot_longer(c("adult_area", "seedling_area"), names_to="age", values_to = "niche.area")
+
+ggplot(niche.areas.long, aes(x=name, y=niche.area, fill=age))+
+  geom_bar(stat='identity',position="dodge")+
+  theme(axis.text.x = element_text(angle=45))
+```
+
+
+### Ellipse Overlap
+
+```{r}
+#calculate niche areas and overlap
+##this takes ~10 hours length(ellipses.posterior.list)
+
+##new for 2024
+#overlap.list.hot<-list()
+#
+# for(i in 1:length(ellipses.posterior.list.hot)){
+#     cat(i, "\n")
+# temp.overlap <- bayesianOverlap("1.1","1.2",ellipses.posterior.list.hot[[i]],draws=NULL,p.interval=0.95)
+# 
+# temp.overlap$exp.prop.adult = (temp.overlap$area2 - temp.overlap$overlap)/temp.overlap$area1
+# 
+# temp.overlap$contr.prop.adult = (temp.overlap$area1 - temp.overlap$overlap)/temp.overlap$area1
+# 
+# overlap.list.hot[[i]] <- temp.overlap
+# }
+# names(overlap.list.hot)<- names(ellipses.posterior.list.hot)
+# 
+# saveRDS(overlap.list.hot, file = "overlap.list.hot.RDS")
+```
+
+```{r}
+#read in overlap data
+overlap.list.hot <- readRDS("overlap.list.hot.RDS")
+```
+
+```{r}
+#calculate net expansion for each replicate
+overlap.list.hot2<- lapply(overlap.list.hot, function(x) {mutate(x, net.expansion = exp.prop.adult - contr.prop.adult)}) 
+#summarize overlap by taking mean
+overlap.summary.hot<-list()
+for(i in 1:length(overlap.list.hot2)){
+  temp.summary<- overlap.list.hot2[[i]] %>%
+    dplyr::summarise(adult.mean.area = mean(area1), seed.mean.area = mean(area2),overlap.mean.area=mean(overlap),
+                     mean.exp.prop.adult=mean(exp.prop.adult),mean.contr.prop.adult=mean(contr.prop.adult), lwr.expansion = quantile(exp.prop.adult, 0.025),upr.expansion = quantile(exp.prop.adult, 0.975),lwr.contraction = quantile(contr.prop.adult, 0.025),upr.contraction = quantile(contr.prop.adult, 0.975),
+                     mean.net.expansion = mean(net.expansion), lwr.net.expansion = quantile(net.expansion, 0.025),upr.net.expansion = quantile(net.expansion, 0.975))
+  overlap.summary.hot[[i]]<- temp.summary
+  }#### calculate 95% credible intervals 
+overlap.table.hot <- as.data.frame(matrix(unlist(overlap.summary.hot),nrow = 48, ncol=12,byrow=TRUE))  
+colnames(overlap.table.hot)<-names(overlap.summary.hot[[1]])
+overlap.table.hot<- overlap.table.hot %>% 
+  mutate(names = names(overlap.list.hot)) %>% 
+  separate(names,into=c("species","disturbance","extra"),sep="_") %>% 
+  mutate(species = as.numeric(species)) %>% 
+  left_join(species.names,by=c("species"="species.code")) %>% 
+  filter(!species.name=="singleleaf pinyon")
+```
+
+
+Lets look at some plots of expansion and contraction across species and disturbances. 
+
+```{r}
+#some plots
+ggplot(overlap.table.hot %>% filter(!(disturbance == 'fire' & species.name %in% insectonlyspp)) %>% filter(!(disturbance=="insect.disease" & species.name %in% fireonlyspp)),aes(x=species.name,y=mean.exp.prop.adult,fill=disturbance))+
+  geom_bar(stat='identity',position='dodge')+
+  scale_fill_manual(values=disturbance.colors)+
+  theme(axis.text.x = element_text(angle=45,vjust=0.9,hjust=0.8))
+
+ggplot(overlap.table.hot %>% filter(!(disturbance == 'fire' & species.name %in% insectonlyspp)) %>% filter(!(disturbance=="insect.disease" & species.name %in% fireonlyspp)),aes(x=species.name,y=mean.contr.prop.adult,fill=disturbance))+
+  geom_bar(stat='identity',position='dodge')+
+  scale_fill_manual(values=disturbance.colors)+
+  theme(axis.text.x = element_text(angle=45,vjust=0.9,hjust=0.8))
+
+#look at expansion - contraction
+overlap.table.hot$diff = overlap.table.hot$mean.exp.prop.adult - overlap.table.hot$mean.contr.prop.adult
+
+#add column for difference from 0 net expansion
+overlap.table.hot <- overlap.table.hot %>% 
+  mutate(nodiff = ifelse(lwr.net.expansion <0 & upr.net.expansion>0, "nodiff", "diff")) %>% 
+  mutate(nodiff.exp = ifelse(lwr.expansion <0 & upr.expansion>0, "nodiff", "diff")) %>% 
+  mutate(nodiff.con = ifelse(lwr.contraction <0 & upr.contraction>0, "nodiff", "diff"))
+
+#for species with all 3 disturbances
+diff.plot<- ggplot(overlap.table.hot %>% filter(!species.name %in% c(insectonlyspp,fireonlyspp)),aes(x=disturbance,y=mean.net.expansion,color=disturbance, alpha=nodiff))+
+  geom_hline(yintercept=0, linetype=2, size=0.8)+
+  geom_point(position = position_dodge(0.9),size=4)+
+  geom_errorbar(aes(ymin=lwr.net.expansion, ymax =upr.net.expansion), width=.5, position = position_dodge(0.9),size=1)+
+  scale_color_manual(values=disturbance.colors)+
+  scale_alpha_manual(values=c(1,0.5))+
+  facet_wrap(~species.name, nrow=1, labeller = labeller(species.name = label_wrap_gen(10)))+
+  #scale_x_discrete(position='top',name="")+
+  ylab("Net Expansion")+
+  # annotate("text",x=8.5,y=0.3,label="expansion",size=7)+
+  # annotate("text",x=8.5,y=-0.4,label="contraction",size=7)+
+  theme_bw()+
+  theme(axis.text = element_text(size=24),legend.text = element_text(size=24),legend.title = element_text(size=24),legend.position = 'none',axis.title = element_text(size=24),plot.margin=margin(0,0.5,.6,.1,"cm"), axis.text.x=element_blank(), axis.ticks.x=element_blank(),axis.title.x = element_blank(),strip.text = element_text(size=16,color="black"))
+
+#for all species
+diff.plot_all<- ggplot(overlap.table.hot,aes(x=disturbance,y=mean.net.expansion,color=disturbance, alpha=nodiff,shape=nodiff))+
+  geom_hline(yintercept=0, linetype=2, size=0.8)+
+  geom_point(position = position_dodge(0.9),size=4)+
+  geom_errorbar(aes(ymin=lwr.net.expansion, ymax =upr.net.expansion), width=.5, position = position_dodge(0.9),size=1)+
+  scale_color_manual(values=disturbance.colors, name="Disturbance",labels=c("fire","insect/disease","none"))+
+  scale_alpha_manual(values=c(1,0.4),labels=c("no","yes"),name="95% CI overlaps 0")+
+  scale_shape_manual(values=c(16,1),labels=c("no","yes"),name="95% CI overlaps 0")+
+  facet_wrap(~factor(species.name, levels=c(pc1means.table$species.name[c(1,3,4,6:7,9,12:15)],pc1means.table$species.name[c(2,5,8,10,11)])), nrow=3, labeller = labeller(species.name = label_wrap_gen(20)))+
+  facet_wrap(~factor(species.name, levels=pc1means.table$species.name), nrow=3, labeller = labeller(species.name = label_wrap_gen(20)))+
+  #scale_x_discrete(position='top',name="")+
+  ylab("Net expansion")+
+  # annotate("text",x=8.5,y=0.3,label="expansion",size=7)+
+  # annotate("text",x=8.5,y=-0.4,label="contraction",size=7)+
+  theme_bw()+
+  theme(axis.text = element_text(size=24),legend.text = element_text(size=24),legend.title = element_text(size=24),legend.position = 'bottom',axis.title = element_text(size=24),plot.margin=margin(0,0.5,.6,.1,"cm"), axis.text.x=element_blank(), axis.ticks.x=element_blank(),axis.title.x = element_blank(),strip.text = element_text(size=16,color="black"))
+```
+
+
+###Gains vs. Losses
+```{r}
+##experimenting
+##combine the new and lost area into one plot
+overlap.table.hot.long<- overlap.table.hot %>% 
+  dplyr::select(species,species.name,disturbance,mean.exp.prop.adult,mean.contr.prop.adult, lwr.expansion, lwr.contraction, upr.expansion,upr.contraction) %>% 
+  pivot_longer(c(mean.exp.prop.adult,mean.contr.prop.adult), values_to = "mean", names_to = "type") %>% 
+  mutate(lwr = ifelse(type=="mean.exp.prop.adult", lwr.expansion,
+                      ifelse(type=="mean.contr.prop.adult",lwr.contraction,NA)),
+         upr = ifelse(type=="mean.exp.prop.adult", upr.expansion,
+                      ifelse(type=="mean.contr.prop.adult",upr.contraction,NA))) %>% 
+  mutate(diff = ifelse(lwr>0 & upr>0, "diff", "nodiff")) %>% 
+  mutate(typen = as.numeric(as.factor(type))) %>% 
+  mutate(type=ifelse(type=="mean.exp.prop.adult", "gained",
+                      ifelse(type=="mean.contr.prop.adult", "lost", NA))) %>% 
+  left_join(pc1means.table)
+
+overlap.table.hot.long_cutoff<- 
+  overlap.table.hot.long %>% 
+  mutate(upr = ifelse(upr>0.7,.7,upr))
+
+arrow_tips_table1 <- overlap.table.hot.long %>% 
+  filter(upr>0.7 & species.name=="western larch") 
+arrow_tips_table2 <- overlap.table.hot.long %>% 
+  filter(upr>0.7 & species.name=="western redcedar")
+
+comb.p.plot<- ggplot(overlap.table.hot.long_cutoff,aes(x=typen,y=mean,color=disturbance,alpha=diff,shape=diff))+
+  geom_rect(aes(xmin=0.5, xmax=1.5, ymin=-Inf, ymax=Inf, fill = typen), alpha=0.3, stat="identity", col="black") +
+  geom_hline(yintercept=0, linetype=2, size=0.8)+
+  geom_vline(xintercept=1.5)+
+  geom_point(position = position_dodge(0.9),size=4)+
+  geom_errorbar(aes(ymin=lwr, ymax =upr), width=0, position = position_dodge(0.9),size=1)+
+  scale_color_manual(values=disturbance.colors, name="Disturbance",labels=c("fire","insect/disease","none"))+
+  scale_alpha_manual(values=c(1,.7),labels=c("no","yes"),name="95% CI overlaps 0")+
+  scale_shape_manual(values=c(16,1),labels=c("no","yes"),name="95% CI overlaps 0")+
+  facet_wrap(~factor(species.name, levels=pc1means.table$species.name), nrow=3, labeller = labeller(species.name = label_wrap_gen(20)))+
+  ylab("Proportion")+
+  scale_y_continuous(limits=c(-.1,.7)) +
+  scale_x_continuous(breaks=overlap.table.hot.long$typen, labels=overlap.table.hot.long$type)+
+  scale_fill_gradient(low="grey",high="white", guide="none")+
+  geom_segment(data=arrow_tips_table1, aes(x=typen,xend=typen,y=.25,yend=.7,color=disturbance,alpha=diff), arrow = arrow(length=unit(.2,"cm")),size=1)+
+    geom_segment(data=arrow_tips_table2, aes(x=typen-.3,xend=typen-.3,y=.25,yend=.7,color=disturbance,alpha=diff), arrow = arrow(length=unit(.2,"cm")),size=1)+
+  theme_bw()+
+  theme(axis.text = element_text(size=24),legend.text = element_text(size=24),legend.title = element_text(size=24),legend.position = 'bottom',axis.title = element_text(size=24),plot.margin=margin(0,0.5,.6,.1,"cm"), axis.text.x=element_text(color="black",size=20), axis.title.x = element_blank(),strip.text = element_text(size=16,color="black"), panel.grid = element_blank())
+
+comb.p.plot
+
+# png("figures/comb.prop.plot.png", width = 1000, height = 600)
+# comb.p.plot
+# dev.off()
+
+#compare lost vs. gain within disturbance within species
+ggplot(overlap.table.hot.long_cutoff,aes(x=disturbance,y=mean,color=factor(type, levels=c("lost","gained")),alpha=diff,shape=diff))+
+  #geom_rect(aes(xmin=0.5, xmax=1.5, ymin=-Inf, ymax=Inf, fill = typen), alpha=0.3, stat="identity", col="black") +
+  geom_hline(yintercept=0, linetype=2, size=0.8)+
+  #geom_vline(xintercept=1.5)+
+  geom_point(position = position_dodge(0.5),size=4)+
+  geom_errorbar(aes(ymin=lwr, ymax =upr), width=0, position = position_dodge(0.5),size=1)+
+  scale_color_manual(values=shift_colors[c(4,2)])+
+  #scale_color_manual(values=disturbance.colors, name="Disturbance",labels=c("fire","insect/disease","none"))+
+  scale_alpha_manual(values=c(1,.7),labels=c("no","yes"),name="95% CI overlaps 0")+
+  scale_shape_manual(values=c(16,1),labels=c("no","yes"),name="95% CI overlaps 0")+
+  facet_wrap(~factor(species.name, levels=pc1means.table$species.name), nrow=3, labeller = labeller(species.name = label_wrap_gen(20)))+
+  ylab("Proportion")+
+  scale_y_continuous(limits=c(-.1,.7)) +
+  #scale_x_continuous(breaks=overlap.table.hot.long$typen, labels=overlap.table.hot.long$type)+
+  scale_fill_gradient(low="grey",high="white", guide="none")+
+  #geom_segment(data=arrow_tips_table1, aes(x=typen,xend=typen,y=.25,yend=.7,color=disturbance,alpha=diff), arrow = arrow(length=unit(.2,"cm")),size=1)+
+   #geom_segment(data=arrow_tips_table2, aes(x=typen-.3,xend=typen-.3,y=.25,yend=.7,color=disturbance,alpha=diff), arrow = arrow(length=unit(.2,"cm")),size=1)+
+  theme_bw()+
+  theme(axis.text = element_text(size=24),legend.text = element_text(size=24),legend.title = element_text(size=24),legend.position = 'bottom',axis.title = element_text(size=24),plot.margin=margin(0,0.5,.6,.1,"cm"), axis.text.x=element_text(color="black",size=20), axis.title.x = element_blank(),strip.text = element_text(size=16,color="black"), panel.grid = element_blank())
+
+##facet by disturbance
+gl_bydist<- ggplot(overlap.table.hot.long_cutoff,aes(x=as.factor(number),y=mean,color=factor(species.name, levels=pc1means.table$species.name),alpha=diff,shape=diff))+
+  scale_color_manual(values = spp.colors$color, name="Species")+
+  geom_hline(yintercept=0, linetype=2, size=0.8)+
+  geom_point(position = position_dodge(0.9),size=4)+
+  geom_errorbar(aes(ymin=lwr, ymax =upr), width=0, position = position_dodge(0.9),size=1)+
+  scale_alpha_manual(values=c(1,.7),labels=c("no","yes"),name="95% CI overlaps 0")+
+  scale_shape_manual(values=c(16,1),labels=c("no","yes"),name="95% CI overlaps 0")+
+  facet_grid(type~disturbance)+
+  ylim(c(-.1,.7))+
+  ylab("Proportion")+
+  geom_segment(data=arrow_tips_table1, aes(x=11,xend=11,y=.25,yend=.7,color=factor(species.name, levels=pc1means.table$species.name),alpha=diff), arrow = arrow(length=unit(.2,"cm")),size=1)+
+    geom_segment(data=arrow_tips_table2, aes(x=8,xend=8,y=.25,yend=.7,color=factor(species.name, levels=pc1means.table$species.name),alpha=diff), arrow = arrow(length=unit(.2,"cm")),size=1)+
+  theme_bw()+
+  theme(axis.text = element_text(size=24),legend.text = element_text(size=16),legend.title = element_text(size=24),legend.position = 'right',axis.title = element_text(size=24),plot.margin=margin(0,0.5,.6,.1,"cm"), axis.title.x = element_blank(),strip.text = element_text(size=16,color="black"), panel.grid.minor.x = element_blank(), panel.grid.major.x = element_blank(), axis.text.x=element_text(size=16, angle=60,hjust=1))
+
+png("figures/gl_bydist.png", width = 900, height = 400)
+gl_bydist
+dev.off()
+
+
+##see how many CIs are non-overlapping within disturbances
+
+species.pairs <- t(combn(unique(overlap.table.hot.long$species.name),2))
+species.pairs[1,]
+
+ci_overlap_hot <- data.frame(comp = NA, eval=NA, dist=NA, type=NA)
+type_names<- c("gained","lost")
+
+for(k in 1:length(type_names)){
+for(j in 1:length(dist_names)){
+for(i in 1:nrow(species.pairs)){
+  a <- overlap.table.hot.long %>% filter(disturbance==dist_names[j], type==type_names[k]) %>%  filter(species.name == species.pairs[i,1])
+  b <- overlap.table.hot.long %>% filter(disturbance==dist_names[j], type==type_names[k]) %>%  filter(species.name == species.pairs[i,2])
+  
+if(a %>% pull(mean) > b %>% pull(mean)){ 
+    eval <- a %>% pull(lwr) >  b %>% pull(upr)
+    row <- data.frame(comp= paste(species.pairs[i,1],"_",species.pairs[i,2], sep=""), eval = eval, dist=dist_names[j], type=type_names[k])
+  ci_overlap_hot<- bind_rows(ci_overlap_hot, row)}
+
+if(a %>% pull(mean) <  b %>% pull(mean)){
+  eval <- b %>% pull(lwr) > a %>% pull(upr)
+  row <- data.frame(comp= paste(species.pairs[i,1],"_",species.pairs[i,2], sep=""), eval = eval,  dist=dist_names[j], type=type_names[k])
+  ci_overlap_hot<- bind_rows(ci_overlap_hot, row)}
+}}}
+
+View(ci_overlap_hot)
+
+##see how many species have significant differences between disturbance types
+
+dist.pairs <- t(combn(unique(overlap.table.hot.long$disturbance),2))
+
+ci_overlap_hot_dist <- data.frame(comp = NA, eval=NA, species=NA, type=NA)
+type_names<- c("gained","lost")
+species_list <- unique(overlap.table.hot.long$species.name)
+
+for(k in 1:length(type_names)){
+for(j in 1:length(species_list)){
+for(i in 1:nrow(dist.pairs)){
+  a <- overlap.table.hot.long %>% filter(species.name==species_list[j], type==type_names[k]) %>%  filter(disturbance == dist.pairs[i,1])
+  b <- overlap.table.hot.long %>% filter(species.name==species_list[j], type==type_names[k]) %>%  filter(disturbance == dist.pairs[i,2])
+  
+if(a %>% pull(mean) > b %>% pull(mean)){ 
+    eval <- a %>% pull(lwr) >  b %>% pull(upr)
+    row <- data.frame(comp= paste(dist.pairs[i,1],"_",dist.pairs[i,2], sep=""), eval = eval, species=species_list[j], type=type_names[k])
+  ci_overlap_hot_dist<- bind_rows(ci_overlap_hot_dist, row)}
+
+if(a %>% pull(mean) <  b %>% pull(mean)){
+  eval <- b %>% pull(lwr) > a %>% pull(upr)
+  row <- data.frame(comp= paste(dist.pairs[i,1],"_",dist.pairs[i,2], sep=""), eval = eval,  species=species_list[j], type=type_names[k])
+  ci_overlap_hot_dist<- bind_rows(ci_overlap_hot_dist, row)}
+}}}
+
+View(ci_overlap_hot_dist)
+
+
+##see how many species have significant differences between gained vs. lost in each disturbance type
+
+ci_overlap_hot_type <- data.frame(comp = NA, eval=NA, species=NA, dist=NA)
+
+for(j in 1:length(species_list)){
+for(i in 1:length(dist_names)){
+  a <- overlap.table.hot.long %>% filter(species.name==species_list[j], type=="gained") %>%  filter(disturbance == dist_names[i])
+  b <- overlap.table.hot.long %>% filter(species.name==species_list[j], type=="lost") %>%  filter(disturbance == dist_names[i])
+  
+if(a %>% pull(mean) > b %>% pull(mean)){ 
+    eval <- a %>% pull(lwr) >  b %>% pull(upr)
+    row <- data.frame(comp= paste(a$type,"_",b$type, sep=""), eval = eval, species=species_list[j], dist=dist_names[i], direction="gained>lost")
+  ci_overlap_hot_type<- bind_rows(ci_overlap_hot_type, row)}
+
+if(a %>% pull(mean) <  b %>% pull(mean)){
+  eval <- b %>% pull(lwr) > a %>% pull(upr)
+  row <- data.frame(comp= paste(a$type,"_",b$type, sep=""), eval = eval,  species=species_list[j], dist=dist_names[i],direction="gained<lost")
+  ci_overlap_hot_type<- bind_rows(ci_overlap_hot_type, row)}
+}}
+
+
+#fire
+
+##getting letters together
+overlap.table.hot.long_cutoff %>% filter(disturbance=="fire" & type=="gained") %>% arrange(mean) %>% pull(species.name)
+View(ci_overlap_hot %>% filter(dist=="fire",type=="gained" & eval=="TRUE"))
+
+star_table<- ci_overlap_hot_dist %>% filter(eval==TRUE) %>% 
+  separate(comp, "_", into=c("dist1","dist2")) %>% 
+  mutate(star="yes")
+
+star_table2<- ci_overlap_hot_type %>% filter(eval==TRUE) %>% 
+  mutate(star="yes")
+  
+
+##
+pc1means.table %>% filter(species.name%in% insectonlyspp)
+
+fire_data<- overlap.table.hot.long_cutoff %>% filter(disturbance=="fire") %>% 
+  left_join(star_table, by=c("species.name"="species","disturbance"="dist1","type")) %>% 
+  mutate(star=ifelse(is.na(star), "no",
+                     ifelse(disturbance=="fire" &species.name%in%insectonlyspp,"no",star))) 
+
+fireplot <- ggplot(fire_data,aes(x=factor(species.name, levels=pc1means.table$species.name, labels=pc1means.table$number),color=factor(species.name, levels=pc1means.table$species.name, labels=pc1means.table$number),y=mean,alpha=diff,shape=diff))+
+  scale_color_manual(values = c("gray",spp.colors$color[2:3],"gray","gray",spp.colors$color[6:7],"gray","gray",spp.colors$color[10:15]), name="Species")+
+  geom_hline(yintercept=0, linetype=2, size=0.8)+
+  geom_point(position = position_dodge(0.9),size=4, stroke=2)+
+  geom_errorbar(aes(ymin=lwr, ymax =upr), width=0, position = position_dodge(0.9),size=1.5)+
+  scale_alpha_manual(values=c(1,.7),labels=c("no","yes"),name="95% CI overlaps 0")+
+  #scale_linetype_manual(values=c("solid","dotdash"),labels=c("no","yes"),name="95% CI overlaps 0")+
+  scale_shape_manual(values=c(16,1),labels=c("no","yes"),name="95% CI overlaps 0")+
+  facet_grid(factor(type,levels=c("lost","gained"))~disturbance)+
+  geom_segment(data=arrow_tips_table2, aes(xend=factor(species.name, levels=pc1means.table$species.name, labels=pc1means.table$number),y=.25,yend=.7,x=factor(species.name, levels=pc1means.table$species.name, labels=pc1means.table$number),color=factor(species.name, levels=pc1means.table$species.name, labels=pc1means.table$number),alpha=diff), arrow = arrow(length=unit(.4,"cm")),size=1.5)+
+  geom_text(data=fire_data %>% filter(star=="yes"), aes(x=factor(species.name, levels=pc1means.table$species.name, labels=pc1means.table$number), y=0.6, label="*"),size=11)+
+  geom_text(data=fire_data %>% filter(species.name%in% c(star_table2 %>% filter(dist=="fire") %>% pull(species)) & type=="lost" & !species.name %in%insectonlyspp), aes(x=factor(species.name, levels=pc1means.table$species.name, labels=pc1means.table$number), y=0.55, label="x"),size=6, col="black")+
+  ylim(c(-.1,.7))+
+  ylab("Proportion")+
+  theme_bw()+
+  theme(axis.text = element_text(size=24),legend.text = element_text(size=16),legend.title = element_text(size=24),legend.position = 'none',axis.title = element_text(size=24),plot.margin=margin(0,0.5,.6,.1,"cm"), axis.title.x = element_blank(),strip.text = element_text(size=20,color="black"), panel.grid.minor.x = element_blank(), panel.grid.major.x = element_blank(), axis.text.x = element_text(size=18, angle=60, color="black", hjust=1))
+
+
+pc1means.table %>% filter(species.name %in% fireonlyspp)
+    
+#insect/disease
+id_data<- overlap.table.hot.long_cutoff %>% filter(disturbance=="insect.disease") %>% 
+  left_join(star_table, by=c("species.name"="species","disturbance"="dist1","type")) %>% 
+  mutate(star=ifelse(is.na(star), "no",
+                     ifelse(disturbance=="insect.disease" &species.name%in%fireonlyspp,"no",star))) 
+
+idplot<- ggplot(id_data,aes(x=factor(species.name, levels=pc1means.table$species.name, labels=pc1means.table$number),y=mean,col = factor(species.name, levels=pc1means.table$species.name, labels=pc1means.table$number), alpha=diff,shape=diff))+
+  geom_hline(yintercept=0, linetype=2, size=0.8)+
+  geom_point(position = position_dodge(0.9),size=4,stroke=2)+
+  geom_errorbar(aes(ymin=lwr, ymax =upr), width=0, position = position_dodge(0.9),size=1.5)+
+      scale_color_manual(values = c(spp.colors$color[1:10],"gray",spp.colors$color[12:15]), name="Species")+
+  scale_alpha_manual(values=c(1,.7),labels=c("no","yes"),name="95% CI overlaps 0")+
+  scale_shape_manual(values=c(16,1),labels=c("no","yes"),name="95% CI overlaps 0")+
+  #scale_linetype_manual(values=c("solid","dotdash"),labels=c("no","yes"),name="95% CI overlaps 0")+
+  facet_grid(factor(type,levels=c("lost","gained"))~disturbance)+
+  geom_segment(data=arrow_tips_table1, aes(xend=factor(species.name, levels=pc1means.table$species.name, labels=pc1means.table$number),y=.25,yend=.7,x=factor(species.name, levels=pc1means.table$species.name, labels=pc1means.table$number),color=factor(species.name, levels=pc1means.table$species.name, labels=pc1means.table$number),alpha=diff), arrow = arrow(length=unit(.4,"cm")),size=1.5)+
+  geom_text(data=id_data %>% filter(star=="yes"), aes(x=factor(species.name, levels=pc1means.table$species.name, labels=pc1means.table$number), y=0.6, label="*"),size=11)+
+  geom_text(data=id_data %>% filter(species.name%in% c(star_table2 %>% filter(dist=="insect.disease") %>% pull(species)) & type=="lost" & !species.name %in% fireonlyspp), aes(x=factor(species.name, levels=pc1means.table$species.name, labels=pc1means.table$number), y=0.55, label="x"),size=6, col="black")+
+  ylim(c(-.1,.7))+
+  ylab("Proportion")+
+  theme_bw()+
+  theme(axis.text = element_text(size=24),legend.text = element_text(size=16),legend.title = element_text(size=24),legend.position = 'none',axis.title = element_text(size=24),plot.margin=margin(0,0.5,.6,.1,"cm"), axis.title.x = element_blank(),strip.text = element_text(size=20,color="black"), panel.grid.minor.x = element_blank(), panel.grid.major.x = element_blank(),axis.text.x = element_text(size=18, angle=60, color="black", hjust=1))
+
+#none
+noneplot<- ggplot(overlap.table.hot.long_cutoff %>% filter(disturbance=="none"),aes(x=factor(species.name, levels=pc1means.table$species.name, labels=pc1means.table$number),y=mean, col = factor(species.name, levels=pc1means.table$species.name, labels=pc1means.table$number), alpha=diff,shape=diff))+
+  geom_hline(yintercept=0, linetype=2, size=0.8)+
+  geom_point(position = position_dodge(0.9),size=4,stroke=2)+
+  geom_errorbar(aes(ymin=lwr, ymax =upr), width=0, position = position_dodge(0.9),size=1.5)+
+    scale_color_manual(values = spp.colors$color, name="Species")+
+  scale_alpha_manual(values=c(1,.7),labels=c("no","yes"),name="95% CI overlaps 0")+
+  scale_shape_manual(values=c(16,1),labels=c("no","yes"),name="95% CI overlaps 0")+
+  #scale_linetype_manual(values=c("solid","dotdash"),labels=c("no","yes"),name="95% CI overlaps 0")+
+  facet_grid(factor(type,levels=c("lost","gained"))~disturbance)+
+  geom_text(data=overlap.table.hot.long_cutoff %>% filter(disturbance=="none") %>% filter(species.name%in% c(star_table2 %>% filter(dist=="none") %>% pull(species)) & type=="lost"), aes(x=factor(species.name, levels=pc1means.table$species.name, labels=pc1means.table$number), y=0.55, label="x"),size=6, col="black")+
+  ylim(c(-.1,.7))+
+  ylab("Proportion")+
+  theme_bw()+
+  theme(axis.text = element_text(size=24),legend.text = element_text(size=16),legend.title = element_text(size=24),legend.position = 'none',axis.title = element_text(size=24),plot.margin=margin(0,0.5,.6,.1,"cm"),axis.title.x = element_blank(),strip.text = element_text(size=20,color="black"), panel.grid.minor.x = element_blank(), panel.grid.major.x = element_blank(),axis.text.x = element_text(size=18, angle=60, color="black", hjust=1))
+
+png("figures/gl_bypc1.png", width = 1200, height = 480)
+ggarrange(fireplot, idplot, noneplot, ncol=3)
+dev.off()
+
+legendplot<- ggplot(overlap.table.hot.long_cutoff %>% filter(disturbance=="none"),aes(x=factor(species.name, levels=pc1means.table$species.name, labels=pc1means.table$number),y=mean, alpha=diff,shape=diff))+
+  geom_hline(yintercept=0, linetype=2, size=0.8)+
+  geom_point(position = position_dodge(0.9),size=3,stroke=2)+
+  geom_errorbar(aes(ymin=lwr, ymax =upr), width=0, position = position_dodge(0.9),size=1)+
+  scale_alpha_manual(values=c(1,.7),labels=c("no","yes"),name="95% CI overlaps 0")+
+  scale_shape_manual(values=c(16,1),labels=c("no","yes"),name="95% CI overlaps 0")+
+  #scale_linetype_manual(values=c("solid","dotdash"),labels=c("no","yes"),name="95% CI overlaps 0")+
+  facet_grid(factor(type,levels=c("lost","gained"))~disturbance)+
+  ylim(c(-.1,.7))+
+  ylab("Proportion")+
+  theme_bw()+
+  theme(axis.text = element_text(size=24),legend.text = element_text(size=16),legend.title = element_text(size=24),legend.position = 'right',axis.title = element_text(size=24),plot.margin=margin(0,0.5,.6,.1,"cm"),axis.title.x = element_blank(),strip.text = element_text(size=16,color="black"), panel.grid.minor.x = element_blank(), panel.grid.major.x = element_blank(),axis.text.x = element_text(size=14, angle=60, color="black", hjust=1))
+
+png("figures/gl_bypc1_legend.png", width = 1200, height = 480)
+ggarrange(fireplot, idplot, legendplot, ncol=3)
+dev.off()
+
+write.csv(ci_overlap_hot,"supplemental/species_significance_table_hot.csv")
+
+#calculating some stats
+bind_rows(fire_data %>% 
+  filter(!species.name %in% insectonlyspp) %>% 
+  dplyr::group_by(type) %>% 
+  dplyr::summarise(mean2 = mean(mean), min=min(mean), max=max(mean)) %>% 
+  mutate(dist="fire"),
+id_data %>% 
+  filter(!species.name %in% fireonlyspp) %>% 
+  dplyr::group_by(type) %>% 
+  dplyr::summarise(mean2 = mean(mean), min=min(mean), max=max(mean)) %>% 
+  mutate(dist="id"),
+overlap.table.hot.long_cutoff %>% filter(disturbance=="none") %>% 
+  dplyr::group_by(type) %>% 
+  dplyr::summarise(mean2 = mean(mean), min=min(mean), max=max(mean)) %>% 
+  mutate(dist="none")) %>% 
+  arrange(type)
+
+
+#####only excluding the two species with extremely low sample size
+
+star_table_all <- star_table %>% 
+  filter(dist2=="none") %>% 
+  left_join(overlap.table.hot.long, by=c("dist1"="disturbance", "species"="species.name", "type")) %>% 
+  dplyr::rename(disturbance=dist1)
+
+gl_bypc1_hot<- ggplot(overlap.table.hot.long %>% 
+  filter(!(disturbance=="fire" & species.name =="western redcedar")) %>% 
+  filter(!(disturbance=="insect.disease" & species.name=="western larch")),
+  aes(x=factor(number),y=mean, col =factor(number), alpha=diff,shape=diff))+
+  geom_hline(yintercept=0, linetype=2, size=0.8)+
+  geom_point(position = position_dodge(0.9),size=4,stroke=2)+
+  geom_errorbar(aes(ymin=lwr, ymax =upr), width=0, position = position_dodge(0.9),size=1.5)+
+  scale_color_manual(values = spp.colors$color, name="Species")+
+  scale_alpha_manual(values=c(1,.7),labels=c("no","yes"),name="95% CI overlaps 0")+
+  scale_shape_manual(values=c(16,1),labels=c("no","yes"),name="95% CI overlaps 0")+
+  #scale_linetype_manual(values=c("solid","dotdash"),labels=c("no","yes"),name="95% CI overlaps 0")+
+  geom_text(data=star_table2  %>% inner_join(overlap.table.hot.long, by=c("species"="species.name","dist"="disturbance")) %>% filter(type=="lost") %>% dplyr::rename(disturbance=dist) , aes(x=factor(number), y=0.75, label="x"),size=6, col="black")+
+  geom_text(data=star_table_all, aes(x=factor(number), y=0.77, label="*"),size=11)+
+  facet_grid(factor(type,levels=c("lost","gained"))~disturbance)+
+  ylim(c(-.01,0.8))+
+  ylab("Proportion")+
+  theme_bw()+
+  theme(axis.text = element_text(size=24),legend.text = element_text(size=16),legend.title = element_text(size=24),legend.position = 'none',axis.title = element_text(size=24),plot.margin=margin(0,0.5,.6,.1,"cm"),axis.title.x = element_blank(),strip.text = element_text(size=20,color="black"), panel.grid.minor.x = element_blank(), panel.grid.major.x = element_blank(),axis.text.x = element_text(size=18, angle=60, color="black", hjust=1))
+
+
+png("figures/gl_bypc1_hot.png", width = 900, height = 480)
+gl_bypc1_hot
+dev.off()
+
+png("figures/gl_bypc1_hot_legend.png", width = 900, height = 500)
+ggplot(overlap.table.hot.long %>% 
+  filter(!(disturbance=="fire" & species.name =="western redcedar")) %>% 
+  filter(!(disturbance=="insect.disease" & species.name=="western larch")),
+  aes(x=factor(number),y=mean, col =factor(number), alpha=diff,shape=diff))+
+  geom_hline(yintercept=0, linetype=2, size=0.8)+
+  geom_point(position = position_dodge(0.9),size=4,stroke=2)+
+  geom_errorbar(aes(ymin=lwr, ymax =upr), width=0, position = position_dodge(0.9),size=1.5)+
+  scale_color_manual(values = spp.colors$color, name="Species")+
+  scale_alpha_manual(values=c(1,.7),labels=c("no","yes"),name="95% CI overlaps 0")+
+  scale_shape_manual(values=c(16,1),labels=c("no","yes"),name="95% CI overlaps 0")+
+  #scale_linetype_manual(values=c("solid","dotdash"),labels=c("no","yes"),name="95% CI overlaps 0")+
+  facet_grid(~disturbance)+
+  ylim(c(-.01,0.8))+
+  ylab("Proportion")+
+  theme_bw()+
+  theme(axis.text = element_text(size=28),legend.text = element_text(size=20),legend.title = element_text(size=24),legend.position = 'right',axis.title = element_text(size=24),plot.margin=margin(0,0.5,.6,.1,"cm"),axis.title.x = element_blank(),strip.text = element_text(size=20,color="black"), panel.grid.minor.x = element_blank(), panel.grid.major.x = element_blank(),axis.text.x = element_text(size=18, angle=60, color="black", hjust=1))
+dev.off()
+
+###stats
+overlap.table.hot.long %>% 
+  filter(!(disturbance=="fire" & species.name =="western redcedar")) %>% 
+  filter(!(disturbance=="insect.disease" & species.name=="western larch")) %>% 
+  dplyr::group_by(disturbance,type) %>% 
+  dplyr::summarise(mean2 = mean(mean), min=min(mean), max=max(mean))
+
+```
+
+#####Traits
+```{r, echo=FALSE, message=FALSE, results='hide'}
+#first, make trait dataframe
+
+#make Shade tolerance dataframe from https://figshare.com/collections/TOLERANCE_TO_SHADE_DROUGHT_AND_WATERLOGGING_OF_TEMPERATE_NORTHERN_HEMISPHERE_TREES_AND_SHRUBS/3309258
+
+trait.data1 <- data.frame(species.name = species.names$species.name,
+                         shade.tolerance=c(4.33,4.01,4.83,1.48,1.35,4.53,1,1.44,1.48,1.56,1.64,1.17,2.78,4.73,1.21,2.09),
+                         dispersal = c(rep("wind",3),"animal","wind","wind",rep("animal",2),"wind","animal","wind","animal",rep("wind",3),"animal"))
+
+#read in seed weight data
+#need to get weights for new species
+seed.weight <- read_csv("TRY data/TRY_seed_edited.csv")
+
+try.names <- data.frame(scientific.name = unique(seed.weight$AccSpeciesName), species.name = c("white fir","grand fir","subalpine fir","alligator juniper","Engelmann spruce","lodgepole pine","two needle pinyon","ponderosa pine","trembling aspen","Douglas-fir","Gambel oak","western redcedar","western larch","whitebark pine","limber pine"))
+
+seed.weight.filter <- seed.weight %>%
+  filter(is.na(OrigObsDataID)) %>% 
+  filter(ErrorRisk < 4) %>% 
+  distinct(ObservationID, .keep_all = TRUE) %>% 
+  left_join(try.names, by=c("AccSpeciesName" = "scientific.name"))
+
+nrow(seed.weight.filter)
+length(unique(seed.weight.filter$ObservationID))
+
+seed.weight.summary <- seed.weight.filter %>% 
+  group_by(species.name) %>% 
+  dplyr::summarise(mean.weight.mg = mean(StdValue))
+
+seed.weight.filter %>% 
+  group_by(species.name) %>% 
+  dplyr::summarise(n=n()) %>% 
+  arrange(desc(n))
+
+
+#combine
+trait.data<- trait.data1 %>% 
+  left_join(seed.weight.summary, by="species.name") %>% 
+  filter(!species.name == "singleleaf pinyon") %>% 
+  left_join(pc1means.table)
+```
+
+```{r}
+#summarise by traits
+niche.shift.trait.table.hot <- overlap.table.hot %>% 
+  left_join(trait.data,by="species.name")
+
+sample.append.hot <- niche.shift.trait.table.hot %>% 
+  mutate(species = as.character(species)) %>% 
+  left_join(sample_size %>% 
+              mutate(SPCD = as.character(SPCD)), by = c("species"="SPCD","disturbance"="Agent")) %>% 
+  left_join(niche.areas %>% 
+  separate(col= name, into=c("species","disturbance","extra"), sep="_",remove = TRUE), by=c("species","disturbance","extra"))
+
+####
+overlap.table.hot_traits_raw <- as.data.frame(matrix(unlist(overlap.list.hot),nrow = 192000, ncol=5,byrow=FALSE))  
+colnames(overlap.table.hot_traits_raw)<-names(overlap.list.hot[[1]])
+overlap.table.hot_traits<- overlap.table.hot_traits_raw %>% 
+  mutate(names = rep(names(overlap.list.hot), each=4000)) %>% 
+  separate(names,into=c("species","disturbance","extra"),sep="_") %>% 
+  mutate(species = as.numeric(species)) %>% 
+  left_join(species.names,by=c("species"="species.code")) %>% 
+  filter(!species.name=="singleleaf pinyon")
+
+overlap.df.hot <- data.frame(area1=NA, area2=NA, overlap=NA, exp.prop.adult=NA, contr.prop.adult=NA)
+for(i in 1:length(overlap.list.hot)){
+  data <- overlap.list.hot[[i]] %>% mutate(name=names(overlap.list.hot)[i])
+  overlap.df.hot <- overlap.df.hot %>% bind_rows(data)
+}
+
+overlap.df.hot.traits<- overlap.df.hot %>% 
+  filter(!is.na(area1)) %>% 
+  mutate(species= substr(name, 0,3),
+         dist =  str_extract(name,"_.+_")) %>% 
+  mutate(dist= gsub("_","",dist),
+         species = as.numeric(gsub("_","",species))) %>%
+  left_join(species.names, by=c("species" = "species.code")) %>% 
+  left_join(sample.append.hot %>% 
+  dplyr::select(-species.name.y) %>% 
+  dplyr::rename("species.name" = "species.name.x", "dist"="disturbance") %>% mutate(species=as.numeric(species))) %>% 
+  filter(!species.name=="singleleaf pinyon")
+
+exp.by.disp <-overlap.df.hot.traits %>% 
+  group_by(dispersal,dist) %>% 
+  dplyr::summarise(mean = mean(mean.exp.prop.adult), lwr=quantile(mean.exp.prop.adult,c(0.025,0.975))[1], upr=quantile(mean.exp.prop.adult,c(0.025,0.975))[2])
+
+ggplot(exp.by.disp, aes(x=dispersal,y=mean,col=dist))+
+  geom_point(position=position_dodge(0.9))+
+  geom_errorbar(aes(ymin=lwr, ymax =upr), width=1, position = position_dodge(0.9),size=1)+
+  scale_color_manual(values=disturbance.colors) #no significant difference between dispersal type * disturbance and amount of expansion
+
+contr.by.disp <-overlap.df.hot.traits %>% 
+  group_by(dispersal,dist) %>% 
+  dplyr::summarise(mean = mean(mean.contr.prop.adult), lwr=quantile(mean.contr.prop.adult,c(0.025,0.975))[1], upr=quantile(mean.contr.prop.adult,c(0.025,0.975))[2])
+
+ggplot(contr.by.disp, aes(x=dispersal,y=mean,col=dist))+
+  geom_point(position=position_dodge(0.9))+
+  geom_errorbar(aes(ymin=lwr, ymax =upr), width=1, position = position_dodge(0.9),size=1)+
+  scale_color_manual(values=disturbance.colors)
+
+##I actually don't think this will work cause i'm looking for a linear trend, not just a comparison of categories 
+
+###summarise by disturbance
+overlap.table.hot_raw <- as.data.frame(matrix(unlist(overlap.list.hot),nrow = 192000, ncol=5,byrow=FALSE))  
+colnames(overlap.table.hot_raw)<-names(overlap.list.hot[[1]])
+
+exp.by.dist <-overlap.df.hot.traits %>% 
+  group_by(dist) %>% 
+  dplyr::summarise(mean = mean(mean.exp.prop.adult), lwr=quantile(mean.exp.prop.adult,c(0.025,0.975))[1], upr=quantile(mean.exp.prop.adult,c(0.025,0.975))[2])%>% 
+  mutate(type="gained")
+
+contr.by.dist <-overlap.df.hot.traits %>% 
+  group_by(dist) %>% 
+  dplyr::summarise(mean = mean(mean.contr.prop.adult), lwr=quantile(mean.contr.prop.adult,c(0.025,0.975))[1], upr=quantile(mean.contr.prop.adult,c(0.025,0.975))[2]) %>% 
+  mutate(type="lost")
+
+ggplot(bind_rows(exp.by.dist, contr.by.dist), aes(x=dist, y=mean, col=dist))+
+  geom_point()+
+  geom_errorbar(aes(ymin=lwr, ymax=upr))+
+  facet_wrap(~type)+
+  scale_color_manual(values=disturbance.colors)
+
+####shade tolerance
+
+exp.by.shade <-overlap.df.hot.traits %>% 
+  group_by(dist, shade.tolerance) %>% 
+  dplyr::summarise(mean = mean(mean.exp.prop.adult), lwr=quantile(mean.exp.prop.adult,c(0.025,0.975))[1], upr=quantile(mean.exp.prop.adult,c(0.025,0.975))[2])%>% 
+  mutate(type="gained")
+
+contr.by.shade <-overlap.df.hot.traits %>% 
+  group_by(dist, shade.tolerance) %>% 
+  dplyr::summarise(mean = mean(mean.contr.prop.adult), lwr=quantile(mean.contr.prop.adult,c(0.025,0.975))[1], upr=quantile(mean.contr.prop.adult,c(0.025,0.975))[2]) %>% 
+  mutate(type="lost")
+
+ggplot(bind_rows(exp.by.shade, contr.by.shade), aes(x=shade.tolerance, y=mean, col=dist))+
+  geom_point()+
+  geom_errorbar(aes(ymin=lwr, ymax=upr))+
+  facet_wrap(~type)+
+  scale_color_manual(values=disturbance.colors)
+
+##pc1 mean
+exp.by.pc1 <-overlap.df.hot.traits %>% 
+  group_by(dist, pc1speciesmean) %>% 
+  dplyr::summarise(mean = mean(mean.exp.prop.adult), lwr=quantile(exp.prop.adult,c(0.025,0.975))[1], upr=quantile(exp.prop.adult,c(0.025,0.975))[2])%>% 
+  mutate(type="gained")
+
+contr.by.pc1 <-overlap.df.hot.traits %>% 
+  group_by(dist, pc1speciesmean) %>% 
+  dplyr::summarise(mean = mean(mean.contr.prop.adult), lwr=quantile(contr.prop.adult,c(0.025,0.975))[1], upr=quantile(contr.prop.adult,c(0.025,0.975))[2]) %>% 
+  mutate(type="lost")
+
+ggplot(bind_rows(exp.by.pc1, contr.by.pc1), aes(x=pc1speciesmean, y=mean, col=dist))+
+  geom_point()+
+  geom_errorbar(aes(x=pc1speciesmean, ymin=lwr, ymax=upr, col=dist))+
+  facet_wrap(~type)+
+  ylim(c(0,.5))+
+  scale_color_manual(values=disturbance.colors)
+
+##try a model
+traitmoddf <- overlap.df.hot.traits %>% 
+  dplyr::select(species.name, dist,mean.exp.prop.adult,mean.contr.prop.adult,shade.tolerance,dispersal,pc1speciesmean,n.adult,n.seed) %>% 
+  unique()
+  
+cor(traitmoddf[,c(5,7:9)])
+  
+mod.1 <- lm(log(mean.exp.prop.adult) ~ shade.tolerance*dist + dispersal*dist + pc1speciesmean*dist + n.seed*dist, data=traitmoddf)
+par(mfrow=c(2,2))
+plot(mod.1)
+Anova(mod.1, type="3")
+summary(mod.1)
+options(na.action = "na.fail")
+dredge.mod1 <- dredge(mod.1)
+dredge.mod1
+
+ggplot(traitmoddf, aes(x=n.seed, y=log(mean.exp.prop.adult), col=dist))+
+  geom_point()+
+  geom_smooth(method="lm")
+
+mod.2 <- lm(log(mean.contr.prop.adult) ~ shade.tolerance*dist + dispersal*dist + pc1speciesmean*dist + n.seed*dist, data=traitmoddf)
+par(mfrow=c(2,2))
+plot(mod.2)
+Anova(mod.2, type="3")
+summary(mod.2)
+options(na.action = "na.fail")
+dredge.mod2 <- dredge(mod.2)
+dredge.mod2
+
+ggplot(traitmoddf, aes(x=n.seed, y=log(mean.contr.prop.adult), col=dist))+
+  geom_point()+
+  geom_smooth(method="lm")
+
+ggplot(traitmoddf, aes(x=pc1speciesmean, y=log(mean.contr.prop.adult), col=dist))+
+  geom_point()+
+  geom_smooth(method="lm")
+
+```
+
+
+###Vector Analysis
+from https://cran.r-project.org/web/packages/SIBER/vignettes/Centroid-Vectors.html
+
+```{r}
+centroids.list.hot<- list()
+for(i in 1:length(ellipses.posterior.list.hot)){
+temp.centroids <- siberCentroids(ellipses.posterior.list.hot[[i]])
+centroids.list.hot[[i]]<- temp.centroids
+}
+names(centroids.list.hot) <- names(ellipses.posterior.list.hot)
+
+angles_distances.list.hot <- list()
+for(i in 1:length(ellipses.posterior.list.hot)){
+  temp.angles<- allCentroidVectors(centroids.list.hot[[i]], do.plot=FALSE)
+  angles_distances.list.hot[[i]] <- temp.angles
+}
+names(angles_distances.list.hot) <- names(ellipses.posterior.list.hot)
+```
+
+```{r}
+#make plots
+cart_positions.list.hot<- list()
+for(i in 1:length(angles_distances.list.hot)){
+cart_positions <- with(angles_distances.list.hot[[i]], data.frame(x = distances * cos(angles),
+                             y = distances * sin(angles),
+                             comparison = comparison ))
+cart_positions.list.hot[[i]]<- cart_positions
+}
+names(cart_positions.list.hot)<- names(angles_distances.list.hot)
+
+
+
+mean_vectors.list.hot<- list()
+for(i in 1:length(cart_positions.list.hot)){
+mean_vectors <- dplyr::summarise(group_by(cart_positions.list.hot[[i]], comparison),
+          x = mean(x), y = mean(y))
+mean_vectors.list.hot[[i]]<- mean_vectors
+}
+names(mean_vectors.list.hot) <- names(ellipses.posterior.list.hot)
+
+origins.list.hot<- list()
+for(i in 1:length(mean_vectors.list.hot)){
+origins <- data.frame(comparison = mean_vectors.list.hot[[i]]$comparison, 
+                      x = 0, y = 0)
+origins.list.hot[[i]]<- origins
+}
+names(origins.list.hot) <- names(ellipses.posterior.list.hot)
+
+# = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
+# generate the start and end points of the means for the arrows
+for_arrows.list.hot <- list()
+for(i in 1:length(origins.list.hot)){
+for_arrows <- dplyr::bind_rows(origins.list.hot[[i]], mean_vectors.list.hot[[i]])
+for_arrows.list.hot[[i]]<- for_arrows
+}
+names(for_arrows.list.hot)<- names(mean_vectors.list.hot)
+
+# = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = 
+
+#rename
+for(i in 1:length(cart_positions.list.hot)){
+cart_positions.list.hot[[i]]$comparison <- names(cart_positions.list.hot)[i]
+}
+
+for(i in 1:length(for_arrows.list.hot)){
+for_arrows.list.hot[[i]]$comparison <- names(for_arrows.list.hot)[i]
+}
+
+for_arrows.all.hot <- do.call("rbind",for_arrows.list.hot)
+cart_positions.all.hot <- do.call("rbind",cart_positions.list.hot)
+# rename as above
+# bb <- unlist(strsplit(as.character(angles_distances$comparison), "[.]"))
+# bb <- bb[seq(3,length(bb),5)]
+# cart_positions$comparison2 <- factor(bb)
+
+# = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = 
+# plot it
+ggplot(cart_positions.all.hot, aes(x,y) ) + 
+  geom_bin2d(bins = 20) +
+  scale_fill_gradient(low = "white", high = "black") +
+  #coord_cartesian(xlim = c(-20, +20), ylim = c(-20, +20)) +
+  facet_wrap( ~ comparison, scales = "fixed") + 
+  theme_classic() +
+  geom_path(data = for_arrows.all.hot, 
+            arrow = arrow(type = "open", length = unit(0.2, "cm")),
+            col = "red", alpha = 0.6) +
+  ylab("log(winter ppt)") +
+  xlab("log(dd0)") + 
+  theme(text = element_text(size=15))
+
+#lump by disturbance
+species.names$species.code<- as.character(species.names$species.code)
+
+cart_positions.all.hot<- cart_positions.all.hot %>%
+  separate(comparison,into=c("species","disturbance","extra"),sep="_") %>% 
+  left_join(species.names,by=c('species'="species.code")) %>% 
+  filter(!(disturbance=="fire" & species.name =="western redcedar")) %>% 
+  filter(!(disturbance=="insect.disease" & species.name=="western larch")) %>% 
+  filter(!species.name=="singleleaf pinyon")
+for_arrows.all.hot <- for_arrows.all.hot %>% 
+  separate(comparison,into=c("species","disturbance","extra"),sep="_") %>% 
+  left_join(species.names,by=c('species'="species.code")) %>% 
+  filter(!(disturbance=="fire" & species.name =="western redcedar")) %>% 
+  filter(!(disturbance=="insect.disease" & species.name=="western larch")) %>% 
+  filter(!species.name=="singleleaf pinyon") 
+#number species by elevation
+#based on PC1 mean score of adults
+species.numbers <- data.frame(species.name = c("two needle pinyon","Gambel oak","ponderosa pine","Rocky Mountain juniper","white fir","trembling aspen","Douglas-fir","western redcedar","limber pine","grand fir","western larch","lodgepole pine","Engelmann spruce","subalpine fir","whitebark pine"), species.number = seq(1,15,1))
+
+for_arrows.all.hot <- for_arrows.all.hot %>%
+  left_join(species.numbers)
+
+ggplot(cart_positions.all.hot, aes(x,y)) + 
+  geom_bin2d(bins = 50) +
+  scale_fill_gradient(low = "white", high = "black") +
+  coord_cartesian(xlim = c(-.2, +.5), ylim = c(-.4, +.2)) +
+  facet_wrap( ~ factor(species.name), scales = "fixed", ncol=5) + 
+  theme_classic() +
+  geom_path(data = for_arrows.all.hot, 
+            arrow = arrow(type = "open", length = unit(0.2, "cm")),
+            alpha = 1, size=1.5,aes(col=disturbance)) +
+  scale_color_manual(values=c(disturbance.colors))+
+  ylab("log(winter ppt)") +
+  xlab("log(dd0)")+ 
+  theme(text = element_text(size=15))
+
+##finding colors for boxplot
+library(viridis)
+library(RColorBrewer)
+display.brewer.pal(n=4, name = 'BrBG')
+
+
+#devtools::install_github("ropenscilabs/ochRe")
+library("ochRe")
+names(ochre_palettes)
+#viz_palette(ochre_palettes[["parliament"]])
+
+#install.packages("pals")
+library(pals)
+
+rect.colors = brewer.pal(n=4, name='BrBG')
+# rect.colors = ochre_palettes[["parliament"]][c(1,4,6,5)]
+# rect.colors = ochre_palettes[["olsen_seq"]][c(1,13,10,12)]
+# rect.colors = tol()[c(8,5,3,2)]
+#another option: c(#888C24,#004D60,#C9F0E8,#C63B0B,#C63B0B)
+#####
+
+df.top.right <- data.frame(x=c(Inf,Inf,0,0),y=c(0,Inf,Inf,0))
+df.bottom.right <- data.frame(x=c(Inf,Inf,0,0),y=c(0,-Inf,-Inf,0))
+df.bottom.left <- data.frame(x=c(-Inf,-Inf,0,0),y=c(-Inf,0,0,-Inf))
+df.top.left <- data.frame(x=c(-Inf,0,0,-Inf),y=c(0,0,Inf,Inf))
+
+library(ggrepel)
+
+arrowlabels<- data.frame(disturbance=c(rep("fire",4),rep("insect.disease",4),rep("none",4)),x=c(c(0.02,0.3,0.02,-0.09),c(0.02,0.19,0.02,-0.09),c(0.02,0.19,0.02,-0.09)), y = c(c(.5,-.04,-.2,-.04),c(.2,-.02,-.3,-.02),c(.1,-.02,-.2,-.02)), label=rep(c("wet","cold","dry","hot"),3))
+
+arrowsplot1.hot<- ggplot(cart_positions.all.hot, aes(x,y)) +
+  geom_polygon(data=df.top.right, aes(x,y),fill=rect.colors[4],alpha=0.5)+
+  geom_polygon(data=df.bottom.right, aes(x,y),fill=rect.colors[3],alpha=0.5)+
+  geom_polygon(data=df.bottom.left, aes(x,y),fill=rect.colors[2],alpha=0.5)+
+  geom_polygon(data=df.top.left, aes(x,y),fill=rect.colors[1],alpha=0.5)+
+  facet_wrap( ~ factor(disturbance, levels=c("fire","insect.disease","none"), labels=c("fire","insect/disease","none")), scales = "free", ncol=2) + 
+  theme_classic() +
+  geom_hline(yintercept=0)+geom_vline(xintercept=0)+
+  geom_path(data = for_arrows.all.hot, aes(col=species.name),
+            arrow = arrow(type = "open", length = unit(0.2, "cm")),
+            alpha = 0.7, size=1) +
+  scale_color_manual(values=rep("slategrey",15),labels=NULL,name=NULL)+
+  geom_text_repel(data=for_arrows.all.hot %>% filter(!y==0),aes(label=species.number,x=x,y=y),size=6,col="darkred")+
+  geom_text(data=arrowlabels, aes(label=label, x=x,y=y,group=disturbance),size=5)+
+  # annotate("text",x=0.02,y=0.2,label="wet",size=5)+
+  # annotate(geom="text",x=0.2,y=-0.02,label="cold",size=5)+
+  # annotate(geom="text",x=0.02,y=-0.2,label="dry",size=5)+
+  # annotate(geom="text",x=-0.2,y= -0.02,label="hot",size=5)+
+  ylab("log(winter ppt)") +
+  xlab("log(degree days below 0)") + 
+  theme(text = element_text(size=20,color="black"),legend.position = "none",
+   axis.text.x = element_text(angle = 45, hjust = 1, vjust= 1, color="black"), axis.text.y = element_text(color="black"),panel.spacing.x = unit(25, "points"))
+
+png(file="figures/arrowsplot_hot.png",width=700,height=500)
+
+arrowsplot1.hot
+
+dev.off()
+
+```
+
+```{r}
+##Bayesian analysis of distance and angle shifts of centroids
+
+##back calculate angle
+
+anglecalc<- function(x,y){
+if(x>0 & y>0) {origin_angle = pi/2- (atan(abs(x/y)))}
+if(x>0 & y<0) {origin_angle = -1*(pi/2 - (atan(abs(x/y))))}
+if(x<0 & y>0) {origin_angle = pi/2+ (atan(abs(x/y)))}
+if(x<0 & y<0) {origin_angle = -1*(pi/2 + (atan(abs(x/y))))}
+
+  print(origin_angle)
+}
+
+anglecalc(x=.0386,y=.0261)
+
+mean_ang_dist <- bind_rows(mean_vectors.list.hot, .id = "label") %>% 
+  rowwise() %>% 
+  mutate(origin_angle = anglecalc(x=x,y=y), distance = x^2 + y^2) %>% 
+  separate(label, into=c("species","disturbance","extra"),sep="_")
+
+dist_mod_hot <- lm(distance ~ disturbance, data=mean_ang_dist)
+Anova(dist_mod_hot)
+ang_mod_hot <- lm(origin_angle ~ disturbance, data=mean_ang_dist)
+Anova(ang_mod_hot)
+TukeyHSD(aov(origin_angle ~ disturbance, data=mean_ang_dist))
+
+
+##calculate average distance for each species in each disturbance type
+distance_summary.hot<- cart_positions.all.hot %>% 
+  mutate(distance = x^2+y^2) %>% 
+  dplyr::group_by(species, species.name, disturbance) %>% 
+  dplyr::summarise(mean.dist = mean(distance), upr = quantile(distance, c(0.975)), lwr = quantile(distance, c(0.025)))
+
+sig_centroid_df <- do.call("rbind",cart_positions.list.hot) %>% 
+separate(comparison,into=c("species","disturbance","extra"),sep="_") %>% 
+  left_join(species.names,by=c('species'="species.code")) %>% 
+ mutate(distance = x^2+y^2) %>% 
+  dplyr::group_by(species, species.name, disturbance) %>% 
+  dplyr::summarise(mean.dist = mean(distance), upr = quantile(distance, c(0.975)), lwr = quantile(distance, c(0.025)))
+
+
+sig_diffs_centroids<-data.frame()
+for(i in 1:length(species.names$species.name)){
+fire =  sig_centroid_df %>%  
+  filter(species.name==species.names$species.name[i], disturbance == "fire")  
+id = sig_centroid_df %>% 
+  filter(species.name==species.names$species.name[i], disturbance == "insect.disease") 
+none = sig_centroid_df %>% 
+  filter(species.name==species.names$species.name[i], disturbance == "none") 
+
+result<- data.frame(fire_none = fire$lwr > none$upr, fire_id = fire$lwr > id$upr, id_none = id$lwr > none$upr, id_fire = id$lwr > fire$upr, none_fire = none$lwr > fire$upr, none_id = none$lwr > id$upr)
+
+sig_diffs_centroids<-bind_rows(sig_diffs_centroids,result)}
+
+sig_diffs_centroids  ##no significant differences between disturbances in centroid position
+
+png("figures/centroid_dist_hot.png", width=700, height=700)
+ggarrange(ggplot(distance_summary.hot, aes(x=factor(species.name,levels=pc1means.table %>% arrange(pc1speciesmean) %>% pull(species.name)), y=mean.dist, fill=factor(species.name,levels=pc1means.table %>% arrange(pc1speciesmean) %>% pull(species.name))),col="black")+
+  geom_errorbar(aes(ymin=lwr,ymax=upr), col="black")+
+    geom_point(pch=21, size=3)+
+  scale_fill_manual(values=spp.colors$color)+
+  facet_wrap(~disturbance)+
+  ggtitle("Distance Between Centroids")+
+  theme(axis.text = element_text(angle=50, hjust=1,size=10, color="black"),axis.title.x = element_blank(), legend.position = "none"),
+ggplot(distance_summary.hot, aes(x=disturbance, y=mean.dist, fill=factor(species.name,levels=pc1means.table %>% arrange(pc1speciesmean) %>% pull(species.name))),col="black")+
+  geom_errorbar(aes(ymin=lwr,ymax=upr), col="black")+
+    geom_point(pch=21, size=3)+
+  scale_fill_manual(values=spp.colors$color)+
+  #geom_text(aes(label=letter, y=1.75), size=3)+
+  facet_wrap(~factor(species.name,levels=pc1means.table %>% arrange(pc1speciesmean) %>% pull(species.name)),nrow=3)+
+  theme(axis.text = element_text(angle=50, hjust=1,size=12, color="black"),axis.title.x = element_blank(), legend.position = "none"),
+nrow=2)
+dev.off()
+```
