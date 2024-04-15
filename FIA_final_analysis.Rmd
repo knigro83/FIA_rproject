@@ -6401,7 +6401,7 @@ ggplot(max2_rel_hot_df, aes(x=factor(species.name,levels=pc1means.table$species.
 
 ```
 
-combine centroid and margins
+###combine centroid and margins
 
 ```{r}
 
@@ -6648,6 +6648,32 @@ fig2_hot_partial
 dev.off()
 
 
+```
+
+###TSD
+
+```{r}
+##look at how time since disturbance is distributed across the PCA space
+tsd_clim<- env_vars %>% left_join(dist_tsd, by="PLT_CN") %>%
+  filter(!is.na(tsd))
+
+ggplot(tsd_clim, aes(x=dd_0, y=tsd))+
+  geom_jitter(alpha=0.3)+
+  geom_smooth(method="lm")+
+  facet_grid(~Agent)
+
+ggplot(tsd_clim , aes(x=ppt_wt, y=tsd))+
+  geom_jitter(alpha=0.3)+
+  geom_smooth(method="lm")+
+  facet_grid(~Agent)
+
+tsd_mod_clim <- lm(tsd ~ dd_0*Agent, data=tsd_clim)
+summary(tsd_mod_clim)
+Anova(tsd_mod_clim, type="3")
+
+tsd_mod_ppt <- lm(tsd ~ ppt_wt*Agent, data=tsd_clim)
+summary(tsd_mod_ppt)
+Anova(tsd_mod_ppt, type="3")
 ```
 
 ###Shift types
