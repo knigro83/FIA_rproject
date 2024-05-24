@@ -2783,7 +2783,7 @@ pc1_grpbydist<- ggplot(pc1_df_rel_new_cutxtreme, aes(x=number, y=mean, group=dis
   scale_fill_manual(values=disturbance.colors, name="Disturbance")+
   scale_color_manual(values=c("gray50","black"),name="Significance")+
   facet_grid(rows=vars(factor(var, levels=c("PC1 max","PC1 centroid","PC1 min"), labels=c("cold/wet margin","centroid","hot/dry margin"))), scales = "free")+
-  scale_x_continuous(breaks=seq(1,15,1), labels=pc1_df_rel_new_cutxtreme %>% dplyr::select(species.name, number) %>% unique() %>% arrange(number) %>% pull(species.name))+
+  scale_x_continuous(breaks=seq(1,15,1), labels=pc1_df_rel_new_cutxtreme %>% dplyr::select(species.name, number) %>% unique() %>% arrange(number) %>% mutate(xlab = paste(number, species.name, sep=". "))%>% pull(xlab))+
   ylab("Relativized Difference in Margin Position")+
   #xlab("Species")+
   #ggtitle("PC1")+
@@ -4141,6 +4141,7 @@ df.right.triangle <- data.frame(x=c(Inf,0,Inf),y=c(-Inf,0,Inf))
 df.bottom.triangle <- data.frame(x=c(-Inf,0,Inf),y=c(-Inf,0,-Inf))
 df.left.triangle <- data.frame(x=c(-Inf,0,-Inf),y=c(-Inf,0,Inf))
 
+
 arrowsplot1<- ggplot(cart_positions.all, aes(x,y)) +
   geom_polygon(data=df.top.triangle, aes(x,y),fill=rect.colors[3],alpha=0.5)+
   geom_polygon(data=df.right.triangle, aes(x,y),fill=rect.colors[4],alpha=0.5)+
@@ -4212,11 +4213,27 @@ ggplot(cart_positions.all, aes(x,y)) +
 dev.off()
 
 #separate panels of arrows plot
-arrowsplot_fire<- ggplot(cart_positions.all %>% filter(disturbance=="fire"), aes(x,y)) +
-  geom_polygon(data=df.top.triangle, aes(x,y),fill=rect.colors[3],alpha=0.5)+
-  geom_polygon(data=df.right.triangle, aes(x,y),fill=rect.colors[4],alpha=0.5)+
-  geom_polygon(data=df.bottom.triangle, aes(x,y),fill=rect.colors[1],alpha=0.5)+
-  geom_polygon(data=df.left.triangle, aes(x,y),fill=rect.colors[2],alpha=0.5)+
+
+linedata <- data.frame(x=c(0,1.2), ymin=1.2, y=c(1.2,0), ymax=1.2)
+linedata2 <- data.frame(x=c(0,-1.2), ymin=-1.2, y=c(-1.2,0), ymax=-1.2)
+
+df.top.triangle <- data.frame(x=c(-.2,-.2,.4,0),y=c(.2,.4,.4,0))
+df.right.triangle <- data.frame(x=c(1.2,1.2,.4,0,.2),y=c(-.2,.4,.4,0,-.2))
+df.bottom.triangle <- data.frame(x=c(-.2,0,.2),y=c(-.2,0,-.2))
+df.left.triangle <- data.frame(x=c(-.2,0,-.2),y=c(-.2,0,.2))
+
+df.top.triangleF <- data.frame(x=c(-.2,-.2,.5,0),y=c(.2,.5,.5,0))
+df.right.triangleF <- data.frame(x=c(1.2,1.2,.5,0,.2),y=c(-.2,.5,.5,0,-.2))
+df.bottom.triangleF <- data.frame(x=c(-.2,0,.2),y=c(-.2,0,-.2))
+df.left.triangleF <- data.frame(x=c(-.2,-.2,0,-.2),y=c(-.2,-.2,0,.2))
+
+arrowsplot_fire<- ggplot(cart_positions.all %>% filter(disturbance=="fire") %>% filter(!species.name=="western redcedar"), aes(x,y)) +
+  # geom_ribbon(data=linedata2, aes(x, xmin=ymin, xmax=y), fill="blue") +
+  # geom_ribbon(data=linedata, aes(x, xmin=ymin, xmax=y), fill="red") +
+  geom_polygon(data=df.top.triangleF, aes(x,y),fill="lightskyblue1",alpha=0.5)+
+  geom_polygon(data=df.right.triangleF, aes(x,y),fill="skyblue3",alpha=0.5)+
+  geom_polygon(data=df.bottom.triangleF, aes(x,y),fill="thistle4",alpha=0.5)+
+  geom_polygon(data=df.left.triangleF, aes(x,y),fill="thistle2",alpha=0.5)+
   #geom_bin2d(bins = 50, fill="white", aes(alpha= ..density..)) +
   #scale_alpha(range=c(0.1,1)) +
   #coord_cartesian(xlim = c(-.4, +.4), ylim = c(-.4, +.43)) +
@@ -4225,29 +4242,33 @@ arrowsplot_fire<- ggplot(cart_positions.all %>% filter(disturbance=="fire"), aes
   geom_hline(yintercept=0)+geom_vline(xintercept=0)+
   geom_abline(intercept=0, slope = 1, linetype="dashed")+
   geom_abline(intercept=0, slope = -1, linetype="dashed")+
-  geom_path(data = for_arrows.all %>% filter(disturbance=="fire"), aes(col=species.name),
+  geom_path(data = for_arrows.all %>% filter(disturbance=="fire") %>% filter(!species.name=="western redcedar"), aes(col=species.name),
             arrow = arrow(type = "open", length = unit(0.2, "cm")),
             alpha = 0.7, size=1) +
-  scale_color_manual(values=rep("black",15),labels=NULL,name=NULL)+
+  scale_color_manual(values=rep("grey50",15),labels=NULL,name=NULL)+
   #scale_color_manual(values=c("#d55f90","#5aa554","#ad74d6","#9ab13f","#6070d5","#cd9337","#563686","#45c097","#8b2965","#9b8a40","#ca71c0","#b95336","#628ed6","#ba4758"))+
-  geom_text(data=for_arrows.all %>% filter(!y==0) %>% filter(disturbance=="fire"),aes(label=species.number,x=x,y=y),size=5,hjust=-.4,vjust=.4,col="darkred")+
-  annotate("text",x=0.13,y=0.47,label="cold/dry",size=5)+
-  annotate(geom="text",x=0.39,y=-0.02,label="cold/wet",size=5)+
-  annotate(geom="text",x=0.1,y=-0.47,label="hot/wet",size=5)+
-  annotate(geom="text",x=-0.4,y= -0.02,label="hot/dry",size=5)+
+  geom_text_repel(data=for_arrows.all %>% filter(!y==0) %>% filter(disturbance=="fire")%>% filter(!species.name=="western redcedar"),aes(label=species.number,x=x,y=y),size=3,hjust=-.4,vjust=.4,col="black")+
+  annotate("text",x=0.15,y=0.48,label="cold/dry",size=3)+
+  annotate(geom="text",x=1,y=-0.02,label="cold/wet",size=3)+
+  annotate(geom="text",x=0,y=-0.18,label="hot/wet",size=3)+
+  annotate(geom="text",x=-0.15,y= 0,label="hot/dry",size=3,angle=90)+
   ylab("PC2 (16.09%)") +
   xlab("PC1 (74.4%)") + 
-  labs(title="Fire")+
-  scale_y_continuous(limits=c(-.5,.5),expand=c(0,0))+
-  scale_x_continuous(limits=c(-.5,.5),expand=c(0,0))+
-  theme(text = element_text(size=20,color="black"),legend.position = "none", plot.title = element_text(hjust = 0.5),
+  labs(title="Fire", size=12)+
+  scale_y_continuous(limits=c(-.2,.5),expand=c(0,0))+
+  scale_x_continuous(limits=c(-.2,1.2),expand=c(0,0))+
+  theme(text = element_text(size=12,color="black"),legend.position = "none", plot.title = element_text(hjust = 0.5),
    axis.text.x = element_text(angle = 45, hjust = 1, vjust= 1, color="black"), axis.text.y = element_text(color="black"),panel.spacing.x = unit(25, "points"))
 
-arrowsplot_insect.disease<- ggplot(cart_positions.all %>% filter(disturbance=="insect.disease"), aes(x,y)) +
-  geom_polygon(data=df.top.triangle, aes(x,y),fill=rect.colors[3],alpha=0.5)+
-  geom_polygon(data=df.right.triangle, aes(x,y),fill=rect.colors[4],alpha=0.5)+
-  geom_polygon(data=df.bottom.triangle, aes(x,y),fill=rect.colors[1],alpha=0.5)+
-  geom_polygon(data=df.left.triangle, aes(x,y),fill=rect.colors[2],alpha=0.5)+
+df.top.triangleID <- data.frame(x=c(-.2,-.2,.5,0),y=c(.2,.5,.5,0))
+df.right.triangleID <- data.frame(x=c(.5,.5,0,.2),y=c(-.2,.5,0,-.2))
+
+
+arrowsplot_insect.disease<- ggplot(cart_positions.all %>% filter(disturbance=="insect.disease") %>% filter(!species.name=="western larch"), aes(x,y)) +
+  geom_polygon(data=df.top.triangleID, aes(x,y),fill="lightskyblue1",alpha=0.5)+
+  geom_polygon(data=df.right.triangleID, aes(x,y),fill="skyblue3",alpha=0.5)+
+  geom_polygon(data=df.bottom.triangle, aes(x,y),fill="thistle4",alpha=0.5)+
+  geom_polygon(data=df.left.triangle, aes(x,y),fill="thistle2",alpha=0.5)+
   #geom_bin2d(bins = 50, fill="white", aes(alpha= ..density..)) +
   #scale_alpha(range=c(0.1,1)) +
   #coord_cartesian(xlim = c(-.4, +.4), ylim = c(-.4, +.43)) +
@@ -4256,29 +4277,29 @@ arrowsplot_insect.disease<- ggplot(cart_positions.all %>% filter(disturbance=="i
   geom_hline(yintercept=0)+geom_vline(xintercept=0)+
   geom_abline(intercept=0, slope = 1, linetype="dashed")+
   geom_abline(intercept=0, slope = -1, linetype="dashed")+
-  geom_path(data = for_arrows.all %>% filter(disturbance=="insect.disease"), aes(col=species.name),
+  geom_path(data = for_arrows.all %>% filter(disturbance=="insect.disease")%>% filter(!species.name=="western larch"), aes(col=species.name),
             arrow = arrow(type = "open", length = unit(0.2, "cm")),
             alpha = 0.7, size=1) +
-  scale_color_manual(values=rep("black",15),labels=NULL,name=NULL)+
+  scale_color_manual(values=rep("grey50",15),labels=NULL,name=NULL)+
   #scale_color_manual(values=c("#d55f90","#5aa554","#ad74d6","#9ab13f","#6070d5","#cd9337","#563686","#45c097","#8b2965","#9b8a40","#ca71c0","#b95336","#628ed6","#ba4758"))+
-  geom_text(data=for_arrows.all %>% filter(!y==0) %>% filter(disturbance=="insect.disease"),aes(label=species.number,x=x,y=y),size=5,hjust=-.4,vjust=.4,col="darkred")+
-  annotate("text",x=0.13,y=0.47,label="cold/dry",size=5)+
-  annotate(geom="text",x=0.39,y=-0.02,label="cold/wet",size=5)+
-  annotate(geom="text",x=0.1,y=-0.47,label="hot/wet",size=5)+
-  annotate(geom="text",x=-0.4,y= -0.02,label="hot/dry",size=5)+
+  geom_text_repel(data=for_arrows.all %>% filter(!y==0) %>% filter(disturbance=="insect.disease")%>% filter(!species.name=="western larch"),aes(label=species.number,x=x,y=y),size=3,hjust=-.4,vjust=.4,col="black")+
+  annotate("text",x=0.1,y=0.48,label="cold/dry",size=3)+
+  annotate(geom="text",x=.4,y=-0.02,label="cold/wet",size=3)+
+  annotate(geom="text",x=0,y=-0.18,label="hot/wet",size=3)+
+  annotate(geom="text",x=-0.13,y= -0.02,label="hot/dry",size=3)+
   ylab("PC2 (16.09%)") +
   xlab("PC1 (74.4%)") + 
-    labs(title="Insect/Disease")+
-  scale_y_continuous(limits=c(-.5,.5),expand=c(0,0))+
-  scale_x_continuous(limits=c(-.5,.5),expand=c(0,0))+
-  theme(text = element_text(size=20,color="black"),legend.position = "none",plot.title = element_text(hjust = 0.5),
+    labs(title="Insect/Disease",size=12)+
+  scale_y_continuous(limits=c(-.2,.5),expand=c(0,0))+
+  scale_x_continuous(limits=c(-.2,.5),expand=c(0,0))+
+  theme(text = element_text(size=12,color="black"),legend.position = "none",plot.title = element_text(hjust = 0.5),
    axis.text.x = element_text(angle = 45, hjust = 1, vjust= 1, color="black"), axis.text.y = element_text(color="black"),panel.spacing.x = unit(25, "points"))
 
 arrowsplot_none<- ggplot(cart_positions.all %>% filter(disturbance=="none"), aes(x,y)) +
-  geom_polygon(data=df.top.triangle, aes(x,y),fill=rect.colors[3],alpha=0.5)+
-  geom_polygon(data=df.right.triangle, aes(x,y),fill=rect.colors[4],alpha=0.5)+
-  geom_polygon(data=df.bottom.triangle, aes(x,y),fill=rect.colors[1],alpha=0.5)+
-  geom_polygon(data=df.left.triangle, aes(x,y),fill=rect.colors[2],alpha=0.5)+
+  geom_polygon(data=df.top.triangleID, aes(x,y),fill="lightskyblue1",alpha=0.5)+
+  geom_polygon(data=df.right.triangleID, aes(x,y),fill="skyblue3",alpha=0.5)+
+  geom_polygon(data=df.bottom.triangle, aes(x,y),fill="thistle4",alpha=0.5)+
+  geom_polygon(data=df.left.triangle, aes(x,y),fill="thistle2",alpha=0.5)+
   #geom_bin2d(bins = 50, fill="white", aes(alpha= ..density..)) +
   #scale_alpha(range=c(0.1,1)) +
   #coord_cartesian(xlim = c(-.4, +.4), ylim = c(-.4, +.43)) +
@@ -4289,21 +4310,29 @@ arrowsplot_none<- ggplot(cart_positions.all %>% filter(disturbance=="none"), aes
   geom_abline(intercept=0, slope = -1, linetype="dashed")+
   geom_path(data = for_arrows.all %>% filter(disturbance=="none"), aes(col=species.name),
             arrow = arrow(type = "open", length = unit(0.2, "cm")),
-            alpha = 0.7, size=1) +
-  scale_color_manual(values=rep("black",15),labels=NULL,name=NULL)+
+            alpha = .7, size=1) +
+  scale_color_manual(values=rep("grey50",15),labels=NULL,name=NULL)+
   #scale_color_manual(values=c("#d55f90","#5aa554","#ad74d6","#9ab13f","#6070d5","#cd9337","#563686","#45c097","#8b2965","#9b8a40","#ca71c0","#b95336","#628ed6","#ba4758"))+
-  geom_text(data=for_arrows.all %>% filter(!y==0) %>% filter(disturbance=="none"),aes(label=species.number,x=x,y=y),size=5,hjust=-.4,vjust=.4,col="darkred")+
-  annotate("text",x=0.13,y=0.47,label="cold/dry",size=5)+
-  annotate(geom="text",x=0.39,y=-0.02,label="cold/wet",size=5)+
-  annotate(geom="text",x=0.1,y=-0.47,label="hot/wet",size=5)+
-  annotate(geom="text",x=-0.4,y= -0.02,label="hot/dry",size=5)+
+  geom_text_repel(data=for_arrows.all %>% filter(!y==0) %>% filter(disturbance=="none"),aes(label=species.number,x=x,y=y),size=3,hjust=-.4,vjust=.4,col="black")+
+  annotate("text",x=0.1,y=0.48,label="cold/dry",size=3)+
+  annotate(geom="text",x=.4,y=-0.02,label="cold/wet",size=3)+
+  annotate(geom="text",x=0,y=-0.18,label="hot/wet",size=3)+
+  annotate(geom="text",x=-0.13,y= -0.02,label="hot/dry",size=3)+
   ylab("PC2 (16.09%)") +
   xlab("PC1 (74.4%)") + 
-    labs(title="None")+
-  scale_y_continuous(limits=c(-.5,.5),expand=c(0,0))+
-  scale_x_continuous(limits=c(-.5,.5),expand=c(0,0))+
-  theme(text = element_text(size=20,color="black"),legend.position = "none", plot.title = element_text(hjust = 0.5),
+    labs(title="None", size=12)+
+   scale_y_continuous(limits=c(-.2,.5),expand=c(0,0))+
+   scale_x_continuous(limits=c(-.2,.5),expand=c(0,0))+
+  theme(text = element_text(size=12,color="black"),legend.position = "none", plot.title = element_text(hjust = 0.5),
    axis.text.x = element_text(angle = 45, hjust = 1, vjust= 1, color="black"), axis.text.y = element_text(color="black"),panel.spacing.x = unit(25, "points"))
+
+png("figures/fig2_warrows.png",width=5000, height=2000, res = 600)
+ggarrange(arrowsplot_fire,arrowsplot_insect.disease,arrowsplot_none,nrow=1)
+dev.off()
+
+png("figures/fig2_warrows_square.png",width=3300, height=4000, res = 600)
+ggarrange(arrowsplot_fire,arrowsplot_insect.disease,arrowsplot_none,nrow=2,ncol=2)
+dev.off()
 
 #plot.margin = unit(c(5.5,7,70,5.5),"points"),
 
