@@ -945,6 +945,7 @@ library(MuMIn)
 library(stringr)
 library(RColorBrewer)
 library(MVN)
+library(ggrepel)
 ```
 
 Let's first read in the data.
@@ -1833,14 +1834,15 @@ mvn(as.data.frame(iso_data[[5]][,1:2]), multivariatePlot = "contour")
 
 ```
 
+
 ####univariate models
 
-```{r}
+```{r, eval=FALSE}
 require(rjags)
 require(coda)
 
 #figure out priors
-clim_data
+
 
 jagsdata_adult <- list(y=c(siber.objs[[24]]$raw.data[[1]] %>% 
     as.data.frame() %>% 
@@ -2728,7 +2730,7 @@ dev.off()
 
 ###just for PC1
 png("figures/shifttype_pc1.png",width=550,height=400)
-ggplot(shifts_byspecies, aes(x=disturbance, fill=PC1))+
+ggplot(shifts_byspecies %>% filter(!(species=="western redcedar" & disturbance=="fire")) %>% filter(!(species=="western larch" & disturbance=="insect.disease")), aes(x=disturbance, fill=PC1))+
   geom_bar(stat="count") +
   scale_fill_manual(values= c(shift_colors2[c(1,4,5,2)],"gray"), name="Shift Type")+
   xlab("Shift on PC1")+
@@ -2737,7 +2739,9 @@ ggplot(shifts_byspecies, aes(x=disturbance, fill=PC1))+
   theme(text=element_text(size=14,color="black"), strip.text = element_text(size=14), axis.text = element_text(size=14, color="black"), legend.text = element_text(size=14, color="black"), legend.title = element_text(size=14, color="black"), legend.position = "bottom")
 dev.off()
 
-
+shifts_byspecies %>% filter(!(species=="western redcedar" & disturbance=="fire")) %>% filter(!(species=="western larch" & disturbance=="insect.disease")) %>% 
+  group_by(PC1) %>% 
+  dplyr::summarise(n=n())
 ```
 
 
@@ -2772,16 +2776,16 @@ pc1_df_rel_new_cutxtreme <- pc1_df_rel_new %>%
   filter(!(species.name=="western larch" & dist=="insect.disease"))
 
 pc1_grpbydist<- ggplot(pc1_df_rel_new_cutxtreme, aes(x=number, y=mean, group=dist))+
-  geom_rect(data = pc1_df_rel_new_cutxtreme, aes(xmin=number - 0.25, xmax=number + 0.25, ymin=-Inf, ymax=Inf, fill=PC1, group=dist),alpha=.5, position=position_dodge(0.8)) +
+  geom_rect(data = pc1_df_rel_new_cutxtreme, aes(xmin=number - 0.25, xmax=number + 0.25, ymin=-Inf, ymax=Inf, fill=PC1, group=dist),alpha=.3, position=position_dodge(0.8)) +
     #geom_rect(data = pc1_df_rel_new_cutxtreme, aes(xmin=number - 0.5, xmax=number + 0.5, ymin=-Inf, ymax=Inf),alpha=.5,fill=NA, col="gray30", lty="dotted") +
-  geom_vline(xintercept = c(seq(1,15)-0.5, seq(1,15)+.5), lty="longdash", col="gray30")+
+  geom_vline(xintercept = c(seq(1,15)-0.5, seq(1,15)+.5), col="black", size=0.25)+
   geom_errorbar(aes(ymin=lwr,ymax=upr, col=sig, group=dist),width=0.2,size=1, position=position_dodge(.8))+
   scale_fill_manual(values= c(shift_colors2[c(1,4,5,2)],"white"), name="Shift Type")+
   ggnewscale::new_scale_fill()+
-  geom_point(aes(fill=dist, col=sig), pch=21, size=2, position=position_dodge(.8))+
+  geom_point(aes(fill=dist, col=sig), pch=21, size=3, position=position_dodge(.8))+
   geom_hline(yintercept=0,lty="solid")+
   scale_fill_manual(values=disturbance.colors, name="Disturbance")+
-  scale_color_manual(values=c("gray50","black"),name="Significance")+
+  scale_color_manual(values=c("gray65","black"),name="Significance")+
   facet_grid(rows=vars(factor(var, levels=c("PC1 max","PC1 centroid","PC1 min"), labels=c("cold/wet margin","centroid","hot/dry margin"))), scales = "free")+
   scale_x_continuous(breaks=seq(1,15,1), labels=pc1_df_rel_new_cutxtreme %>% dplyr::select(species.name, number) %>% unique() %>% arrange(number) %>% mutate(xlab = paste(number, species.name, sep=". "))%>% pull(xlab))+
   ylab("Relativized Difference in Margin Position")+
@@ -2795,6 +2799,37 @@ png("figures/PC1_shifts_grpbydist.png", width=5000, height=3000, res = 600)
 pc1_grpbydist
 dev.off()
 
+####
+##new figure with just pc2 and one column
+pc2_df_rel_new_cutxtreme <- pc2_df_rel_new %>% 
+  filter(!(species.name=="western redcedar" & dist=="fire")) %>% 
+  filter(!(species.name=="western larch" & dist=="insect.disease"))
+
+pc2_grpbydist<- ggplot(pc2_df_rel_new_cutxtreme, aes(x=number, y=mean, group=dist))+
+  geom_rect(data = pc2_df_rel_new_cutxtreme, aes(xmin=number - 0.25, xmax=number + 0.25, ymin=-Inf, ymax=Inf, fill=PC2, group=dist),alpha=.3, position=position_dodge(0.8)) +
+    #geom_rect(data = pc2_df_rel_new_cutxtreme, aes(xmin=number - 0.5, xmax=number + 0.5, ymin=-Inf, ymax=Inf),alpha=.5,fill=NA, col="gray30", lty="dotted") +
+  geom_vline(xintercept = c(seq(1,15)-0.5, seq(1,15)+.5), col="black", size=0.25)+
+  geom_errorbar(aes(ymin=lwr,ymax=upr, col=sig, group=dist),width=0.2,size=1, position=position_dodge(.8))+
+  scale_fill_manual(values= c(shift_colors2[c(1,5)],"white"), name="Shift Type")+
+  ggnewscale::new_scale_fill()+
+  geom_point(aes(fill=dist, col=sig), pch=21, size=3, position=position_dodge(.8))+
+  geom_hline(yintercept=0,lty="solid")+
+  scale_fill_manual(values=disturbance.colors, name="Disturbance")+
+  scale_color_manual(values=c("gray65","black"),name="Significance")+
+  facet_grid(rows=vars(factor(var, levels=c("pc2 max","pc2 centroid","pc2 min"), labels=c("cold/dry margin","centroid","hot/wet margin"))), scales = "free")+
+  scale_x_continuous(breaks=seq(1,15,1), labels=pc2_df_rel_new_cutxtreme %>% dplyr::select(species.name, number) %>% unique() %>% arrange(number) %>% mutate(xlab = paste(number, species.name, sep=". "))%>% pull(xlab))+
+  ylab("Relativized Difference in Margin Position")+
+  #xlab("Species")+
+  #ggtitle("pc2")+
+  theme_bw()+
+  theme(axis.text.x = element_text(angle=45, hjust=1,size=9, color="black"),axis.title.x = element_blank(),axis.text.y = element_text(size=10, colour = "black"),axis.title.y = element_text(size=12, color="black"), strip.text = element_text(size = 10), title=element_text(size=12), legend.position = "right", legend.text = element_text(size=9), legend.title = element_text(size=10),panel.grid.major = element_blank(), panel.grid.minor = element_blank())
+
+png("figures/PC2_shifts_grpbydist.png", width=5000, height=3000, res = 600)
+pc2_grpbydist
+dev.off()
+
+####
+####
 
 
 pc1_plot_new <- ggplot(pc1_df_rel_new_cutxtreme, aes(x=number, y=mean))+
@@ -3845,11 +3880,13 @@ overlap.table_raw <- as.data.frame(matrix(unlist(overlap.list),nrow = 192000, nc
 colnames(overlap.table_raw)<-names(overlap.list[[1]])
 
 exp.by.dist <-overlap.df.traits %>% 
+  filter(!(species.name=="western redcedar" & dist=="fire")) %>% filter(!(species.name=="western larch" & dist=="insect.disease")) %>% 
   group_by(dist) %>% 
   dplyr::summarise(mean = mean(mean.exp.prop.adult), lwr=quantile(mean.exp.prop.adult,c(0.025,0.975))[1], upr=quantile(mean.exp.prop.adult,c(0.025,0.975))[2])%>% 
   mutate(type="gained")
 
 contr.by.dist <-overlap.df.traits %>% 
+    filter(!(species.name=="western redcedar" & dist=="fire")) %>% filter(!(species.name=="western larch" & dist=="insect.disease")) %>% 
   group_by(dist) %>% 
   dplyr::summarise(mean = mean(mean.contr.prop.adult), lwr=quantile(mean.contr.prop.adult,c(0.025,0.975))[1], upr=quantile(mean.contr.prop.adult,c(0.025,0.975))[2]) %>% 
   mutate(type="lost")
@@ -4421,14 +4458,14 @@ quantile(angles_distances.list[[9]]$distances, c(0.025,0.975))
 
 png("figures/centroid_dist.png", width=700, height=700)
 ggarrange(
-ggplot(distance_summary, aes(x=factor(species.name,levels=pc1means.table %>% arrange(pc1speciesmean) %>% pull(species.name)), y=mean, fill=factor(species.name,levels=pc1means.table %>% arrange(pc1speciesmean) %>% pull(species.name))),col="black")+
+ggplot(distance_summary %>% filter(!(species.name=="western redcedar" & dist=="fire")) %>% filter(!(species.name=="western larch" & dist=="insect.disease")), aes(x=factor(species.name,levels=pc1means.table %>% arrange(pc1speciesmean) %>% pull(species.name)), y=mean, fill=factor(species.name,levels=pc1means.table %>% arrange(pc1speciesmean) %>% pull(species.name))),col="black")+
   geom_errorbar(aes(ymin=lwr,ymax=upr), col="black")+
     geom_point(pch=21, size=3)+
   scale_fill_manual(values=spp.colors$color)+
   facet_wrap(~dist)+
   ggtitle("Distance Between Centroids")+
   theme(axis.text = element_text(angle=50, hjust=1,size=10, color="black"),axis.title.x = element_blank(), legend.position = "none"),
-ggplot(distance_summary, aes(x=dist, y=mean, fill=factor(species.name,levels=pc1means.table %>% arrange(pc1speciesmean) %>% pull(species.name))),col="black")+
+ggplot(distance_summary %>% filter(!(species.name=="western redcedar" & dist=="fire")) %>% filter(!(species.name=="western larch" & dist=="insect.disease")), aes(x=dist, y=mean, fill=factor(species.name,levels=pc1means.table %>% arrange(pc1speciesmean) %>% pull(species.name))),col="black")+
   geom_errorbar(aes(ymin=lwr,ymax=upr), col="black")+
     geom_point(pch=21, size=3)+
   scale_fill_manual(values=spp.colors$color)+
