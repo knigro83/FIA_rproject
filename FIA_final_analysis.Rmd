@@ -705,10 +705,10 @@ write.csv(tree.dist.table, file="agent_table_stacked_tree2022.csv")
 ##updated 3/14/22 for new multi-condition plots
 #--------------------------------------------------------
 ##combine all previously made tables into one
-cond.dist = read.csv("C:/Users/Katie/Google Drive/FIA project/FIA_rproject/dist_table_stacked_cond2022.csv")
-mtbs.dist = read.csv("C:/Users/Katie/Google Drive/FIA project/FIA_rproject/agent_table_stacked_mtbs2022.csv")
-tree.dist = read.csv("C:/Users/Katie/Google Drive/FIA project/FIA_rproject/agent_table_stacked_tree2022.csv")
-landfire.dist = read.csv("C:/Users/Katie/Google Drive/FIA project/FIA_rproject/agent_table_stacked_LANDFIRE2022.csv")
+cond.dist = read.csv("C:/Users/katie/OneDrive - Colostate/OneDrive/FIA project/FIA_rproject/dist_table_stacked_cond2022.csv")
+mtbs.dist = read.csv("C:/Users/katie/OneDrive - Colostate/OneDrive/FIA project/FIA_rproject/agent_table_stacked_mtbs2022.csv")
+tree.dist = read.csv("C:/Users/katie/OneDrive - Colostate/OneDrive/FIA project/FIA_rproject/agent_table_stacked_tree2022.csv")
+landfire.dist = read.csv("C:/Users/katie/OneDrive - Colostate/OneDrive/FIA project/FIA_rproject/agent_table_stacked_LANDFIRE2022.csv")
 
 colnames(mtbs.dist)
 colnames(tree.dist)
@@ -768,6 +768,11 @@ View(master.agent.table)
 master.agent.table.new <- master.agent.table %>% 
   left_join(plot, by=c("PLT_CN"="CN")) %>% 
   dplyr::select("PLT_CN","Agent","dist_year","source","MEASYEAR")
+
+master.agent.table.new %>% 
+  group_by(PLT_CN,dist_year,Agent) %>% 
+  dplyr::summarise(n.source = length(unique(source))) %>% 
+  filter(Agent=="fire") %>% pull(n.source) %>% hist()
 
 unique.plots.master = unique(master.agent.table.new$PLT_CN)
 Result = matrix(ncol=2, nrow=length(unique.plots.master))
@@ -946,6 +951,7 @@ library(stringr)
 library(RColorBrewer)
 library(MVN)
 library(ggrepel)
+library(shades)
 ```
 
 Let's first read in the data.
@@ -1051,6 +1057,43 @@ dist_seeds_joined <- left_join(seeds, dist, by="PLT_CN") %>%
 head(dist_seeds_joined)
 summary(is.na(dist_seeds_joined)) #there are NAs for the plots that are not in my analysis, this is ok 
 
+unique(dist_adults_joined$PLT_CN)
+
+master.agent.table.new %>% 
+  filter(PLT_CN %in% c(dist_adults_joined$PLT_CN,dist_seeds_joined$PLT_CN)) %>% 
+  group_by(PLT_CN,dist_year,Agent) %>% 
+  dplyr::summarise(n.source = length(unique(source))) %>% 
+  filter(Agent=="fire") %>%
+  group_by(n.source) %>% 
+  dplyr::summarise(n=n())
+
+master.agent.table.new %>% 
+  filter(PLT_CN %in% c(master.agent.table.new %>% 
+  filter(PLT_CN %in% c(dist_adults_joined$PLT_CN,dist_seeds_joined$PLT_CN)) %>% 
+  group_by(PLT_CN,dist_year,Agent) %>% 
+  dplyr::summarise(n.source = length(unique(source))) %>% 
+  filter(Agent=="fire") %>%
+  filter(n.source==1) %>% 
+    pull(PLT_CN))) %>% 
+  group_by(source) %>% 
+  dplyr::summarise(n=n()) %>% 
+  pull(n)/(5773+2734+2867+1370)
+
+
+master.agent.table.new %>% 
+  filter(PLT_CN %in% c(master.agent.table.new %>% 
+  filter(PLT_CN %in% c(dist_adults_joined$PLT_CN,dist_seeds_joined$PLT_CN)) %>% 
+  group_by(PLT_CN,dist_year,Agent) %>% 
+  dplyr::summarise(n.source = length(unique(source))) %>% 
+  filter(Agent=="fire") %>%
+  filter(n.source==1) %>% 
+    pull(PLT_CN))) %>% 
+  group_by(source, dist_year) %>% 
+  dplyr::summarise(n=n()) %>% 
+  filter(source=="mtbs") %>% 
+  print(n=50)
+
+  
 ```
 
 ##time since disturbance
@@ -2022,6 +2065,69 @@ addEllipse(siber.objs[[22]]$ML.mu[[1]][ , , 2],
                      lty = 1,
                      lwd = 2)
 #dev.off()
+
+plot(x=unlist(c(siber.objs[[30]]$original.data %>% filter(group==1) %>% dplyr::select(iso1))),
+     y=unlist(c(siber.objs[[30]]$original.data %>% filter(group==1)%>% dplyr::select(iso2))),col="black", xlim=c(-4,6),ylim=c(-4,3),pch=16, xlab="PC1",ylab="PC2", mgp=c(2,1,0),main=NA)
+title("limber pine", line=0.5)+
+points(x=unlist(c(siber.objs[[30]]$original.data %>% filter(group==2) %>% dplyr::select(iso1))),
+     y=unlist(c(siber.objs[[30]]$original.data %>% filter(group==2)%>% dplyr::select(iso2))),col=alpha(disturbance.colors[3],0.6),pch=16)+
+points(x=mean(unlist(c(siber.objs[[30]]$original.data %>% filter(group==1) %>% dplyr::select(iso1)))), y = mean(unlist(c(siber.objs[[30]]$original.data %>% filter(group==1)%>% dplyr::select(iso2)))), col = "white", bg = "black", pch = 23, cex=1, lwd=2)+
+points(x=mean(unlist(c(siber.objs[[30]]$original.data %>% filter(group==2) %>% dplyr::select(iso1)))), y = mean(unlist(c(siber.objs[[30]]$original.data %>% filter(group==2)%>% dplyr::select(iso2)))), col = "white", bg = disturbance.colors_names %>% dplyr::pull(siber.objs.names$dist[3]), pch = 23, cex = 1, lwd = 2)
+addEllipse(siber.objs[[30]]$ML.mu[[1]][ , , 1],
+                     siber.objs[[30]]$ML.cov[[1]][ , , 1],
+                     m = NULL,
+                     n = 100,
+                     p.interval = 0.95,
+                     ci.mean = FALSE,
+                     col = "black",
+                     lty = 1,
+                     lwd = 2)
+addEllipse(siber.objs[[30]]$ML.mu[[1]][ , , 2],
+                     siber.objs[[30]]$ML.cov[[1]][ , , 2],
+                     m = NULL,
+                     n = 100,
+                     p.interval = 0.95,
+                     ci.mean = FALSE,
+                     col = disturbance.colors[3],
+                     lty = 1,
+                     lwd = 2)
+points(x=unlist(c(siber.objs[[28]]$original.data %>% filter(group==1) %>% dplyr::select(iso1))),
+     y=unlist(c(siber.objs[[28]]$original.data %>% filter(group==1)%>% dplyr::select(iso2))),col="black", xlim=c(-4,6),ylim=c(-4,3),pch=16, xlab="PC1",ylab="PC2", mgp=c(2,1,0),main=NA)
+points(x=unlist(c(siber.objs[[28]]$original.data %>% filter(group==2) %>% dplyr::select(iso1))),
+     y=unlist(c(siber.objs[[28]]$original.data %>% filter(group==2)%>% dplyr::select(iso2))),col=alpha(disturbance.colors[1],0.6),pch=16)+
+points(x=mean(unlist(c(siber.objs[[28]]$original.data %>% filter(group==1) %>% dplyr::select(iso1)))), y = mean(unlist(c(siber.objs[[28]]$original.data %>% filter(group==1)%>% dplyr::select(iso2)))), col = "white", bg = "black", pch = 23, cex=1, lwd=2)+
+points(x=mean(unlist(c(siber.objs[[28]]$original.data %>% filter(group==2) %>% dplyr::select(iso1)))), y = mean(unlist(c(siber.objs[[28]]$original.data %>% filter(group==2)%>% dplyr::select(iso2)))), col = "white", bg = disturbance.colors_names %>% dplyr::pull(siber.objs.names$dist[1]), pch = 23, cex = 1, lwd = 2)
+addEllipse(siber.objs[[28]]$ML.mu[[1]][ , , 1],
+                     siber.objs[[28]]$ML.cov[[1]][ , , 1],
+                     m = NULL,
+                     n = 100,
+                     p.interval = 0.95,
+                     ci.mean = FALSE,
+                     col = "black",
+                     lty = 1,
+                     lwd = 2)
+addEllipse(siber.objs[[28]]$ML.mu[[1]][ , , 2],
+                     siber.objs[[28]]$ML.cov[[1]][ , , 2],
+                     m = NULL,
+                     n = 100,
+                     p.interval = 0.95,
+                     ci.mean = FALSE,
+                     col = disturbance.colors[1],
+                     lty = 1,
+                     lwd = 2)
+
+##
+
+for(i in 1:length(siber.objs)/3){
+  png(file=paste("C:/Users/katie/OneDrive - Colostate/OneDrive/FIA project/FIA_rproject/ellipses/ellipses_2023_",names(siber.objs)[i],".png", sep=""), res=120)
+
+plot(x=unlist(c(siber.objs[[30]]$original.data %>% filter(group==1) %>% dplyr::select(iso1))),
+     y=unlist(c(siber.objs[[30]]$original.data %>% filter(group==1)%>% dplyr::select(iso2))),col=disturbance.colors[3], xlim=c(-4,6),ylim=c(-4,3),pch=16, xlab="PC1",ylab="PC2", mgp=c(2,1,0),main=NA)
+points(x=unlist(c(siber.objs[[29]]$original.data %>% filter(group==1) %>% dplyr::select(iso1))),
+     y=unlist(c(siber.objs[[29]]$original.data %>% filter(group==1)%>% dplyr::select(iso2))),col=disturbance.colors[2], xlim=c(-4,6),ylim=c(-4,3),pch=16, xlab="PC1",ylab="PC2", mgp=c(2,1,0),main=NA)
+points(x=unlist(c(siber.objs[[28]]$original.data %>% filter(group==1) %>% dplyr::select(iso1))),
+     y=unlist(c(siber.objs[[28]]$original.data %>% filter(group==1)%>% dplyr::select(iso2))),col=disturbance.colors[1], xlim=c(-4,6),ylim=c(-4,3),pch=16, xlab="PC1",ylab="PC2", mgp=c(2,1,0),main=NA)}
+
 ```
 
 ```{r}
@@ -2773,16 +2879,17 @@ pc1_reldiff<- ggplot(pc1_df_rel_new, aes(x=number, y=mean))+
 ##new figure with just pc1 and one column
 pc1_df_rel_new_cutxtreme <- pc1_df_rel_new %>% 
   filter(!(species.name=="western redcedar" & dist=="fire")) %>% 
-  filter(!(species.name=="western larch" & dist=="insect.disease"))
+  filter(!(species.name=="western larch" & dist=="insect.disease")) %>% 
+  mutate(dist_sig = paste(dist,sig,sep="_"))
 
 pc1_grpbydist<- ggplot(pc1_df_rel_new_cutxtreme, aes(x=number, y=mean, group=dist))+
-  geom_rect(data = pc1_df_rel_new_cutxtreme, aes(xmin=number - 0.25, xmax=number + 0.25, ymin=-Inf, ymax=Inf, fill=PC1, group=dist),alpha=.3, position=position_dodge(0.8)) +
+  geom_rect(data = pc1_df_rel_new_cutxtreme, aes(xmin=number - 0.25, xmax=number + 0.25, ymin=-Inf, ymax=Inf, fill=PC1, group=dist),alpha=.5, position=position_dodge(0.8)) +
     #geom_rect(data = pc1_df_rel_new_cutxtreme, aes(xmin=number - 0.5, xmax=number + 0.5, ymin=-Inf, ymax=Inf),alpha=.5,fill=NA, col="gray30", lty="dotted") +
   geom_vline(xintercept = c(seq(1,15)-0.5, seq(1,15)+.5), col="black", size=0.25)+
   geom_errorbar(aes(ymin=lwr,ymax=upr, col=sig, group=dist),width=0.2,size=1, position=position_dodge(.8))+
-  scale_fill_manual(values= c(shift_colors2[c(1,4,5,2)],"white"), name="Shift Type")+
+  scale_fill_manual(values= c("#FDBF6F","#35978F","#74ADD1","#6A3D9A","white"), name="Shift Type")+
   ggnewscale::new_scale_fill()+
-  geom_point(aes(fill=dist, col=sig), pch=21, size=3, position=position_dodge(.8))+
+  geom_point(aes(fill=dist, col=sig), pch=21, size=3,position=position_dodge(.8))+
   geom_hline(yintercept=0,lty="solid")+
   scale_fill_manual(values=disturbance.colors, name="Disturbance")+
   scale_color_manual(values=c("gray65","black"),name="Significance")+
@@ -2795,41 +2902,32 @@ pc1_grpbydist<- ggplot(pc1_df_rel_new_cutxtreme, aes(x=number, y=mean, group=dis
   theme(axis.text.x = element_text(angle=45, hjust=1,size=9, color="black"),axis.title.x = element_blank(),axis.text.y = element_text(size=10, colour = "black"),axis.title.y = element_text(size=12, color="black"), strip.text = element_text(size = 10), title=element_text(size=12), legend.position = "right", legend.text = element_text(size=9), legend.title = element_text(size=10),panel.grid.major = element_blank(), panel.grid.minor = element_blank())
 
 
-png("figures/PC1_shifts_grpbydist.png", width=5000, height=3000, res = 600)
-pc1_grpbydist
-dev.off()
-
-####
-##new figure with just pc2 and one column
-pc2_df_rel_new_cutxtreme <- pc2_df_rel_new %>% 
-  filter(!(species.name=="western redcedar" & dist=="fire")) %>% 
-  filter(!(species.name=="western larch" & dist=="insect.disease"))
-
-pc2_grpbydist<- ggplot(pc2_df_rel_new_cutxtreme, aes(x=number, y=mean, group=dist))+
-  geom_rect(data = pc2_df_rel_new_cutxtreme, aes(xmin=number - 0.25, xmax=number + 0.25, ymin=-Inf, ymax=Inf, fill=PC2, group=dist),alpha=.3, position=position_dodge(0.8)) +
-    #geom_rect(data = pc2_df_rel_new_cutxtreme, aes(xmin=number - 0.5, xmax=number + 0.5, ymin=-Inf, ymax=Inf),alpha=.5,fill=NA, col="gray30", lty="dotted") +
+pc1_grpbydist2 <- ggplot(pc1_df_rel_new_cutxtreme, aes(x=number, y=mean, group=dist))+
+  geom_rect(data = pc1_df_rel_new_cutxtreme, aes(xmin=number - 0.25, xmax=number + 0.25, ymin=-Inf, ymax=Inf, fill=PC1, group=dist),alpha=.6, position=position_dodge(0.8)) +
+    #geom_rect(data = pc1_df_rel_new_cutxtreme, aes(xmin=number - 0.5, xmax=number + 0.5, ymin=-Inf, ymax=Inf),alpha=.5,fill=NA, col="gray30", lty="dotted") +
   geom_vline(xintercept = c(seq(1,15)-0.5, seq(1,15)+.5), col="black", size=0.25)+
   geom_errorbar(aes(ymin=lwr,ymax=upr, col=sig, group=dist),width=0.2,size=1, position=position_dodge(.8))+
-  scale_fill_manual(values= c(shift_colors2[c(1,5)],"white"), name="Shift Type")+
+  scale_fill_manual(values= c("#FDBF6F","#35978F","#74ADD1","#6A3D9A","white"), name="Shift Type")+
   ggnewscale::new_scale_fill()+
-  geom_point(aes(fill=dist, col=sig), pch=21, size=3, position=position_dodge(.8))+
+  geom_point(aes(fill=factor(dist_sig, levels=c("fire_no","insect.disease_no","none_no","fire_yes","insect.disease_yes","none_yes")), col=sig), pch=21, size=3,position=position_dodge(.8), show.legend = FALSE)+
   geom_hline(yintercept=0,lty="solid")+
-  scale_fill_manual(values=disturbance.colors, name="Disturbance")+
+  scale_fill_manual(values=c(saturation(disturbance.colors,0.3),disturbance.colors), name="Disturbance",)+
   scale_color_manual(values=c("gray65","black"),name="Significance")+
-  facet_grid(rows=vars(factor(var, levels=c("pc2 max","pc2 centroid","pc2 min"), labels=c("cold/dry margin","centroid","hot/wet margin"))), scales = "free")+
-  scale_x_continuous(breaks=seq(1,15,1), labels=pc2_df_rel_new_cutxtreme %>% dplyr::select(species.name, number) %>% unique() %>% arrange(number) %>% mutate(xlab = paste(number, species.name, sep=". "))%>% pull(xlab))+
+  facet_grid(rows=vars(factor(var, levels=c("PC1 max","PC1 centroid","PC1 min"), labels=c("cold/wet margin","centroid","hot/dry margin"))), scales = "free")+
+  scale_x_continuous(breaks=seq(1,15,1), labels=pc1_df_rel_new_cutxtreme %>% dplyr::select(species.name, number) %>% unique() %>% arrange(number) %>% mutate(xlab = paste(number, species.name, sep=". "))%>% pull(xlab))+
   ylab("Relativized Difference in Margin Position")+
   #xlab("Species")+
-  #ggtitle("pc2")+
+  #ggtitle("PC1")+
+  #   geom_rect(data=data.frame(number=14,mean=-.15,var="PC1 min",label="trailing edge", dist="fire",sig="yes",dist_sig="fire_yes"), aes(xmin=number-1.5,xmax=number+1.5,ymin=mean-.04,ymax=mean+.04), fill="white",color="black")+
+  # geom_text(data=data.frame(number=14,mean=-.15,var="PC1 min",label="trailing edge", dist="fire",sig="yes",dist_sig="fire_yes"), aes(label=label))+
+  # geom_rect(data=data.frame(number=14,mean=.25,var="PC1 max",label="leading edge", dist="fire",sig="yes",dist_sig="fire_yes"), aes(xmin=number-1.5,xmax=number+1.5,ymin=mean-.05,ymax=mean+.05), fill="white",color="black")+
+  # geom_text(data=data.frame(number=14,mean=.25,var="PC1 max",label="leading edge", dist="fire",sig="yes",dist_sig="fire_yes"), aes(label=label))+
   theme_bw()+
   theme(axis.text.x = element_text(angle=45, hjust=1,size=9, color="black"),axis.title.x = element_blank(),axis.text.y = element_text(size=10, colour = "black"),axis.title.y = element_text(size=12, color="black"), strip.text = element_text(size = 10), title=element_text(size=12), legend.position = "right", legend.text = element_text(size=9), legend.title = element_text(size=10),panel.grid.major = element_blank(), panel.grid.minor = element_blank())
 
-png("figures/PC2_shifts_grpbydist.png", width=5000, height=3000, res = 600)
-pc2_grpbydist
+png("figures/PC1_shifts_grpbydist2.png", width=5000, height=3000, res = 600)
+pc1_grpbydist2
 dev.off()
-
-####
-####
 
 
 pc1_plot_new <- ggplot(pc1_df_rel_new_cutxtreme, aes(x=number, y=mean))+
@@ -2842,7 +2940,7 @@ geom_point(aes(fill=factor(number, levels=pc1means.table$number), col=sig), pch=
   scale_fill_manual(values=spp.colors$color, name="Species")+   scale_color_manual(values=c("lightgray","black"),name="Significance")+
   facet_grid(factor(var, levels=c("PC1 max","PC1 centroid","PC1 min"), labels=c("upper","centroid","lower"))~dist, scales = "free")+
   #scale_y_continuous(breaks=seq(-.8,.8,.4))+
-  scale_x_continuous(breaks=seq(1,15,1))+
+  scale_x_continuous(breaks=seq(1,15,1), labels=pc1_df_rel_new_cutxtreme %>% dplyr::select(species.name, number) %>% unique() %>% arrange(number) %>% mutate(xlab = paste(number, species.name, sep=". "))%>% pull(xlab))+
   ylab("Relativized Difference in Margin Position")+
   xlab("Species")+
   ggtitle("PC1")+
@@ -2864,9 +2962,6 @@ max2_rel_df %>% mutate(var="pc2 max"),
 #          lwr=ifelse(var=="pc2 max",lwr+.8,ifelse(var=="pc2 min", lwr-.8,lwr)),
 #          upr=ifelse(var=="pc2 max",upr+.8,ifelse(var=="pc2 min", upr-.8,upr)))
   left_join(pc1means.table)
-
-
-
 
 ggplot(pc2_df_rel, aes(x=factor(number,levels=pc1means.table %>% arrange(pc1speciesmean) %>% pull(number)), y=mean, fill=factor(number,levels=pc1means.table %>% arrange(pc1speciesmean) %>% pull(number)), col=sig))+
   geom_errorbar(aes(ymin=lwr,ymax=upr, col=sig),width=0.2,size=1)+
@@ -2917,6 +3012,39 @@ pc2_reldiff<- ggplot(pc2_df_rel_new, aes(x=number, y=mean))+
 png("new_fia_figure_bright.png", width=4500, height=6000, res = 600)
 ggarrange(pc1_reldiff, pc2_reldiff, nrow=2, common.legend = T, labels = c("A)","B)"), legend = "right")
 dev.off()
+
+
+####
+##new figure with just pc2 and one column
+pc2_df_rel_new_cutxtreme <- pc2_df_rel_new %>% 
+  filter(!(species.name=="western redcedar" & dist=="fire")) %>% 
+  filter(!(species.name=="western larch" & dist=="insect.disease"))
+
+pc2_grpbydist<- ggplot(pc2_df_rel_new_cutxtreme, aes(x=number, y=mean, group=dist))+
+  geom_rect(data = pc2_df_rel_new_cutxtreme, aes(xmin=number - 0.25, xmax=number + 0.25, ymin=-Inf, ymax=Inf, fill=PC2, group=dist),alpha=.3, position=position_dodge(0.8)) +
+    #geom_rect(data = pc2_df_rel_new_cutxtreme, aes(xmin=number - 0.5, xmax=number + 0.5, ymin=-Inf, ymax=Inf),alpha=.5,fill=NA, col="gray30", lty="dotted") +
+  geom_vline(xintercept = c(seq(1,15)-0.5, seq(1,15)+.5), col="black", size=0.25)+
+  geom_errorbar(aes(ymin=lwr,ymax=upr, col=sig, group=dist),width=0.2,size=1, position=position_dodge(.8))+
+  scale_fill_manual(values= c(shift_colors2[c(1,5)],"white"), name="Shift Type")+
+  ggnewscale::new_scale_fill()+
+  geom_point(aes(fill=dist, col=sig), pch=21, size=3, position=position_dodge(.8))+
+  geom_hline(yintercept=0,lty="solid")+
+  scale_fill_manual(values=disturbance.colors, name="Disturbance")+
+  scale_color_manual(values=c("gray65","black"),name="Significance")+
+  facet_grid(rows=vars(factor(var, levels=c("pc2 max","pc2 centroid","pc2 min"), labels=c("cold/dry margin","centroid","hot/wet margin"))), scales = "free")+
+  scale_x_continuous(breaks=seq(1,15,1), labels=pc2_df_rel_new_cutxtreme %>% dplyr::select(species.name, number) %>% unique() %>% arrange(number) %>% mutate(xlab = paste(number, species.name, sep=". "))%>% pull(xlab))+
+  ylab("Relativized Difference in Margin Position")+
+  #xlab("Species")+
+  #ggtitle("pc2")+
+  theme_bw()+
+  theme(axis.text.x = element_text(angle=45, hjust=1,size=9, color="black"),axis.title.x = element_blank(),axis.text.y = element_text(size=10, colour = "black"),axis.title.y = element_text(size=12, color="black"), strip.text = element_text(size = 10), title=element_text(size=12), legend.position = "right", legend.text = element_text(size=9), legend.title = element_text(size=10),panel.grid.major = element_blank(), panel.grid.minor = element_blank())
+
+png("figures/PC2_shifts_grpbydist.png", width=5000, height=3000, res = 600)
+pc2_grpbydist
+dev.off()
+
+####
+####
 
 #try combining pc1 and 2
 
@@ -3487,7 +3615,8 @@ overlap.table.long<- overlap.table %>%
 
 overlap.table.long_cutoff<- 
   overlap.table.long %>% 
-  mutate(upr = ifelse(upr>0.7,.7,upr))
+  mutate(upr = ifelse(upr>0.7,.7,upr)) %>% 
+  mutate(sp_diff = paste(species,diff,sep="-"))
 
 arrow_tips_table1 <- overlap.table.long %>% 
   filter(upr>0.7 & species.name=="western larch") 
@@ -3555,6 +3684,8 @@ gl_bydist<- ggplot(overlap.table.long_cutoff,aes(x=as.factor(number),y=mean,colo
     geom_segment(data=arrow_tips_table2, aes(x=8,xend=8,y=.25,yend=.7,color=factor(species.name, levels=pc1means.table$species.name),alpha=diff), arrow = arrow(length=unit(.2,"cm")),size=1)+
   theme_bw()+
   theme(axis.text = element_text(size=24),legend.text = element_text(size=16),legend.title = element_text(size=24),legend.position = 'right',axis.title = element_text(size=24),plot.margin=margin(0,0.5,.6,.1,"cm"), axis.title.x = element_blank(),strip.text = element_text(size=16,color="black"), panel.grid.minor.x = element_blank(), panel.grid.major.x = element_blank(), axis.text.x=element_text(size=16, angle=60,hjust=1))
+
+
 
 png("figures/gl_bydist.png", width = 900, height = 400)
 gl_bydist
@@ -3685,35 +3816,17 @@ fire_data<- overlap.table.long_cutoff %>% filter(disturbance=="fire") %>%
   mutate(star=ifelse(is.na(star), "no",
                      ifelse(disturbance=="fire" &species.name%in%insectonlyspp,"no",star))) 
 
-fireplot <- ggplot(fire_data,aes(x=factor(species.name, levels=pc1means.table$species.name, labels=pc1means.table$number),color=factor(species.name, levels=pc1means.table$species.name, labels=pc1means.table$number),y=mean,alpha=diff,shape=diff))+
-  scale_color_manual(values = c("gray",spp.colors$color[2:3],"gray","gray",spp.colors$color[6:7],"gray","gray",spp.colors$color[10:15]), name="Species")+
-  geom_hline(yintercept=0, linetype=2, size=0.8)+
-  geom_point(position = position_dodge(0.9),size=4, stroke=2)+
-  geom_errorbar(aes(ymin=lwr, ymax =upr), width=0, position = position_dodge(0.9),size=1.5)+
-  scale_alpha_manual(values=c(1,.7),labels=c("no","yes"),name="95% CI overlaps 0")+
-  #scale_linetype_manual(values=c("solid","dotdash"),labels=c("no","yes"),name="95% CI overlaps 0")+
-  scale_shape_manual(values=c(16,1),labels=c("no","yes"),name="95% CI overlaps 0")+
-  facet_grid(factor(type,levels=c("lost","gained"))~disturbance)+
-  geom_segment(data=arrow_tips_table2, aes(xend=factor(species.name, levels=pc1means.table$species.name, labels=pc1means.table$number),y=.25,yend=.7,x=factor(species.name, levels=pc1means.table$species.name, labels=pc1means.table$number),color=factor(species.name, levels=pc1means.table$species.name, labels=pc1means.table$number),alpha=diff), arrow = arrow(length=unit(.4,"cm")),size=1.5)+
-  geom_text(data=fire_data %>% filter(star=="yes"), aes(x=factor(species.name, levels=pc1means.table$species.name, labels=pc1means.table$number), y=0.6, label="*"),size=11)+
-  geom_text(data=fire_data %>% filter(species.name%in% c(star_table2 %>% filter(dist=="fire") %>% pull(species)) & type=="lost" & !species.name %in%insectonlyspp), aes(x=factor(species.name, levels=pc1means.table$species.name, labels=pc1means.table$number), y=0.55, label="x"),size=6, col="black")+
-  ylim(c(-.1,.7))+
-  ylab("Proportion")+
-  theme_bw()+
-  theme(axis.text = element_text(size=24),legend.text = element_text(size=16),legend.title = element_text(size=24),legend.position = 'none',axis.title = element_text(size=24),plot.margin=margin(0,0.5,.6,.1,"cm"), axis.title.x = element_blank(),strip.text = element_text(size=20,color="black"), panel.grid.minor.x = element_blank(), panel.grid.major.x = element_blank(), axis.text.x = element_text(size=18, angle=60, color="black", hjust=1))
-
 fire_data_cutxtreme <- fire_data %>% 
   filter(!(species.name=="western redcedar" & disturbance=="fire")) %>% 
-  bind_rows(data.frame(species.name=c("western redcedar","western redcedar"),number = c(8,8), disturbance=c("fire","fire"), mean=c(NA,NA), lwr=c(NA,NA), upr=c(NA,NA), type=c("gained","lost")))
+  bind_rows(data.frame(species.name=c("western redcedar","western redcedar"),number = c(8,8), disturbance=c("fire","fire"), mean=c(NA,NA), lwr=c(NA,NA), upr=c(NA,NA), type=c("gained","lost"), diff=c("diff","nodiff")))
 
-fireplot <- ggplot(fire_data_cutxtreme,aes(x=factor(species.name, levels=pc1means.table$species.name, labels=pc1means.table$number),color=factor(species.name, levels=pc1means.table$species.name, labels=pc1means.table$number),y=mean,alpha=diff,shape=diff))+
-  scale_color_manual(values=spp.colors$color, name="Species")+
-  geom_hline(yintercept=0, linetype=2, size=0.8)+
-  geom_point(position = position_dodge(0.9),size=4, stroke=2)+
-  geom_errorbar(aes(ymin=lwr, ymax =upr), width=0, position = position_dodge(0.9),size=1.5)+
-  scale_alpha_manual(values=c(1,.7),labels=c("no","yes"),name="95% CI overlaps 0")+
-  #scale_linetype_manual(values=c("solid","dotdash"),labels=c("no","yes"),name="95% CI overlaps 0")+
-  scale_shape_manual(values=c(16,1),labels=c("no","yes"),name="95% CI overlaps 0")+
+fireplot <- ggplot()+
+  scale_fill_manual(values=spp.colors$color, name="Species")+
+  geom_hline(yintercept=0, linetype=1, size=0.3)+
+  geom_errorbar(data=fire_data_cutxtreme %>% filter(diff=="diff"), aes(x=factor(species.name, levels=pc1means.table$species.name, labels=pc1means.table$number),ymin=lwr, ymax =upr), width=0, position = position_dodge(0.9),size=1.5, col="black")+
+  geom_point(data=fire_data_cutxtreme %>% filter(diff=="diff"),aes(x=factor(species.name, levels=pc1means.table$species.name, labels=pc1means.table$number),fill=factor(species.name, levels=pc1means.table$species.name,labels=pc1means.table$number),y=mean), shape=21, position = position_dodge(0.9),size=5, stroke=2, col="black")+
+  geom_errorbar(data=fire_data_cutxtreme %>% filter(diff=="nodiff"), aes(x=factor(species.name, levels=pc1means.table$species.name, labels=pc1means.table$number),ymin=lwr, ymax =upr), width=0, position = position_dodge(0.9),size=1.5, col="gray")+
+  geom_point(data=fire_data_cutxtreme %>% filter(diff=="nodiff"),aes(x=factor(species.name, levels=pc1means.table$species.name, labels=pc1means.table$number),y=mean), shape=21, position = position_dodge(0.9),size=5, stroke=2, fill="gray", col="gray")+
   facet_grid(factor(type,levels=c("lost","gained"))~disturbance)+
   #geom_segment(data=arrow_tips_table2, aes(xend=factor(species.name, levels=pc1means.table$species.name, labels=pc1means.table$number),y=.25,yend=.7,x=factor(species.name, levels=pc1means.table$species.name, labels=pc1means.table$number),color=factor(species.name, levels=pc1means.table$species.name, labels=pc1means.table$number),alpha=diff), arrow = arrow(length=unit(.4,"cm")),size=1.5)+
   geom_text(data=fire_data_cutxtreme %>% filter(star=="yes"), aes(x=factor(species.name, levels=pc1means.table$species.name, labels=pc1means.table$number), y=0.6, label="*"),size=11)+
@@ -3750,16 +3863,15 @@ ggplot(id_data,aes(x=factor(species.name, levels=pc1means.table$species.name, la
 
 id_data_cutxtreme <- id_data %>% 
   filter(!(species.name=="western larch" & disturbance=="insect.disease")) %>% 
-  bind_rows(data.frame(species.name=c("western larch","western larch"),number = c(11,11), disturbance=c("insect.disease","insect.disease"), mean=c(NA,NA), lwr=c(NA,NA), upr=c(NA,NA), type=c("gained","lost")))
+  bind_rows(data.frame(species.name=c("western larch","western larch"),number = c(11,11), disturbance=c("insect.disease","insect.disease"), mean=c(NA,NA), lwr=c(NA,NA), upr=c(NA,NA), type=c("gained","lost"), diff=c("diff","nodiff")))
 
-idplot <- ggplot(id_data_cutxtreme,aes(x=factor(species.name, levels=pc1means.table$species.name, labels=pc1means.table$number),y=mean,col = factor(species.name, levels=pc1means.table$species.name, labels=pc1means.table$number), alpha=diff,shape=diff))+
-  geom_hline(yintercept=0, linetype=2, size=0.8)+
-  geom_point(position = position_dodge(0.9),size=4,stroke=2)+
-  geom_errorbar(aes(ymin=lwr, ymax =upr), width=0, position = position_dodge(0.9),size=1.5)+
-      scale_color_manual(values = c(spp.colors$color[1:10],"gray",spp.colors$color[12:15]), name="Species")+
-  scale_alpha_manual(values=c(1,.7),labels=c("no","yes"),name="95% CI overlaps 0")+
-  scale_shape_manual(values=c(16,1),labels=c("no","yes"),name="95% CI overlaps 0")+
-  #scale_linetype_manual(values=c("solid","dotdash"),labels=c("no","yes"),name="95% CI overlaps 0")+
+idplot <- ggplot()+
+  geom_hline(yintercept=0, linetype=1, size=0.3)+
+  geom_errorbar(data=id_data_cutxtreme %>% filter(diff=="diff"), aes(x=factor(species.name, levels=pc1means.table$species.name, labels=pc1means.table$number), ymin=lwr, ymax =upr), width=0, position = position_dodge(0.9),size=1.5, col="black")+
+  geom_point(data=id_data_cutxtreme %>% filter(diff=="diff"),aes(x=factor(species.name, levels=pc1means.table$species.name, labels=pc1means.table$number),y=mean,fill = factor(species.name, levels=pc1means.table$species.name, labels=pc1means.table$number)), position = position_dodge(0.9),size=5,stroke=2, shape=21, col="black")+
+  scale_fill_manual(values = c(spp.colors$color[1:10],"gray",spp.colors$color[12:15]), name="Species")+
+  geom_errorbar(data=id_data_cutxtreme %>% filter(diff=="nodiff"), aes(x=factor(species.name, levels=pc1means.table$species.name, labels=pc1means.table$number), ymin=lwr, ymax =upr), width=0, position = position_dodge(0.9),size=1.5, col="gray")+
+  geom_point(data=id_data_cutxtreme %>% filter(diff=="nodiff"),aes(x=factor(species.name, levels=pc1means.table$species.name, labels=pc1means.table$number),y=mean),fill ="gray", position = position_dodge(0.9),size=5,stroke=2, shape=21, col="gray")+
   facet_grid(factor(type,levels=c("lost","gained"))~disturbance)+
   geom_text(data=id_data_cutxtreme %>% filter(star=="yes"), aes(x=factor(species.name, levels=pc1means.table$species.name, labels=pc1means.table$number), y=0.6, label="*"),size=11)+
   geom_text(data=id_data_cutxtreme %>% filter(species.name%in% c(star_table2 %>% filter(dist=="insect.disease") %>% pull(species)) & type=="lost" & !species.name %in% fireonlyspp), aes(x=factor(species.name, levels=pc1means.table$species.name, labels=pc1means.table$number), y=0.55, label="x"),size=6, col="black")+
@@ -3768,15 +3880,16 @@ idplot <- ggplot(id_data_cutxtreme,aes(x=factor(species.name, levels=pc1means.ta
   theme_bw()+
   theme(axis.text = element_text(size=24),legend.text = element_text(size=16),legend.title = element_text(size=24),legend.position = 'none',axis.title = element_text(size=24),plot.margin=margin(0,0.5,.6,.1,"cm"), axis.title.x = element_blank(),strip.text = element_text(size=20,color="black"), panel.grid.minor.x = element_blank(), panel.grid.major.x = element_blank(),axis.text.x = element_text(size=18, angle=60, color="black", hjust=1))
 
+
+
 #none
-noneplot<- ggplot(overlap.table.long_cutoff %>% filter(disturbance=="none"),aes(x=factor(species.name, levels=pc1means.table$species.name, labels=pc1means.table$number),y=mean, col = factor(species.name, levels=pc1means.table$species.name, labels=pc1means.table$number), alpha=diff,shape=diff))+
-  geom_hline(yintercept=0, linetype=2, size=0.8)+
-  geom_point(position = position_dodge(0.9),size=4,stroke=2)+
-  geom_errorbar(aes(ymin=lwr, ymax =upr), width=0, position = position_dodge(0.9),size=1.5)+
-    scale_color_manual(values = spp.colors$color, name="Species")+
-  scale_alpha_manual(values=c(1,.7),labels=c("no","yes"),name="95% CI overlaps 0")+
-  scale_shape_manual(values=c(16,1),labels=c("no","yes"),name="95% CI overlaps 0")+
-  #scale_linetype_manual(values=c("solid","dotdash"),labels=c("no","yes"),name="95% CI overlaps 0")+
+noneplot<-ggplot()+
+  geom_hline(yintercept=0, linetype=1, size=0.3)+
+    geom_errorbar(data=overlap.table.long_cutoff %>% filter(disturbance=="none"& diff=="diff"), aes(x = factor(species.name, levels=pc1means.table$species.name, labels=pc1means.table$number), ymin=lwr, ymax =upr), col="black", width=0, position = position_dodge(0.9),size=1.5)+
+  geom_point(data=overlap.table.long_cutoff %>% filter(disturbance=="none"& diff=="diff"),col="black",aes(x=factor(species.name, levels=pc1means.table$species.name, labels=pc1means.table$number),y=mean, fill=factor(species.name, levels=c(pc1means.table$species.name))), position = position_dodge(0.9),size=5,stroke=2, shape=21)+
+  scale_fill_manual(values = spp.colors$color, labels=species.label, name="Species")+
+  geom_errorbar(data=overlap.table.long_cutoff %>% filter(disturbance=="none"& diff=="nodiff"), aes(x = factor(species.name, levels=pc1means.table$species.name, labels=pc1means.table$number), ymin=lwr, ymax =upr), col="gray", width=0, position = position_dodge(0.9),size=1.5)+
+  geom_point(data=overlap.table.long_cutoff %>% filter(disturbance=="none"& diff=="nodiff"),col="gray",aes(x=factor(species.name, levels=pc1means.table$species.name, labels=pc1means.table$number),y=mean), fill="gray", position = position_dodge(0.9),size=5,stroke=2, shape=21)+
   facet_grid(factor(type,levels=c("lost","gained"))~disturbance)+
   geom_text(data=overlap.table.long_cutoff %>% filter(disturbance=="none") %>% filter(species.name%in% c(star_table2 %>% filter(dist=="none") %>% pull(species)) & type=="lost"), aes(x=factor(species.name, levels=pc1means.table$species.name, labels=pc1means.table$number), y=0.55, label="x"),size=6, col="black")+
   ylim(c(-.1,.7))+
@@ -3788,13 +3901,12 @@ png("figures/gl_bypc1.png", width = 1200, height = 480)
 ggarrange(fireplot, idplot, noneplot, ncol=3)
 dev.off()
 
-legendplot<- ggplot(overlap.table.long_cutoff %>% filter(disturbance=="none"),aes(x=factor(species.name, levels=pc1means.table$species.name, labels=pc1means.table$number),y=mean, alpha=diff,shape=diff))+
+legendplot1<- ggplot(overlap.table.long_cutoff %>% filter(disturbance=="none"),aes(x=factor(species.name, levels=pc1means.table$species.name, labels=pc1means.table$number),y=mean, fill=factor(diff, levels=c("diff","nodiff"), labels = c("yes","no")), color=factor(diff, levels=c("diff","nodiff"), labels = c("yes","no"))))+
+  scale_fill_manual(values=c("black","gray"), name="Significance")+
+  scale_color_manual(values=c("black","gray"), name="Significance")+
   geom_hline(yintercept=0, linetype=2, size=0.8)+
-  geom_point(position = position_dodge(0.9),size=3,stroke=2)+
+  geom_point(position = position_dodge(0.9),size=3,stroke=2, shape=21)+
   geom_errorbar(aes(ymin=lwr, ymax =upr), width=0, position = position_dodge(0.9),size=1)+
-  scale_alpha_manual(values=c(1,.7),labels=c("no","yes"),name="95% CI overlaps 0")+
-  scale_shape_manual(values=c(16,1),labels=c("no","yes"),name="95% CI overlaps 0")+
-  #scale_linetype_manual(values=c("solid","dotdash"),labels=c("no","yes"),name="95% CI overlaps 0")+
   facet_grid(factor(type,levels=c("lost","gained"))~disturbance)+
   ylim(c(-.1,.7))+
   ylab("Proportion")+
@@ -3802,8 +3914,26 @@ legendplot<- ggplot(overlap.table.long_cutoff %>% filter(disturbance=="none"),ae
   theme(axis.text = element_text(size=24),legend.text = element_text(size=16),legend.title = element_text(size=24),legend.position = 'right',axis.title = element_text(size=24),plot.margin=margin(0,0.5,.6,.1,"cm"),axis.title.x = element_blank(),strip.text = element_text(size=16,color="black"), panel.grid.minor.x = element_blank(), panel.grid.major.x = element_blank(),axis.text.x = element_text(size=14, angle=60, color="black", hjust=1))
 
 png("figures/gl_bypc1_legend.png", width = 1200, height = 480)
-ggarrange(fireplot, idplot, legendplot, ncol=3)
+ggarrange(fireplot, idplot, legendplot1, ncol=3)
 dev.off()
+
+legendplot2 <- ggplot()+
+  geom_hline(yintercept=0, linetype=2, size=0.8)+
+    geom_errorbar(data=overlap.table.long_cutoff %>% filter(disturbance=="none"), aes(x = factor(species.name, levels=pc1means.table$species.name, labels=pc1means.table$number), ymin=lwr, ymax =upr), col="black", width=0, position = position_dodge(0.9),size=1.5)+
+  geom_point(data=overlap.table.long_cutoff %>% filter(disturbance=="none"),col="black",aes(x=factor(species.name, levels=pc1means.table$species.name, labels=pc1means.table$number),y=mean, fill=factor(species.name, levels=c(pc1means.table$species.name))), position = position_dodge(0.9),size=4,stroke=1, shape=21)+
+  scale_fill_manual(values = spp.colors$color, labels=species.label, name="Species")+
+  facet_grid(factor(type,levels=c("lost","gained"))~disturbance)+
+  geom_text(data=overlap.table.long_cutoff %>% filter(disturbance=="none") %>% filter(species.name%in% c(star_table2 %>% filter(dist=="none") %>% pull(species)) & type=="lost"), aes(x=factor(species.name, levels=pc1means.table$species.name, labels=pc1means.table$number), y=0.55, label="x"),size=6, col="black")+
+  ylim(c(-.1,.7))+
+  ylab("Proportion")+
+  theme_bw()+
+  theme(axis.text = element_text(size=24),legend.text = element_text(size=16),legend.title = element_text(size=24),legend.position = 'right',axis.title = element_text(size=24),plot.margin=margin(0,0.5,.6,.1,"cm"),axis.title.x = element_blank(),strip.text = element_text(size=20,color="black"), panel.grid.minor.x = element_blank(), panel.grid.major.x = element_blank(),axis.text.x = element_text(size=18, angle=60, color="black", hjust=1))
+
+png("figures/gl_bypc1_legend2.png", width = 1200, height = 480)
+ggarrange(fireplot, idplot, legendplot2, ncol=3)
+dev.off()
+
+
 
 write.csv(ci_overlap,"supplemental/species_significance_table.csv")
 
