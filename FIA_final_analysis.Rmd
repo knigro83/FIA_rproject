@@ -13,7 +13,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 # Data Extraction
 
-```{r}
+```{r, eval=FALSE}
 ### this is the whole flow from narrowing down FIA plots 
 ### to extracting climate and disturbance data from them
 ### written 3/12 - 3/14/22
@@ -1059,48 +1059,54 @@ summary(is.na(dist_seeds_joined)) #there are NAs for the plots that are not in m
 
 unique(dist_adults_joined$PLT_CN)
 
-master.agent.table.new %>% 
-  filter(PLT_CN %in% c(dist_adults_joined$PLT_CN,dist_seeds_joined$PLT_CN)) %>% 
-  group_by(PLT_CN,dist_year,Agent) %>% 
-  dplyr::summarise(n.source = length(unique(source))) %>% 
-  filter(Agent=="fire") %>%
-  group_by(n.source) %>% 
-  dplyr::summarise(n=n())
-
-master.agent.table.new %>% 
-  filter(PLT_CN %in% c(master.agent.table.new %>% 
-  filter(PLT_CN %in% c(dist_adults_joined$PLT_CN,dist_seeds_joined$PLT_CN)) %>% 
-  group_by(PLT_CN,dist_year,Agent) %>% 
-  dplyr::summarise(n.source = length(unique(source))) %>% 
-  filter(Agent=="fire") %>%
-  filter(n.source==1) %>% 
-    pull(PLT_CN))) %>% 
-  group_by(source) %>% 
-  dplyr::summarise(n=n()) %>% 
-  pull(n)/(5773+2734+2867+1370)
-
-
-master.agent.table.new %>% 
-  filter(PLT_CN %in% c(master.agent.table.new %>% 
-  filter(PLT_CN %in% c(dist_adults_joined$PLT_CN,dist_seeds_joined$PLT_CN)) %>% 
-  group_by(PLT_CN,dist_year,Agent) %>% 
-  dplyr::summarise(n.source = length(unique(source))) %>% 
-  filter(Agent=="fire") %>%
-  filter(n.source==1) %>% 
-    pull(PLT_CN))) %>% 
-  group_by(source, dist_year) %>% 
-  dplyr::summarise(n=n()) %>% 
-  filter(source=="mtbs") %>% 
-  print(n=50)
+# master.agent.table.new %>% 
+#   filter(PLT_CN %in% c(dist_adults_joined$PLT_CN,dist_seeds_joined$PLT_CN)) %>% 
+#   group_by(PLT_CN,dist_year,Agent) %>% 
+#   dplyr::summarise(n.source = length(unique(source))) %>% 
+#   filter(Agent=="fire") %>%
+#   group_by(n.source) %>% 
+#   dplyr::summarise(n=n())
+# 
+# master.agent.table.new %>% 
+#   filter(PLT_CN %in% c(master.agent.table.new %>% 
+#   filter(PLT_CN %in% c(dist_adults_joined$PLT_CN,dist_seeds_joined$PLT_CN)) %>% 
+#   group_by(PLT_CN,dist_year,Agent) %>% 
+#   dplyr::summarise(n.source = length(unique(source))) %>% 
+#   filter(Agent=="fire") %>%
+#   filter(n.source==1) %>% 
+#     pull(PLT_CN))) %>% 
+#   group_by(source) %>% 
+#   dplyr::summarise(n=n()) %>% 
+#   pull(n)/(5773+2734+2867+1370)
+# 
+# 
+# master.agent.table.new %>% 
+#   filter(PLT_CN %in% c(master.agent.table.new %>% 
+#   filter(PLT_CN %in% c(dist_adults_joined$PLT_CN,dist_seeds_joined$PLT_CN)) %>% 
+#   group_by(PLT_CN,dist_year,Agent) %>% 
+#   dplyr::summarise(n.source = length(unique(source))) %>% 
+#   filter(Agent=="fire") %>%
+#   filter(n.source==1) %>% 
+#     pull(PLT_CN))) %>% 
+#   group_by(source, dist_year) %>% 
+#   dplyr::summarise(n=n()) %>% 
+#   filter(source=="mtbs") %>% 
+#   print(n=50)
 
   
 ```
 
 ##time since disturbance
 ```{r}
+#make a dataframe to translate species codes to names
+species.names <- data.frame(species.code = c(15,17,19,66,73,93,101,106,108,113,122,133,202,242,746,814), species.name = c("white fir","grand fir","subalpine fir","Rocky Mountain juniper","western larch","Engelmann spruce","whitebark pine","two needle pinyon","lodgepole pine","limber pine","ponderosa pine","singleleaf pinyon","Douglas-fir","western redcedar","trembling aspen","Gambel oak"))
+species.names<- species.names %>% 
+  mutate(species.code = as.numeric(species.code))
+
 dist_tsd<- dist_seeds_joined %>% 
   filter(Agent %in% c("fire","insect.disease")) %>% 
-  filter(! source == "tree_table")
+  filter(! source == "tree_table") %>% 
+  left_join(species.names, by=c("SPCD"="species.code"))
 
 ggplot(dist_tsd %>% filter(tsd>0))+
   geom_histogram(aes(x=tsd))+
@@ -1110,6 +1116,53 @@ ggplot(dist_tsd %>% filter(tsd>0))+
   geom_boxplot(aes(x=Agent, y=tsd))
 ##time since disturbance for insect/disease was much shorter on average than for fire. 
  
+tsd_byspp_fire<- dist_tsd %>% 
+  filter(Agent=="fire") %>% 
+  group_by(species.name, Agent, tsd) %>% 
+  dplyr::summarise(n=n()) %>% 
+  filter(!is.na(species.name))
+
+ggplot(tsd_byspp_fire, aes(x=tsd, y=n))+
+  geom_bar(stat="identity")+
+  facet_wrap(~species.name, scales="free")
+
+ggplot( dist_tsd %>% 
+  filter(Agent=="fire"), aes(x=tsd))+
+  geom_histogram(bins=10)+
+  facet_wrap(~species.name, scales="free")
+
+
+dist_tsd_adult<- dist_adults_joined %>% 
+  filter(Agent %in% c("fire","insect.disease")) %>% 
+  filter(! source == "tree_table") %>% 
+  left_join(species.names, by=c("SPCD"="species.code"))
+
+ggplot( dist_tsd_adult %>% 
+  filter(Agent=="fire"), aes(x=tsd))+
+  geom_histogram(bins=10)+
+  facet_wrap(~species.name, scales="free")
+
+##alive
+alivetree<- tree %>% 
+  filter(STATUSCD==1) %>% 
+  group_by(SPCD,PLT_CN) %>% 
+  dplyr::summarise(n = n())
+
+dist_liveadults_joined <- left_join(alivetree, dist, by="PLT_CN") %>% 
+  mutate(tsd=MEASYEAR-dist_year)
+head(dist_liveadults_joined)
+
+dist_tsd_liveadult<- dist_liveadults_joined %>% 
+  filter(Agent %in% c("fire")) %>% 
+  filter(! source == "tree_table") %>% 
+  left_join(species.names, by=c("SPCD"="species.code"))
+
+ggplot( dist_tsd_liveadult %>% 
+  filter(Agent=="fire"), aes(x=tsd))+
+  geom_histogram(bins=30)+
+  facet_wrap(~species.name, scales="free")
+
+
 dist_tsd %>% 
   ungroup() %>% 
   dplyr::group_by(Agent) %>% 
@@ -1117,6 +1170,73 @@ dist_tsd %>%
 
 ##calculate area of microplots
 pi*((6.8/3.281)^2)*4
+```
+
+##saplings
+```{r}
+#investigating saplings
+saplings <- tree %>% 
+  filter(DIA<5 & STATUSCD==1) %>% 
+  group_by(SPCD,PLT_CN) %>% 
+  dplyr::summarise(n = n())
+
+dist_saplings_joined <- left_join(saplings, dist, by="PLT_CN") %>% 
+  mutate(tsd=MEASYEAR-dist_year, y="sapling")
+head(dist_saplings_joined)
+summary(is.na(dist_saplings_joined)) #there are NAs for the plots that are not in my analysis, this is ok 
+nrow(dist_saplings_joined)
+dist_saplings_joined %>% filter(!is.na(Agent)) %>% nrow()
+
+adult_trees <- tree %>% 
+  filter(DIA>=5 & STATUSCD==1) %>% 
+  group_by(SPCD,PLT_CN) %>% 
+  dplyr::summarise(n = n())
+
+dist_adulttrees_joined <- left_join(adult_trees, dist, by="PLT_CN") %>% 
+  mutate(tsd=MEASYEAR-dist_year, x="adulttree")
+nrow(dist_adulttrees_joined %>% filter(!is.na(Agent)))
+head(dist_adulttrees_joined)
+
+ggplot(dist_adulttrees_joined %>% filter(Agent=="fire"), aes(x=tsd, y=n, fill=source))+
+  geom_bar(stat="identity", position=position_dodge())
+
+dist_adulttrees_joined %>% filter(tsd==20) %>% View()
+
+sapling_only<- left_join(dist_saplings_joined %>% filter(!is.na(Agent)), dist_adulttrees_joined %>% filter(!is.na(Agent))) %>% 
+  left_join(dist_seeds_joined %>% filter(!is.na(Agent)) %>% mutate(z="seedling")) %>% 
+  filter(Agent =="fire" & source %in% c("landfire","mtbs")) %>% 
+  filter(is.na(x)&is.na(z)) %>% 
+  filter(!tsd==0) %>% 
+  group_by(SPCD, Agent, tsd) %>% 
+  dplyr::summarise(n=n()) %>% 
+  left_join(species.names, by=c("SPCD"="species.code")) %>% 
+  filter(!is.na(species.name))
+
+ggplot(sapling_only, aes(x=tsd, y=n))+
+  geom_bar(stat="identity")+
+  facet_wrap(~species.name, scales="free")+
+  ylab("number of plots with saplings but no adults or seedlings")+
+  xlab("years since fire")
+
+sapling_only %>% 
+  filter(species.name=="lodgepole pine" & tsd >10) %>% 
+  pull(n) %>% 
+  sum()
+
+
+left_join(dist_adulttrees_joined %>% filter(!is.na(Agent)), dist_saplings_joined %>% filter(!is.na(Agent))) %>% 
+  filter(is.na(y))
+
+
+sapling_only_lodgepole<- left_join(dist_saplings_joined %>% filter(!is.na(Agent)), dist_adulttrees_joined %>% filter(!is.na(Agent))) %>% 
+  left_join(dist_seeds_joined %>% filter(!is.na(Agent)) %>% mutate(z="seedling")) %>% 
+  filter(Agent =="fire" & source %in% c("landfire","mtbs")) %>% 
+  filter(is.na(x)&is.na(z)) %>% 
+  filter(!tsd==0) %>% 
+  left_join(species.names, by=c("SPCD"="species.code")) %>% 
+  filter(species.name=="lodgepole pine") %>% 
+  filter(tsd>10)
+
 ```
 
 ##Selecting species for analysis 
@@ -1220,10 +1340,6 @@ sample_seeds_over60 <- sample_seeds %>%
   dplyr::summarise(dist_over60 = n_distinct(Agent), disturbance = list(Agent)) %>% 
   filter(dist_over60 > 1) 
 
-#make a dataframe to translate species codes to names
-species.names <- data.frame(species.code = c(15,17,19,66,73,93,101,106,108,113,122,133,202,242,746,814), species.name = c("white fir","grand fir","subalpine fir","Rocky Mountain juniper","western larch","Engelmann spruce","whitebark pine","two needle pinyon","lodgepole pine","limber pine","ponderosa pine","singleleaf pinyon","Douglas-fir","western redcedar","trembling aspen","Gambel oak"))
-species.names<- species.names %>% 
-  mutate(species.code = as.numeric(species.code))
 
 sample_seeds_over60 %>% 
   left_join(species.names, by=c("SPCD"="species.code")) %>% 
@@ -1647,6 +1763,26 @@ ggplot(pca_pts_by_dist[which(! pca_pts_by_dist$Agent %in% c("other","harvest","w
   geom_boxplot()+
   scale_fill_manual(values=disturbance.colors)+
   theme_bw()
+
+##look at lodgepole sapling plots
+lodgepole_clim<- sapling_only_lodgepole %>% 
+  left_join(clim_pca_points, by=c("PLT_CN"="plot"))
+
+lodgepole_allages<- bind_rows(
+adult_data_pcapts[["108_fire_cvars"]] %>% 
+  dplyr::select(PC1, PC2) %>% 
+  mutate(age="adult"),
+seedling_data_pcapts[["108_fire_cvars"]] %>% 
+  dplyr::select(PC1, PC2) %>% 
+  mutate(age="seedling"),
+lodgepole_clim %>% 
+  dplyr::select(PC1, PC2) %>% 
+  mutate(age="sapling"))
+
+ggplot(lodgepole_allages, aes(x=PC1, y=PC2, col=age))+
+  geom_point(size=3)+
+  scale_color_manual(values=c("black","lightgreen",disturbance.colors[1]))
+
 ```
 
 ##Ellipse models
@@ -1768,7 +1904,7 @@ SEA.B.list <- readRDS("SEA.B.list.2023.rds")
 ```
 
 ####checking normality
-```{r}
+```{r, eval=FALSE}
 ##this takes about 10min
 mvn_test_adult <- data.frame()
 for(i in 1:length(iso_data)){
@@ -2029,7 +2165,7 @@ plot(x=unlist(c(siber.objs[[24]]$original.data %>% filter(group==2) %>% dplyr::s
      y=unlist(c(siber.objs[[24]]$original.data %>% filter(group==2)%>% dplyr::select(iso2))),col=disturbance.colors[1], pch=16, xlab="PC1",ylab="PC2",main="two needle pinyon Fire",cex=1.2)
 ```
 
-```{r}
+```{r, eval=FALSE}
 disturbance.colors_names <- data.frame(fire = disturbance.colors[1], insect.disease = disturbance.colors[2], none = disturbance.colors[3])
 
 siber.objs.names<- data.frame(name = names(siber.objs)) %>% 
@@ -2118,19 +2254,141 @@ addEllipse(siber.objs[[28]]$ML.mu[[1]][ , , 2],
 
 ##
 
-for(i in 1:length(siber.objs)/3){
-  png(file=paste("C:/Users/katie/OneDrive - Colostate/OneDrive/FIA project/FIA_rproject/ellipses/ellipses_2023_",names(siber.objs)[i],".png", sep=""), res=120)
+for(i in seq(1,48,3)){
+  png(file=paste("C:/Users/katie/OneDrive - Colostate/OneDrive/FIA project/FIA_rproject/ellipses/multi ellipses/justellipses_2024_",names(siber.objs)[i],".png", sep=""), res=120)
+plot(x=unlist(c(siber.objs[[i+2]]$original.data %>% filter(group==1) %>% dplyr::select(iso1))),
+     y=unlist(c(siber.objs[[i+2]]$original.data %>% filter(group==1)%>% dplyr::select(iso2))),col="white", xlim=c(min(siber.objs[[i+2]]$original.data %>% filter(group==1) %>% dplyr::select(iso1))-1,max(siber.objs[[i+2]]$original.data %>% filter(group==1) %>% dplyr::select(iso1))+1),ylim=c(min(siber.objs[[i+2]]$original.data %>% filter(group==1)%>% dplyr::select(iso2))-1,max(siber.objs[[i+2]]$original.data %>% filter(group==1)%>% dplyr::select(iso2))+1),pch=16, xlab="PC1",ylab="PC2", mgp=c(2,1,0),main=NA)
+addEllipse(siber.objs[[i+2]]$ML.mu[[1]][ , , 1],
+                     siber.objs[[i+2]]$ML.cov[[1]][ , , 1],
+                     m = NULL,
+                     n = 100,
+                     p.interval = 0.95,
+                     ci.mean = FALSE,
+                     col = disturbance.colors[3],
+                     lty = 1,
+                     lwd = 2)
+addEllipse(siber.objs[[i+1]]$ML.mu[[1]][ , , 1],
+                     siber.objs[[i+1]]$ML.cov[[1]][ , , 1],
+                     m = NULL,
+                     n = 100,
+                     p.interval = 0.95,
+                     ci.mean = FALSE,
+                     col =disturbance.colors[2],
+                     lty = 1,
+                     lwd = 2)
+addEllipse(siber.objs[[i]]$ML.mu[[1]][ , , 1],
+                     siber.objs[[i]]$ML.cov[[1]][ , , 1],
+                     m = NULL,
+                     n = 100,
+                     p.interval = 0.95,
+                     ci.mean = FALSE,
+                     col = disturbance.colors[1],
+                     lty = 1,
+                     lwd = 2)
+addEllipse(siber.objs[[i+2]]$ML.mu[[1]][ , , 2],
+                     siber.objs[[i+2]]$ML.cov[[1]][ , , 2],
+                     m = NULL,
+                     n = 100,
+                     p.interval = 0.95,
+                     ci.mean = FALSE,
+                     col = disturbance.colors[3],
+                     lty = 2,
+                     lwd = 2)
+addEllipse(siber.objs[[i+1]]$ML.mu[[1]][ , , 2],
+                     siber.objs[[i+1]]$ML.cov[[1]][ , , 2],
+                     m = NULL,
+                     n = 100,
+                     p.interval = 0.95,
+                     ci.mean = FALSE,
+                     col =disturbance.colors[2],
+                     lty = 2,
+                     lwd = 2)
+addEllipse(siber.objs[[i]]$ML.mu[[1]][ , , 2],
+                     siber.objs[[i]]$ML.cov[[1]][ , , 2],
+                     m = NULL,
+                     n = 100,
+                     p.interval = 0.95,
+                     ci.mean = FALSE,
+                     col = disturbance.colors[1],
+                     lty = 2,
+                     lwd = 2)
+dev.off()
+}
 
-plot(x=unlist(c(siber.objs[[30]]$original.data %>% filter(group==1) %>% dplyr::select(iso1))),
-     y=unlist(c(siber.objs[[30]]$original.data %>% filter(group==1)%>% dplyr::select(iso2))),col=disturbance.colors[3], xlim=c(-4,6),ylim=c(-4,3),pch=16, xlab="PC1",ylab="PC2", mgp=c(2,1,0),main=NA)
-points(x=unlist(c(siber.objs[[29]]$original.data %>% filter(group==1) %>% dplyr::select(iso1))),
-     y=unlist(c(siber.objs[[29]]$original.data %>% filter(group==1)%>% dplyr::select(iso2))),col=disturbance.colors[2], xlim=c(-4,6),ylim=c(-4,3),pch=16, xlab="PC1",ylab="PC2", mgp=c(2,1,0),main=NA)
-points(x=unlist(c(siber.objs[[28]]$original.data %>% filter(group==1) %>% dplyr::select(iso1))),
-     y=unlist(c(siber.objs[[28]]$original.data %>% filter(group==1)%>% dplyr::select(iso2))),col=disturbance.colors[1], xlim=c(-4,6),ylim=c(-4,3),pch=16, xlab="PC1",ylab="PC2", mgp=c(2,1,0),main=NA)}
+species.names.48<- data.frame(string = names(siber.objs)) %>% 
+  mutate(species.code=str_extract(string, "[^_]+")) %>% 
+  left_join(species.names)
+
+
+par(mar=c(3,3,3,3))
+par(mfrow=c(5,3))
+for(i in c(seq(1,31,3),seq(37,48,3))){
+plot(x=unlist(c(siber.objs[[i+2]]$original.data %>% filter(group==1) %>% dplyr::select(iso1))),
+     y=unlist(c(siber.objs[[i+2]]$original.data %>% filter(group==1)%>% dplyr::select(iso2))),col="white", xlim=c(min(siber.objs[[i+2]]$original.data %>% filter(group==1) %>% dplyr::select(iso1))-1,max(siber.objs[[i+2]]$original.data %>% filter(group==1) %>% dplyr::select(iso1))+1),ylim=c(min(siber.objs[[i+2]]$original.data %>% filter(group==1)%>% dplyr::select(iso2))-1,max(siber.objs[[i+2]]$original.data %>% filter(group==1)%>% dplyr::select(iso2))+1),pch=16, xlab="PC1",ylab="PC2", mgp=c(2,1,0),main=species.names.48$species.name[[i]])
+addEllipse(siber.objs[[i+2]]$ML.mu[[1]][ , , 1],
+                     siber.objs[[i+2]]$ML.cov[[1]][ , , 1],
+                     m = NULL,
+                     n = 100,
+                     p.interval = 0.95,
+                     ci.mean = FALSE,
+                     col = disturbance.colors[3],
+                     lty = 1,
+                     lwd = 2)
+addEllipse(siber.objs[[i+1]]$ML.mu[[1]][ , , 1],
+                     siber.objs[[i+1]]$ML.cov[[1]][ , , 1],
+                     m = NULL,
+                     n = 100,
+                     p.interval = 0.95,
+                     ci.mean = FALSE,
+                     col =disturbance.colors[2],
+                     lty = 1,
+                     lwd = 2)
+addEllipse(siber.objs[[i]]$ML.mu[[1]][ , , 1],
+                     siber.objs[[i]]$ML.cov[[1]][ , , 1],
+                     m = NULL,
+                     n = 100,
+                     p.interval = 0.95,
+                     ci.mean = FALSE,
+                     col = disturbance.colors[1],
+                     lty = 1,
+                     lwd = 2)
+addEllipse(siber.objs[[i+2]]$ML.mu[[1]][ , , 2],
+                     siber.objs[[i+2]]$ML.cov[[1]][ , , 2],
+                     m = NULL,
+                     n = 100,
+                     p.interval = 0.95,
+                     ci.mean = FALSE,
+                     col = disturbance.colors[3],
+                     lty = 2,
+                     lwd = 2)
+addEllipse(siber.objs[[i+1]]$ML.mu[[1]][ , , 2],
+                     siber.objs[[i+1]]$ML.cov[[1]][ , , 2],
+                     m = NULL,
+                     n = 100,
+                     p.interval = 0.95,
+                     ci.mean = FALSE,
+                     col =disturbance.colors[2],
+                     lty = 2,
+                     lwd = 2)
+addEllipse(siber.objs[[i]]$ML.mu[[1]][ , , 2],
+                     siber.objs[[i]]$ML.cov[[1]][ , , 2],
+                     m = NULL,
+                     n = 100,
+                     p.interval = 0.95,
+                     ci.mean = FALSE,
+                     col = disturbance.colors[1],
+                     lty = 2,
+                     lwd = 2)
+}
+
+par(mfrow=c(1,1))
+plot.new()
+legend("bottomleft", c("Seedling-fire","Seedling-insect.disease","Seedling-none"), col = c(disturbance.colors), lty=2, lwd=2)
+legend("bottomright", c("Adult-fire","Adult-insect.disease","Adult-none"), col = disturbance.colors, lty=1, lwd=2)
 
 ```
 
-```{r}
+```{r, eval=FALSE}
 #making legend for figure
 plot(x=unlist(c(siber.objs[[22]]$original.data %>% filter(group==1) %>% dplyr::select(iso1))),
      y=unlist(c(siber.objs[[22]]$original.data %>% filter(group==1)%>% dplyr::select(iso2))),col="black", xlim=c(-4,6),ylim=c(-4,3),pch=16, xlab="PC1",ylab="PC2", mgp=c(2,1,0),main=NA)
@@ -2158,7 +2416,7 @@ dev.off()
 #E6C3BC
 ```
 
-```{r}
+```{r, eval=FALSE}
 
 siber.objs.names<- data.frame(name = names(siber.objs)) %>% 
   mutate(species = substr(name,0,3), dist =  str_extract(name,"_.+_")) %>% 
@@ -2726,6 +2984,64 @@ ggplot(pc1_df_rel, aes(x=factor(number,levels=pc1means.table %>% arrange(pc1spec
   ggtitle("PC1")+
   theme_bw()+
   theme(axis.text.x = element_text(angle=60, hjust=1,size=9, color="black"),axis.title.x = element_text(size=12, color="black"),axis.text.y = element_text(size=10, colour = "black"),axis.title.y = element_text(size=12, color="black"), strip.text = element_text(size = 12), title=element_text(size=14), legend.position = "right", legend.text = element_text(size=14), legend.title = element_text(size=16))
+```
+
+```{r}
+####just compare adult centroids between disturbances
+
+mu1_adult<- matrix(nrow=length(ellipses.posterior.list),ncol=4)
+mu2_adult<- matrix(nrow=length(ellipses.posterior.list),ncol=4)
+for(i in 1:length(ellipses.posterior.list)){
+mu1sum<- c(names(ellipses.posterior.list)[i],mean(ellipses.posterior.list[[i]]$`1.1`[,'mu[1]']),quantile(ellipses.posterior.list[[i]]$`1.1`[,'mu[1]'], c(.025,.975)))
+mu1_adult[i,]<- mu1sum
+mu2sum<- c(names(ellipses.posterior.list)[i],mean(ellipses.posterior.list[[i]]$`1.1`[,'mu[2]']),quantile(ellipses.posterior.list[[i]]$`1.1`[,'mu[2]'], c(.025,.975)))
+mu2_adult[i,]<- mu2sum
+}
+
+
+mu1_adult_df<-  as.data.frame(mu1_adult) %>% dplyr::rename(group=V1, mean_mu1=V2, lwr_mu1 = V3, upr_mu1 = V4) %>% mutate(mean_mu1=as.numeric(mean_mu1),lwr_mu1=as.numeric(lwr_mu1),upr_mu1=as.numeric(upr_mu1)) %>%
+  mutate(species= substr(group, 0,3),
+         dist =  str_extract(group,"_.+_")) %>%
+  mutate(dist= gsub("_","",dist),
+         species = as.character(gsub("_","",species))) %>%
+  left_join(species.names,by=c("species"="species.code")) %>%
+    left_join(pc1means.table)%>%
+    filter(!species.name == "singleleaf pinyon") 
+
+
+mu2_adult_df<-  as.data.frame(mu2_adult) %>% dplyr::rename(group=V1, mean_mu2=V2, lwr_mu2 = V3, upr_mu2 = V4) %>% mutate(mean_mu2=as.numeric(mean_mu2),lwr_mu2=as.numeric(lwr_mu2),upr_mu2=as.numeric(upr_mu2)) %>%
+  mutate(species= substr(group, 0,3),
+         dist =  str_extract(group,"_.+_")) %>%
+  mutate(dist= gsub("_","",dist),
+         species = as.character(gsub("_","",species))) %>%
+  left_join(species.names,by=c("species"="species.code")) %>%
+    left_join(pc1means.table)%>%
+    filter(!species.name == "singleleaf pinyon") 
+
+ggplot(left_join(mu1_adult_df,mu2_adult_df), aes(x=mean_mu1, y=mean_mu2, col=factor(species.name, levels=pc1means.table$species.name), shape=dist))+
+  geom_point(size=3)+
+  geom_errorbar(aes(xmin=lwr_mu1, xmax=upr_mu1))+
+    geom_errorbar(aes(ymin=lwr_mu2, ymax=upr_mu2))+
+  scale_color_manual(values=spp.colors$color, name="Species")
+
+ggplot(left_join(mu1_adult_df,mu2_adult_df), aes(x=mean_mu1, y=factor(species.name, levels=pc1means.table$species.name), col=factor(species.name, levels=pc1means.table$species.name), shape=dist))+
+  geom_point(size=3,position = position_dodge(width=1))+
+  geom_errorbar(aes(xmin=lwr_mu1, xmax=upr_mu1),position = position_dodge(width=1))+
+  scale_color_manual(values=spp.colors$color, name="Species")
+
+
+
+###try with raw data
+library(vegan)
+whitefirdata<- bind_rows(data.frame(group=c(names(adult_data_pcapts)[1]), PC1=adult_data_pcapts[[1]]$PC1, PC2 = adult_data_pcapts[[1]]$PC2),
+data.frame(group=c(names(adult_data_pcapts)[2]), PC1=adult_data_pcapts[[2]]$PC1, PC2 = adult_data_pcapts[[2]]$PC2),
+data.frame(group=c(names(adult_data_pcapts)[3]), PC1=adult_data_pcapts[[3]]$PC1, PC2 = adult_data_pcapts[[3]]$PC2)) %>% 
+  separate(group, c("species.code","dist","extra"), "_") %>% 
+  left_join(species.names)
+
+whitefir_pconly<- whitefirdata %>% dplyr::select(c(PC1,PC2))
+
+whitefir_bcd<- vegdist(whitefir_pconly)
 ```
 
 ###Shift types
@@ -4813,7 +5129,7 @@ for(i in 1:length(posteriorlistcut[grepl("fire", names(posteriorlistcut))])
       
 xrange = max(c(posteriorlistcut[grepl("fire", names(posteriorlistcut))][[i]][[1]][,k],posteriorlistcut[grepl("fire", names(posteriorlistcut))][[i]][[2]][,k])) - min(c(posteriorlistcut[grepl("fire", names(posteriorlistcut))][[i]][[1]][,k],posteriorlistcut[grepl("fire", names(posteriorlistcut))][[i]][[2]][,k]))
 
-png(filename = paste("histograms/2023/",paste((names_df %>% filter(disturbance=="fire") %>% pull(plotnames))[i],"hist","2023",pc_names[7-k],".png",sep="_"),sep=""), res=100)
+png(filename = paste("histograms/2024/",paste((names_df %>% filter(disturbance=="fire") %>% pull(plotnames))[i],"hist","2024",pc_names[7-k],".png",sep="_"),sep=""), res=100)
 
 hist(posteriorlistcut[grepl("fire", names(posteriorlistcut))][[i]][[1]][,k],
      breaks = 50,
@@ -4826,7 +5142,12 @@ hist(posteriorlistcut[grepl("fire", names(posteriorlistcut))][[i]][[2]][,k],
      col=alpha("#bb5f4c",0.5), freq=F,add=T)
 
 abline(v=mean(posteriorlistcut[grepl("fire", names(posteriorlistcut))][[i]][[1]][,k]), col="black", lwd=3)
+abline(v=quantile(posteriorlistcut[grepl("fire", names(posteriorlistcut))][[i]][[1]][,k],c(.025,.975))[[1]], col="black", lwd=3, lty=2)
+abline(v=quantile(posteriorlistcut[grepl("fire", names(posteriorlistcut))][[i]][[1]][,k],c(.025,.975))[[2]], col="black", lwd=3, lty=2)
 abline(v=mean(posteriorlistcut[grepl("fire", names(posteriorlistcut))][[i]][[2]][,k]), col="#bb5f4c", lwd=3)
+abline(v=quantile(posteriorlistcut[grepl("fire", names(posteriorlistcut))][[i]][[2]][,k],c(.025,.975))[[1]], col="#bb5f4c", lwd=3,lty=2)
+abline(v=quantile(posteriorlistcut[grepl("fire", names(posteriorlistcut))][[i]][[2]][,k],c(.025,.975))[[2]], col="#bb5f4c", lwd=3,lty=2)
+
 
 legend("topright", c("Seedling", "Adult"), col = c("#bb5f4c","black"), lwd=3)
 
